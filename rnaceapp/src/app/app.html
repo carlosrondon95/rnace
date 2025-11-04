@@ -1,0 +1,15 @@
+<header class="flex items-center justify-between p-4 border-b">
+  <h1 class="text-xl font-semibold">rnaceapp</h1>
+  <nav class="flex gap-3">
+    <a routerLink="/" routerLinkActive="font-medium underline">Inicio</a>
+    <a routerLink="/settings" routerLinkActive="font-medium underline">Ajustes</a>
+  </nav>
+</header>
+
+<main class="p-6">
+  <router-outlet></router-outlet>
+</main>
+
+<footer class="p-4 border-t text-sm text-gray-500">
+  © {{ new Date().getFullYear() }} RNACE
+</footer>
