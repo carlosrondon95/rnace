@@ -12,13 +12,13 @@ import { Component, signal } from '@angular/core';
         <input type="checkbox" [checked]="compact()" (change)="toggle()" />
       </label>
 
-      <p class="text-sm text-gray-600">
-        (Ejemplo con <code>signals</code> para estado local.)
-      </p>
+      <p class="text-sm text-gray-600">(Ejemplo con <code>signals</code> para estado local.)</p>
     </section>
-  `
+  `,
 })
 export class Settings {
   compact = signal(false);
-  toggle() { this.compact.update(v => !v); }
+  toggle() {
+    this.compact.update((v) => !v);
+  }
 }

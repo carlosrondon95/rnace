@@ -18,16 +18,24 @@ import { Component } from '@angular/core';
         </ul>
       </div>
 
-      <a routerLink="/settings"
-         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border hover:opacity-90">
+      <a
+        routerLink="/settings"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border hover:opacity-90"
+      >
         Ir a Ajustes
       </a>
     </section>
   `,
-  styles: [`
-    /* ejemplo de uso del color de marca via token */
-    .text-brand-500 { color: var(--color-brand-500); }
-    a { transition: opacity .15s ease; }
-  `]
+  styles: [
+    `
+      /* ejemplo de uso del color de marca via token */
+      .text-brand-500 {
+        color: var(--color-brand-500);
+      }
+      a {
+        transition: opacity 0.15s ease;
+      }
+    `,
+  ],
 })
 export class Home {}
