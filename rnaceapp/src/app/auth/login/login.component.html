@@ -1,0 +1,53 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="logo-circle">RN</div>
+      <h1>Inicia sesión</h1>
+      <p class="subtitle">Accede con los datos que te ha enviado tu centro.</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form">
+      <div class="form-group" [class.has-error]="showFieldError('identifier')">
+        <label for="identifier">Correo o teléfono</label>
+        <input
+          id="identifier"
+          type="text"
+          formControlName="identifier"
+          autocomplete="username"
+          placeholder="tuemail@dominio.com o +34..."
+        />
+        <div class="field-error" *ngIf="showFieldError('identifier')">
+          Introduce tu correo o teléfono.
+        </div>
+      </div>
+
+      <div class="form-group" [class.has-error]="showFieldError('password')">
+        <label for="password">Contraseña</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+        />
+        <div class="field-error" *ngIf="showFieldError('password')">
+          Introduce tu contraseña (mínimo 6 caracteres).
+        </div>
+      </div>
+
+      <div class="error-box" *ngIf="errorMsg() as err">
+        {{ err }}
+      </div>
+
+      <button type="submit" class="btn-primary" [disabled]="loading()">
+        <span *ngIf="!loading()">Entrar</span>
+        <span *ngIf="loading()">Entrando...</span>
+      </button>
+
+      <p class="info-hint">
+        El acceso es sólo para usuarios invitados. Si no tienes usuario, contacta
+        con tu centro.
+      </p>
+    </form>
+  </div>
+</div>
