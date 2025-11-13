@@ -1,0 +1,60 @@
+<!-- Overlay de "inicio de sesión exitoso" -->
+<div class="login-splash" *ngIf="showLoginSplash()">
+  <div class="splash-card">
+    <div class="splash-logo">
+      <img src="assets/img/logo.png" alt="RNACE" />
+    </div>
+    <p class="splash-text">Inicio de sesión exitoso</p>
+    <div class="splash-spinner"></div>
+  </div>
+</div>
+
+<!-- Barra de navegación superior (no existe en login, solo aquí) -->
+<header class="top-nav">
+  <div class="nav-left">
+    <div class="nav-logo">RNACE</div>
+    <span class="nav-tagline">Gestión de citas</span>
+  </div>
+
+  <nav class="nav-actions">
+    <button class="nav-btn" (click)="onReservaCita()">
+      <span class="material-symbols-rounded nav-icon">event_available</span>
+      <span>Reserva tu cita</span>
+    </button>
+    <button class="nav-btn" (click)="onVerCalendario()">
+      <span class="material-symbols-rounded nav-icon">calendar_month</span>
+      <span>Ver calendario</span>
+    </button>
+    <button class="nav-btn" (click)="onPerfil()">
+      <span class="material-symbols-rounded nav-icon">account_circle</span>
+      <span>Perfil</span>
+    </button>
+  </nav>
+</header>
+
+<!-- Contenido principal del dashboard -->
+<main class="dashboard-page">
+  <section class="dashboard-card">
+    <h1>¡Bienvenid@ a RNACE!</h1>
+    <p class="lead">
+      ¿Qué quieres hacer hoy?
+    </p>
+
+    <div class="dashboard-actions">
+      <button class="btn-primary btn-with-icon" (click)="onReservaCita()">
+        <span class="material-symbols-rounded btn-icon">event_available</span>
+        <span class="btn-label">Reserva tu cita</span>
+      </button>
+
+      <button class="btn-primary btn-with-icon" (click)="onVerCalendario()">
+        <span class="material-symbols-rounded btn-icon">calendar_month</span>
+        <span class="btn-label">Ver calendario</span>
+      </button>
+
+      <button class="btn-primary btn-with-icon" (click)="onPerfil()">
+        <span class="material-symbols-rounded btn-icon">account_circle</span>
+        <span class="btn-label">Ver mi perfil</span>
+      </button>
+    </div>
+  </section>
+</main>

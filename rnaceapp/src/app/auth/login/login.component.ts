@@ -42,13 +42,12 @@ export class LoginComponent {
       const client = supabase();
 
       const { data, error } = await client.auth.signInWithPassword(
-        isEmail
-          ? { email: identifier, password }
-          : { phone: identifier, password },
+        isEmail ? { email: identifier, password } : { phone: identifier, password },
       );
 
       if (error) {
-        this.errorMsg.set('Credenciales no válidas.');
+        console.error('[Supabase auth error]', error);
+        this.errorMsg.set(error.message || 'Credenciales no válidas.');
         return;
       }
 
