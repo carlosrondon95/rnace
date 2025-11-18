@@ -1,6 +1,7 @@
 // src/app/dashboard/dashboard.component.ts
 import { CommonModule } from '@angular/common';
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { supabase } from '../core/supabase.client';
 
 type UserRole = 'cliente' | 'profesor' | 'admin';
@@ -13,6 +14,8 @@ type UserRole = 'cliente' | 'profesor' | 'admin';
   styleUrls: ['./dashboard.component.scss'],
 })
 export class DashboardComponent {
+  private router = inject(Router);
+
   // Splash de éxito al entrar (logo + cargando 2s)
   showLoginSplash = signal(true);
 
@@ -83,8 +86,10 @@ export class DashboardComponent {
 
   // ====== Handlers comunes ======
 
+  // Cliente / Profesor → “Mis citas / Reservar cita”
   onReservaCita() {
-    console.log('Reserva/Mis citas (pendiente de implementar navegación)');
+    // De momento navegación simple; la lógica de reserva vendrá después
+    this.router.navigateByUrl('/reservar-cita');
   }
 
   onVerCalendario() {
@@ -115,3 +120,4 @@ export class DashboardComponent {
     );
   }
 }
+  
