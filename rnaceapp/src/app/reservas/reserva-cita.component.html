@@ -1,0 +1,82 @@
+<main class="reserva-page">
+  <section class="reserva-card">
+    <header class="reserva-header">
+      <h1>Reservar cita</h1>
+      <p class="lead">
+        Elige el tipo de grupo y la franja horaria que mejor se adapte a ti.
+      </p>
+    </header>
+
+    <!-- Selector de modalidad -->
+    <div class="mode-toggle">
+      <button
+        type="button"
+        class="mode-btn"
+        [class.mode-btn--active]="modalidad === 'focus'"
+        (click)="selectModalidad('focus')"
+      >
+        Grupo Focus
+        <span class="mode-subtitle">Máx. 3 personas por turno</span>
+      </button>
+
+      <button
+        type="button"
+        class="mode-btn"
+        [class.mode-btn--active]="modalidad === 'reducido'"
+        (click)="selectModalidad('reducido')"
+      >
+        Grupo Reducido
+        <span class="mode-subtitle">Máx. 8 personas por turno</span>
+      </button>
+    </div>
+
+    <p class="legend">
+      Los horarios disponibles dependen del tipo de grupo. Más adelante
+      conectaremos esta pantalla con el calendario real de sesiones.
+    </p>
+
+    <!-- Grid de horarios -->
+    <div class="schedule-grid">
+      <div class="day-card" *ngFor="let day of currentSchedule">
+        <div class="day-header">{{ day.label }}</div>
+        <div class="slots">
+          <button
+            type="button"
+            class="slot-btn"
+            *ngFor="let hour of day.slots"
+            [class.slot-btn--selected]="isSelected(day, hour)"
+            (click)="selectSlot(day, hour)"
+          >
+            {{ hour }}h
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen y botón confirmar -->
+    <div class="confirm-row">
+      <div class="selection-summary">
+        <ng-container *ngIf="selectedLabel as label; else noSelection">
+          Has seleccionado:
+          <strong>
+            {{ modalidad === 'focus' ? 'Grupo Focus' : 'Grupo Reducido' }}
+            · {{ label }}
+          </strong>
+        </ng-container>
+
+        <ng-template #noSelection>
+          Elige un día y una hora para poder confirmar tu cita.
+        </ng-template>
+      </div>
+
+      <button
+        type="button"
+        class="btn-confirm"
+        [disabled]="!hasSelection"
+        (click)="onConfirmar()"
+      >
+        Confirmar cita
+      </button>
+    </div>
+  </section>
+</main>
