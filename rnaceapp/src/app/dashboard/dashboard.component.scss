@@ -93,8 +93,8 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
   top: 0;
   left: 0;
   right: 0;
-  height: 60px;
-  padding: 0 1.5rem;
+  min-height: 60px;
+  padding: 0.6rem 1.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -127,6 +127,7 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .nav-btn {
@@ -184,7 +185,7 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(232, 233, 227, 0.25); 
+  background: $color-secondary;
   border: 1px solid rgba(0, 0, 0, 0.3);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
 
@@ -219,16 +220,30 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
 
 // ====== RESPONSIVE ======
 @media (max-width: 768px) {
+  .top-nav {
+    padding: 0.5rem 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .nav-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .nav-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
   .dashboard-page {
-    padding-top: 4.5rem;
+    padding-top: 6rem;
+    padding-inline: 1rem;
   }
 
   .dashboard-card {
     padding: 1.8rem 1.5rem;
-  }
-
-  .nav-actions {
-    display: none;
   }
 
   .dashboard-actions {
