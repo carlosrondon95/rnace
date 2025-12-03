@@ -1,0 +1,186 @@
+<main class="reserva-page">
+  <!-- Botón volver -->
+  <button class="btn-volver" (click)="volver()">
+    <span class="material-symbols-rounded">arrow_back</span>
+    Volver
+  </button>
+
+  <section class="reserva-card">
+    <!-- Loading -->
+    <div class="loading-state" *ngIf="cargando()">
+      <div class="spinner"></div>
+      <p>Cargando disponibilidad...</p>
+    </div>
+
+    <!-- Error general (mes cerrado, etc.) -->
+    <div class="error-state" *ngIf="!cargando() && error() && !mesAbierto()">
+      <span class="material-symbols-rounded error-icon">event_busy</span>
+      <h2>Mes no disponible</h2>
+      <p>{{ error() }}</p>
+      <button class="btn-primary" (click)="volver()">Volver al inicio</button>
+    </div>
+
+    <!-- Contenido principal -->
+    <ng-container *ngIf="!cargando() && mesAbierto()">
+      <header class="reserva-header">
+        <h1>Reservar cita</h1>
+        <p class="lead">{{ nombreMes() | titlecase }}</p>
+      </header>
+
+      <!-- Info de cupos -->
+      <div class="cupos-info" *ngIf="cupos() as c">
+        <div class="cupo-card">
+          <span class="cupo-label">Clases {{ modalidad() === 'focus' ? 'Focus' : 'Reducido' }}</span>
+          <span class="cupo-value">
+            {{ cuposDisponibles().usadas }} / {{ cuposDisponibles().total }}
+          </span>
+          <span class="cupo-detail">usadas este mes</span>
+        </div>
+        <div class="cupo-card" *ngIf="cuposDisponibles().tieneRecuperacion">
+          <span class="cupo-label">Recuperación</span>
+          <span class="cupo-value cupo-recuperacion">1</span>
+          <span class="cupo-detail">disponible</span>
+        </div>
+      </div>
+
+      <!-- Selector de modalidad -->
+      <div class="mode-toggle">
+        <button
+          type="button"
+          class="mode-btn"
+          [class.mode-btn--active]="modalidad() === 'focus'"
+          (click)="selectModalidad('focus')"
+        >
+          Grupo Focus
+          <span class="mode-subtitle">Máx. 3 personas por turno</span>
+        </button>
+
+        <button
+          type="button"
+          class="mode-btn"
+          [class.mode-btn--active]="modalidad() === 'reducido'"
+          (click)="selectModalidad('reducido')"
+        >
+          Grupo Reducido
+          <span class="mode-subtitle">Máx. 8 personas por turno</span>
+        </button>
+      </div>
+
+      <!-- Aviso sin cupo -->
+      <div class="aviso-cupo" *ngIf="!puedeReservar()">
+        <span class="material-symbols-rounded">info</span>
+        <span>Has alcanzado tu límite de clases {{ modalidad() === 'focus' ? 'Focus' : 'Reducido' }} este mes.</span>
+      </div>
+
+      <!-- Grid de sesiones por día -->
+      <div class="schedule-grid" *ngIf="diasAgrupados().length > 0; else noSesiones">
+        <div class="day-card" *ngFor="let dia of diasAgrupados()">
+          <div class="day-header">
+            <span class="day-name">{{ dia.diaNombre }}</span>
+            <span class="day-date">{{ dia.fechaFormateada }}</span>
+          </div>
+          <div class="slots">
+            <button
+              type="button"
+              class="slot-btn"
+              *ngFor="let sesion of dia.sesiones"
+              [class]="getEstadoClase(sesion)"
+              [disabled]="sesion.estado !== 'disponible'"
+              (click)="selectSesion(sesion)"
+            >
+              <span class="slot-hora">{{ sesion.hora }}</span>
+              <span class="slot-plazas">{{ getEstadoTexto(sesion) }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #noSesiones>
+        <div class="no-sesiones">
+          <span class="material-symbols-rounded">event_busy</span>
+          <p>No hay sesiones disponibles de {{ modalidad() === 'focus' ? 'Focus' : 'Reducido' }} este mes.</p>
+        </div>
+      </ng-template>
+
+      <!-- Mensajes -->
+      <div class="mensaje-exito" *ngIf="mensajeExito() as msg">
+        <span class="material-symbols-rounded">check_circle</span>
+        {{ msg }}
+      </div>
+
+      <div class="mensaje-error" *ngIf="error() && mesAbierto()">
+        <span class="material-symbols-rounded">error</span>
+        {{ error() }}
+      </div>
+
+      <!-- Panel de confirmación -->
+      <div class="confirm-panel" *ngIf="sesionSeleccionada() as sesion">
+        <div class="confirm-info">
+          <p class="confirm-title">Has seleccionado:</p>
+          <p class="confirm-detail">
+            <strong>{{ modalidad() === 'focus' ? 'Grupo Focus' : 'Grupo Reducido' }}</strong>
+            · {{ obtenerNombreDia(sesion.dia_semana) }} {{ formatearFecha(sesion.fecha) }} a las {{ sesion.hora }}
+          </p>
+          
+          <!-- Opción de usar recuperación -->
+          <label class="recuperacion-check" *ngIf="cuposDisponibles().tieneRecuperacion && cuposDisponibles().disponibles === 0">
+            <input type="checkbox" [checked]="usarRecuperacion()" (change)="toggleRecuperacion()">
+            <span>Usar mi clase de recuperación</span>
+          </label>
+        </div>
+
+        <div class="confirm-actions">
+          <!-- Si hay plazas y tiene cupo -->
+          <button
+            type="button"
+            class="btn-confirm"
+            *ngIf="sesion.estado === 'disponible' && (cuposDisponibles().disponibles > 0 || usarRecuperacion())"
+            [disabled]="guardando()"
+            (click)="onConfirmar()"
+          >
+            <span *ngIf="!guardando()">Confirmar reserva</span>
+            <span *ngIf="guardando()">Reservando...</span>
+          </button>
+
+          <!-- Si no tiene cupo pero puede usar recuperación -->
+          <button
+            type="button"
+            class="btn-confirm btn-secondary"
+            *ngIf="sesion.estado === 'disponible' && cuposDisponibles().disponibles === 0 && !usarRecuperacion() && cuposDisponibles().tieneRecuperacion"
+            disabled
+          >
+            Selecciona usar recuperación
+          </button>
+
+          <!-- Si está completa, ofrecer lista de espera -->
+          <button
+            type="button"
+            class="btn-lista-espera"
+            *ngIf="sesion.estado === 'completa'"
+            [disabled]="guardando()"
+            (click)="onListaEspera()"
+          >
+            <span *ngIf="!guardando()">Añadirme a lista de espera</span>
+            <span *ngIf="guardando()">Procesando...</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Leyenda -->
+      <div class="leyenda">
+        <div class="leyenda-item">
+          <span class="leyenda-color leyenda-disponible"></span>
+          <span>Disponible</span>
+        </div>
+        <div class="leyenda-item">
+          <span class="leyenda-color leyenda-completa"></span>
+          <span>Completa</span>
+        </div>
+        <div class="leyenda-item">
+          <span class="leyenda-color leyenda-seleccionada"></span>
+          <span>Seleccionada</span>
+        </div>
+      </div>
+    </ng-container>
+  </section>
+</main>
