@@ -57,7 +57,7 @@ export class GestionarPerfilesComponent implements OnInit {
   error = signal<string | null>(null);
   perfiles = signal<Perfil[]>([]);
   busqueda = signal('');
-
+  
   // Modal nuevo usuario
   mostrarModal = signal(false);
   guardando = signal(false);
@@ -81,14 +81,13 @@ export class GestionarPerfilesComponent implements OnInit {
   perfilesFiltrados = computed(() => {
     const busq = this.busqueda().toLowerCase().trim();
     const lista = this.perfiles();
-
+    
     if (!busq) return lista;
-
-    return lista.filter(
-      (p) =>
-        p.nombre?.toLowerCase().includes(busq) ||
-        p.telefono?.includes(busq) ||
-        p.rol?.toLowerCase().includes(busq),
+    
+    return lista.filter(p => 
+      p.nombre?.toLowerCase().includes(busq) ||
+      p.telefono?.includes(busq) ||
+      p.rol?.toLowerCase().includes(busq)
     );
   });
 
@@ -121,47 +120,54 @@ export class GestionarPerfilesComponent implements OnInit {
     try {
       const client = supabase();
 
-      // Cargar perfiles con sus planes
-      const { data, error } = await client
+      // Query 1: Cargar perfiles
+      const { data: perfilesData, error: perfilesError } = await client
         .from('perfiles')
-        .select(
-          `
-          id,
-          nombre,
-          telefono,
-          rol,
-          creado_en,
-          plan_usuario (
-            tipo_grupo,
-            clases_focus_semana,
-            clases_reducido_semana,
-            tipo_cuota,
-            activo
-          )
-        `,
-        )
+        .select('id, nombre, telefono, rol, creado_en')
         .order('creado_en', { ascending: false });
 
-      if (error) {
-        console.error('Error cargando perfiles:', error);
+      if (perfilesError) {
+        console.error('Error cargando perfiles:', perfilesError);
         this.error.set('Error al cargar los perfiles.');
         return;
       }
 
-      // Mapear datos con tipado correcto
-      const perfilesData: Perfil[] = ((data as PerfilDB[]) || []).map((p) => ({
+      // Query 2: Cargar todos los planes
+      const { data: planesData, error: planesError } = await client
+        .from('plan_usuario')
+        .select('usuario_id, tipo_grupo, clases_focus_semana, clases_reducido_semana, tipo_cuota, activo');
+
+      if (planesError) {
+        console.error('Error cargando planes:', planesError);
+        // No es crítico, seguimos sin planes
+      }
+
+      // Crear mapa de planes por usuario_id
+      const planesMap = new Map<string, PerfilPlan>();
+      if (planesData) {
+        for (const plan of planesData) {
+          planesMap.set(plan.usuario_id, {
+            tipo_grupo: plan.tipo_grupo,
+            clases_focus_semana: plan.clases_focus_semana,
+            clases_reducido_semana: plan.clases_reducido_semana,
+            tipo_cuota: plan.tipo_cuota,
+            activo: plan.activo,
+          });
+        }
+      }
+
+      // Combinar perfiles con sus planes
+      const perfiles: Perfil[] = (perfilesData || []).map((p) => ({
         id: p.id,
         nombre: p.nombre || '',
         telefono: p.telefono || '',
         rol: p.rol,
         creado_en: p.creado_en,
-        plan:
-          Array.isArray(p.plan_usuario) && p.plan_usuario.length > 0
-            ? p.plan_usuario[0]
-            : undefined,
+        plan: planesMap.get(p.id),
       }));
 
-      this.perfiles.set(perfilesData);
+      this.perfiles.set(perfiles);
+
     } catch (err) {
       console.error('Error:', err);
       this.error.set('Error inesperado al cargar perfiles.');
@@ -199,7 +205,7 @@ export class GestionarPerfilesComponent implements OnInit {
     for (let i = 0; i < 8; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    this.nuevoUsuario.update((u) => ({ ...u, password }));
+    this.nuevoUsuario.update(u => ({ ...u, password }));
     this.passwordCopiada.set(false);
   }
 
@@ -211,7 +217,7 @@ export class GestionarPerfilesComponent implements OnInit {
     try {
       await navigator.clipboard.writeText(pass);
       this.passwordCopiada.set(true);
-
+      
       // Reset después de 2 segundos
       setTimeout(() => this.passwordCopiada.set(false), 2000);
     } catch (err) {
@@ -221,17 +227,17 @@ export class GestionarPerfilesComponent implements OnInit {
 
   // Actualizar campo del formulario
   actualizarCampo(campo: keyof NuevoUsuario, valor: string | number) {
-    this.nuevoUsuario.update((u) => ({ ...u, [campo]: valor }));
-
+    this.nuevoUsuario.update(u => ({ ...u, [campo]: valor }));
+    
     // Ajustar clases según tipo de grupo
     if (campo === 'tipoGrupo') {
       const tipo = valor as NuevoUsuario['tipoGrupo'];
       if (tipo === 'focus') {
-        this.nuevoUsuario.update((u) => ({ ...u, clasesFocus: 2, clasesReducido: 0 }));
+        this.nuevoUsuario.update(u => ({ ...u, clasesFocus: 2, clasesReducido: 0 }));
       } else if (tipo === 'reducido') {
-        this.nuevoUsuario.update((u) => ({ ...u, clasesFocus: 0, clasesReducido: 2 }));
+        this.nuevoUsuario.update(u => ({ ...u, clasesFocus: 0, clasesReducido: 2 }));
       } else if (tipo === 'hibrido') {
-        this.nuevoUsuario.update((u) => ({ ...u, clasesFocus: 1, clasesReducido: 1 }));
+        this.nuevoUsuario.update(u => ({ ...u, clasesFocus: 1, clasesReducido: 1 }));
       }
     }
   }
@@ -284,7 +290,24 @@ export class GestionarPerfilesComponent implements OnInit {
 
       if (error) {
         console.error('Error creando usuario:', error);
-        this.errorModal.set(error.message || 'Error al crear el usuario.');
+        // Intentar obtener más detalles del error
+        let mensajeError = 'Error al crear el usuario.';
+        if (error.message) {
+          mensajeError = error.message;
+        }
+        // Si el error tiene context con body, extraerlo
+        const errorAny = error as { context?: { body?: string } };
+        if (errorAny.context?.body) {
+          try {
+            const body = JSON.parse(errorAny.context.body);
+            if (body.error) {
+              mensajeError = body.error;
+            }
+          } catch {
+            // Ignorar error de parsing
+          }
+        }
+        this.errorModal.set(mensajeError);
         return;
       }
 
@@ -296,9 +319,10 @@ export class GestionarPerfilesComponent implements OnInit {
       }
 
       this.exitoModal.set(`Usuario creado correctamente. Teléfono: ${telefonoLimpio}`);
-
+      
       // Recargar lista
       await this.cargarPerfiles();
+
     } catch (err) {
       console.error('Error:', err);
       this.errorModal.set('Error inesperado al crear el usuario.');
@@ -320,7 +344,7 @@ export class GestionarPerfilesComponent implements OnInit {
   // Obtener etiqueta del grupo
   obtenerEtiquetaGrupo(plan: PerfilPlan | undefined): string {
     if (!plan) return 'Sin plan';
-
+    
     const tipo = plan.tipo_grupo || 'sin_plan';
     const focus = plan.clases_focus_semana || 0;
     const reducido = plan.clases_reducido_semana || 0;
@@ -330,7 +354,7 @@ export class GestionarPerfilesComponent implements OnInit {
     if (tipo === 'reducido') return `Reducido ${reducido}${cuota}`;
     if (tipo === 'hibrido') return `Híbrido F${focus}+R${reducido}${cuota}`;
     if (tipo === 'especial') return `Especial ${focus + reducido}${cuota}`;
-
+    
     return 'Sin plan';
   }
 
