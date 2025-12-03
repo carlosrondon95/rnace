@@ -1,8 +1,8 @@
-// src/app/dashboard/dashboard.component.ts
+// src/app/components/dashboard/dashboard.component.ts
 import { CommonModule } from '@angular/common';
 import { Component, signal, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { supabase } from '../core/supabase.client';
+import { supabase } from '../../core/supabase.client';
 
 type UserRole = 'cliente' | 'profesor' | 'admin';
 
@@ -16,28 +16,24 @@ type UserRole = 'cliente' | 'profesor' | 'admin';
 export class DashboardComponent {
   private router = inject(Router);
 
-  // Splash de éxito al entrar (logo + cargando 2s)
   showLoginSplash = signal(true);
-
-  // Estado de perfil/rol
-  role = signal<UserRole>('cliente'); // por defecto cliente
+  role = signal<UserRole>('cliente');
   nombre = signal<string | null>(null);
   perfilCargando = signal(true);
   perfilError = signal<string | null>(null);
 
-  constructor() {
-    // Ocultar splash a los 2s
-    setTimeout(() => {
-      this.showLoginSplash.set(false);
-    }, 2000);
+  // DEBUG - muestra info en pantalla
+  debugData = signal<string>('Cargando...');
 
-    // Cargar perfil desde Supabase
+  constructor() {
+    setTimeout(() => this.showLoginSplash.set(false), 2000);
     this.cargarPerfil();
   }
 
   private async cargarPerfil() {
     this.perfilCargando.set(true);
     this.perfilError.set(null);
+    let debug = '';
 
     try {
       const client = supabase();
@@ -46,78 +42,92 @@ export class DashboardComponent {
       const { data: userData, error: userError } = await client.auth.getUser();
 
       if (userError || !userData.user) {
-        console.error('[Dashboard] Error obteniendo usuario:', userError);
+        debug = `ERROR AUTH: ${JSON.stringify(userError)}`;
+        this.debugData.set(debug);
         this.perfilError.set('No se ha podido obtener tu perfil.');
         this.perfilCargando.set(false);
         return;
       }
 
       const user = userData.user;
+      debug += `USER ID: ${user.id}\n`;
+      debug += `USER EMAIL: ${user.email}\n`;
 
       // 2) Perfil en tabla perfiles
       const { data: perfil, error: perfilError } = await client
         .from('perfiles')
-        .select('rol, nombre')
+        .select('*')
         .eq('id', user.id)
         .maybeSingle();
 
       if (perfilError) {
-        console.error('[Dashboard] Error obteniendo perfil:', perfilError);
+        debug += `ERROR PERFIL: ${JSON.stringify(perfilError)}`;
+        this.debugData.set(debug);
         this.perfilError.set('No se ha podido cargar tu perfil.');
         this.perfilCargando.set(false);
         return;
       }
 
-      const rolRaw = (perfil?.rol || '').toLowerCase().trim();
+      if (!perfil) {
+        debug += `PERFIL: NULL - No existe registro en tabla perfiles para este usuario`;
+        this.debugData.set(debug);
+        this.perfilError.set('No tienes perfil configurado. Contacta con el administrador.');
+        this.perfilCargando.set(false);
+        return;
+      }
+
+      debug += `PERFIL: ${JSON.stringify(perfil)}\n`;
+      debug += `ROL RAW: "${perfil.rol}" (length: ${(perfil.rol || '').length})\n`;
+
+      const rolRaw = (perfil.rol || '').toLowerCase().trim();
+
+      debug += `ROL PROCESADO: "${rolRaw}"\n`;
+      debug += `¿Es "admin"?: ${rolRaw === 'admin'}\n`;
 
       let rol: UserRole = 'cliente';
       if (rolRaw === 'profesor') rol = 'profesor';
       if (rolRaw === 'admin') rol = 'admin';
 
+      debug += `ROL FINAL: ${rol}`;
+
+      this.debugData.set(debug);
       this.role.set(rol);
-      this.nombre.set(perfil?.nombre || user.email || null);
+      this.nombre.set(perfil.nombre || user.email || null);
+
+      console.log('[Dashboard] Debug:', debug);
     } catch (e) {
-      console.error('[Dashboard] Error inesperado cargando perfil:', e);
-      this.perfilError.set('Ha ocurrido un error al cargar tu perfil.');
+      this.debugData.set(`EXCEPTION: ${e}`);
+      this.perfilError.set('Ha ocurrido un error.');
     } finally {
       this.perfilCargando.set(false);
     }
   }
 
-  // ====== Handlers comunes ======
-
-  // Cliente / Profesor → “Mis citas / Reservar cita”
+  // Handlers
   onReservaCita() {
-    // De momento navegación simple; la lógica de reserva vendrá después
     this.router.navigateByUrl('/reservar-cita');
   }
-
   onVerCalendario() {
-    console.log('Ver calendario (pendiente de implementar navegación)');
+    console.log('Ver calendario');
   }
-
   onPerfil() {
-    console.log('Mi perfil (pendiente de implementar navegación)');
+    console.log('Mi perfil');
   }
-
-  // ====== Handlers específicos profesor/admin ======
-
   onMisGrupos() {
-    console.log('Mis grupos (profesor) (pendiente de implementar navegación)');
+    console.log('Mis grupos');
   }
-
   onVerCitas() {
-    console.log('Ver citas (admin) (pendiente de implementar navegación)');
+    console.log('Ver citas');
   }
-
   onVerGrupos() {
-    console.log('Ver grupos (admin) (pendiente de implementar navegación)');
+    console.log('Ver grupos');
+  }
+  onGestionarPerfiles() {
+    this.router.navigateByUrl('/gestionar-perfiles');
   }
 
-  onGestionarPerfiles() {
-    console.log(
-      'Gestionar perfiles (admin) (pendiente de implementar navegación)',
-    );
+  async onLogout() {
+    await supabase().auth.signOut();
+    this.router.navigateByUrl('/login');
   }
 }
-  

@@ -8,8 +8,7 @@ export const routes: Routes = [
   // Login
   {
     path: 'login',
-    loadComponent: () =>
-      import('./auth/login/login.component').then((m) => m.LoginComponent),
+    loadComponent: () => import('./auth/login/login.component').then((m) => m.LoginComponent),
   },
 
   // Dashboard (protegido)
@@ -17,9 +16,7 @@ export const routes: Routes = [
     path: 'dashboard',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./dashboard/dashboard.component').then(
-        (m) => m.DashboardComponent,
-      ),
+      import('./components/dashboard/dashboard.component').then((m) => m.DashboardComponent),
   },
 
   // Reservar cita (protegido, cliente)
@@ -27,8 +24,16 @@ export const routes: Routes = [
     path: 'reservar-cita',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./reservas/reserva-cita.component').then(
-        (m) => m.ReservaCitaComponent,
+      import('./components/reservas/reserva-cita.component').then((m) => m.ReservaCitaComponent),
+  },
+
+  // Gestionar perfiles (protegido, admin)
+  {
+    path: 'gestionar-perfiles',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/gestionar-perfiles/gestionar-perfiles.component').then(
+        (m) => m.GestionarPerfilesComponent,
       ),
   },
 

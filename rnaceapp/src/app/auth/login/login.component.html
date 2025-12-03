@@ -6,17 +6,19 @@
     </div>
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form">
-      <div class="form-group" [class.has-error]="showFieldError('identifier')">
-        <label for="identifier">Correo o teléfono</label>
+      <div class="form-group" [class.has-error]="showFieldError('telefono')">
+        <label for="telefono">Número de teléfono</label>
         <input
-          id="identifier"
-          type="text"
-          formControlName="identifier"
-          autocomplete="username"
-          placeholder="tuemail@dominio.com o +34..."
+          id="telefono"
+          type="tel"
+          formControlName="telefono"
+          autocomplete="tel"
+          placeholder="663734173"
+          inputmode="numeric"
         />
-        <div class="field-error" *ngIf="showFieldError('identifier')">
-          Introduce tu correo o teléfono.
+        <span class="field-hint">Solo números, sin espacios ni guiones.</span>
+        <div class="field-error" *ngIf="showFieldError('telefono')">
+          {{ getFieldErrorMessage('telefono') }}
         </div>
       </div>
 
@@ -30,7 +32,7 @@
           placeholder="••••••••"
         />
         <div class="field-error" *ngIf="showFieldError('password')">
-          Introduce tu contraseña (mínimo 6 caracteres).
+          {{ getFieldErrorMessage('password') }}
         </div>
       </div>
 
@@ -44,7 +46,7 @@
       </button>
 
       <p class="info-hint">
-        El acceso es sólo para usuarios invitados. Si no tienes usuario, contacta con tu centro.
+        El acceso es solo para usuarios registrados. Si no tienes usuario, contacta con tu centro.
       </p>
     </form>
   </div>

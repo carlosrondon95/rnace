@@ -1,0 +1,673 @@
+// src/app/admin/gestionar-perfiles/gestionar-perfiles.component.scss
+
+$color-bg: #494b46;
+$color-primary: #b8b29e;
+$color-secondary: #ebe9e3;
+$color-surface: #3a3b37;
+$color-surface-light: #454641;
+$color-border-soft: rgba(232, 233, 227, 0.12);
+$color-text-muted: rgba(235, 233, 227, 0.7);
+$color-success: #4ade80;
+$color-error: #f87171;
+$color-warning: #fbbf24;
+
+// ====== LAYOUT GENERAL ======
+.perfiles-page {
+  min-height: 100vh;
+  padding: 2rem 1.5rem;
+  background: radial-gradient(circle at top, #55574f 0, $color-bg 45%, #32332f 100%);
+  color: $color-secondary;
+}
+
+// ====== HEADER ======
+.page-header {
+  max-width: 1000px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+}
+
+.btn-volver {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: none;
+  color: $color-text-muted;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition:
+    color 0.15s,
+    background 0.15s;
+
+  &:hover {
+    color: $color-secondary;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.2rem;
+  }
+}
+
+// ====== TOOLBAR ======
+.toolbar {
+  max-width: 1000px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 250px;
+  position: relative;
+
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: $color-text-muted;
+    font-size: 1.2rem;
+  }
+
+  input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.8rem;
+    background: $color-surface;
+    border: 1px solid $color-border-soft;
+    border-radius: 12px;
+    color: $color-secondary;
+    font-size: 0.9rem;
+    outline: none;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+
+    &::placeholder {
+      color: $color-text-muted;
+    }
+
+    &:focus {
+      border-color: $color-primary;
+      box-shadow: 0 0 0 2px rgba(184, 178, 158, 0.2);
+    }
+  }
+}
+
+.btn-nuevo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: $color-primary;
+  color: #252521;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.2rem;
+  }
+}
+
+// ====== ESTADOS ======
+.loading-state,
+.error-state,
+.no-resultados {
+  max-width: 1000px;
+  margin: 3rem auto;
+  text-align: center;
+  color: $color-text-muted;
+
+  .material-symbols-rounded {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+}
+
+.error-state .material-symbols-rounded {
+  color: $color-error;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 1rem;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: $color-primary;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ====== LISTA DE PERFILES ======
+.perfiles-list {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.perfiles-count {
+  font-size: 0.8rem;
+  color: $color-text-muted;
+  margin-bottom: 1rem;
+}
+
+.perfil-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: $color-surface;
+  border: 1px solid $color-border-soft;
+  border-radius: 14px;
+  margin-bottom: 0.75rem;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+
+  &:hover {
+    border-color: rgba(184, 178, 158, 0.3);
+    background: $color-surface-light;
+  }
+}
+
+.perfil-avatar {
+  width: 48px;
+  height: 48px;
+  background: rgba(184, 178, 158, 0.15);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  .material-symbols-rounded {
+    font-size: 1.5rem;
+    color: $color-primary;
+  }
+}
+
+.perfil-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.perfil-nombre {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.perfil-telefono {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: $color-text-muted;
+
+  .material-symbols-rounded {
+    font-size: 0.9rem;
+  }
+}
+
+.perfil-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+
+.perfil-rol {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+
+  &.rol-admin {
+    background: rgba(168, 85, 247, 0.2);
+    color: #c084fc;
+  }
+
+  &.rol-profesor {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+  }
+
+  &.rol-cliente {
+    background: rgba(74, 222, 128, 0.15);
+    color: $color-success;
+  }
+}
+
+.perfil-plan {
+  font-size: 0.75rem;
+  color: $color-text-muted;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.perfil-fecha {
+  font-size: 0.75rem;
+  color: $color-text-muted;
+  min-width: 80px;
+  text-align: right;
+}
+
+.btn-editar {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid $color-border-soft;
+  border-radius: 8px;
+  color: $color-text-muted;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: $color-primary;
+    color: $color-primary;
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.1rem;
+  }
+}
+
+// ====== MODAL ======
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  border: none;
+  cursor: default;
+  z-index: 1;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: $color-surface;
+  border-radius: 18px;
+  border: 1px solid $color-border-soft;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid $color-border-soft;
+
+  h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: $color-secondary;
+  }
+}
+
+.btn-cerrar {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: $color-text-muted;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: $color-secondary;
+  }
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  &.form-group--full {
+    grid-column: 1 / -1;
+  }
+
+  label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: $color-text-muted;
+  }
+
+  input,
+  select {
+    padding: 0.7rem 0.9rem;
+    background: #2f302d;
+    border: 1px solid rgba(232, 233, 227, 0.2);
+    border-radius: 10px;
+    color: $color-secondary;
+    font-size: 0.9rem;
+    outline: none;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+
+    &::placeholder {
+      color: rgba(235, 233, 227, 0.4);
+    }
+
+    &:focus {
+      border-color: $color-primary;
+      box-shadow: 0 0 0 2px rgba(184, 178, 158, 0.15);
+    }
+  }
+
+  select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ebe9e3' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2.5rem;
+  }
+}
+
+.password-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.password-input {
+  flex: 1;
+  font-family: monospace;
+  letter-spacing: 1px;
+}
+
+.btn-generar,
+.btn-copiar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-generar {
+  background: $color-primary;
+  color: #252521;
+  border: none;
+  white-space: nowrap;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.btn-copiar {
+  width: 44px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid $color-border-soft;
+  color: $color-text-muted;
+
+  &:hover:not(:disabled) {
+    border-color: $color-primary;
+    color: $color-primary;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.copiada {
+    border-color: $color-success;
+    color: $color-success;
+    background: rgba(74, 222, 128, 0.1);
+  }
+}
+
+.password-hint {
+  font-size: 0.75rem;
+  color: $color-success;
+  margin-top: 0.25rem;
+}
+
+.mensaje-exito,
+.mensaje-error {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+
+  .material-symbols-rounded {
+    font-size: 1.3rem;
+  }
+}
+
+.mensaje-exito {
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: $color-success;
+}
+
+.mensaje-error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: $color-error;
+  margin-top: 1rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem 1.25rem;
+  border-top: 1px solid $color-border-soft;
+}
+
+.btn-cancelar,
+.btn-guardar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-cancelar {
+  background: transparent;
+  border: 1px solid $color-border-soft;
+  color: $color-text-muted;
+
+  &:hover {
+    border-color: $color-secondary;
+    color: $color-secondary;
+  }
+}
+
+.btn-guardar {
+  background: $color-primary;
+  color: #252521;
+  border: none;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: #252521;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+// ====== RESPONSIVE ======
+@media (max-width: 600px) {
+  .perfiles-page {
+    padding: 1rem;
+  }
+
+  .toolbar {
+    flex-direction: column;
+  }
+
+  .btn-nuevo {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .perfil-card {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .perfil-info {
+    flex: 1 1 calc(100% - 60px);
+  }
+
+  .perfil-meta,
+  .perfil-fecha {
+    order: 3;
+  }
+
+  .btn-editar {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-group {
+    grid-column: 1 !important;
+  }
+
+  .password-row {
+    flex-wrap: wrap;
+  }
+
+  .password-input {
+    width: 100%;
+  }
+
+  .btn-generar {
+    flex: 1;
+  }
+}

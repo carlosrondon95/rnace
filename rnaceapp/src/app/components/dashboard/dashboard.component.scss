@@ -1,10 +1,62 @@
-// Paleta basada en la pantalla de login
+// src/app/dashboard/dashboard.component.scss
+
 $color-bg: #494b46;
 $color-primary: #b8b29e;
 $color-secondary: #ebe9e3;
 $color-surface: #3a3b37;
 $color-border-soft: rgba(232, 233, 227, 0.12);
 $color-text-muted: rgba(235, 233, 227, 0.8);
+$color-error: #f87171;
+
+// ====== DEBUG BOX ======
+.debug-box {
+  max-width: 780px;
+  width: 100%;
+  background: rgba(251, 191, 36, 0.15);
+  border: 2px solid rgba(251, 191, 36, 0.6);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #fbbf24;
+
+  pre {
+    margin: 0.5rem 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.75rem;
+    border-radius: 6px;
+  }
+
+  .debug-role {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(74, 222, 128, 0.2);
+    border-radius: 6px;
+    color: #4ade80;
+
+    strong {
+      font-size: 1rem;
+    }
+  }
+}
+
+.role-badge {
+  display: inline-block;
+  background: rgba(184, 178, 158, 0.2);
+  border: 1px solid $color-primary;
+  border-radius: 20px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+
+  strong {
+    color: $color-primary;
+    text-transform: uppercase;
+  }
+}
 
 // ====== LAYOUT GENERAL ======
 .dashboard-page {
@@ -12,8 +64,8 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
   padding: 5rem 1.5rem 2rem;
   background: radial-gradient(circle at top, #55574f 0, $color-bg 45%, #32332f 100%);
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
 }
 
 .dashboard-card {
@@ -37,6 +89,10 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
   margin: 0 0 2rem;
   font-size: 0.95rem;
   color: $color-text-muted;
+
+  &.error {
+    color: $color-error;
+  }
 }
 
 // ====== BOTONES PRINCIPALES ======
@@ -60,10 +116,7 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
   gap: 0.55rem;
   transition:
     transform 0.1s ease,
-    box-shadow 0.1s ease,
-    opacity 0.1s ease,
-    background 0.15s ease,
-    border-color 0.15s ease;
+    box-shadow 0.1s ease;
 
   &:hover {
     transform: translateY(-1px);
@@ -81,7 +134,6 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
     font-size: 20px;
     line-height: 1;
   }
-
   .btn-label {
     white-space: nowrap;
   }
@@ -146,6 +198,16 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
     background: rgba(232, 233, 227, 0.08);
     border-color: $color-primary;
   }
+
+  &.nav-btn--logout {
+    border-color: rgba(248, 113, 113, 0.4);
+    color: rgba(248, 113, 113, 0.9);
+
+    &:hover {
+      background: rgba(248, 113, 113, 0.1);
+      border-color: rgba(248, 113, 113, 0.7);
+    }
+  }
 }
 
 .nav-icon {
@@ -153,7 +215,7 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
   line-height: 1;
 }
 
-// ====== SPLASH DE ÉXITO (DESPUÉS DE LOGIN) ======
+// ====== SPLASH ======
 .login-splash {
   position: fixed;
   inset: 0;
@@ -193,7 +255,6 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
     max-width: 80%;
     max-height: 80%;
     object-fit: contain;
-    display: block;
   }
 }
 
@@ -253,5 +314,9 @@ $color-text-muted: rgba(235, 233, 227, 0.8);
   .btn-primary {
     width: 100%;
     justify-content: center;
+  }
+
+  .debug-box {
+    font-size: 0.65rem;
   }
 }
