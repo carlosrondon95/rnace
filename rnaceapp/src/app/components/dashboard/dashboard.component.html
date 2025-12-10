@@ -1,3 +1,5 @@
+<!-- src/app/components/dashboard/dashboard.component.html -->
+
 <!-- Overlay de "inicio de sesión exitoso" -->
 <div class="login-splash" *ngIf="showLoginSplash()">
   <div class="splash-card">
@@ -87,105 +89,73 @@
 
 <!-- Contenido principal -->
 <main class="dashboard-page">
-  
-  <!-- ⚠️ DEBUG BOX - QUITAR EN PRODUCCIÓN -->
-  <div class="debug-box">
-    <strong>🔍 DEBUG INFO (quitar en producción):</strong>
-    <pre>{{ debugData() }}</pre>
-    <div class="debug-role">
-      ROL ACTUAL EN SIGNAL: <strong>{{ role() }}</strong>
-    </div>
-  </div>
-
   <section class="dashboard-card">
-    <ng-container *ngIf="!perfilCargando(); else perfilLoading">
-      <h1>¡Bienvenid@ a RNACE!</h1>
+    <h1>¡Bienvenid@ a RNACE!</h1>
 
-      <!-- Mostrar rol actual -->
-      <p class="role-badge">
-        Tu rol: <strong>{{ role() }}</strong>
-      </p>
+    <p class="lead" *ngIf="role() === 'cliente'">¿Qué quieres hacer hoy?</p>
 
-      <p class="lead" *ngIf="role() === 'cliente'">
-        ¿Qué quieres hacer hoy? (Vista Cliente)
-      </p>
+    <p class="lead" *ngIf="role() === 'profesor'">¿Qué quieres hacer hoy?</p>
 
-      <p class="lead" *ngIf="role() === 'profesor'">
-        ¿Qué quieres hacer hoy? (Vista Profesor)
-      </p>
+    <p class="lead" *ngIf="role() === 'admin'">Panel de administración - ¿Qué quieres hacer hoy?</p>
 
-      <p class="lead" *ngIf="role() === 'admin'">
-        ¿Qué quieres hacer hoy? (Vista Admin)
-      </p>
+    <!-- Cliente -->
+    <div class="dashboard-actions" *ngIf="role() === 'cliente'">
+      <button class="btn-primary btn-with-icon" (click)="onReservaCita()">
+        <span class="material-symbols-rounded btn-icon">event_available</span>
+        <span class="btn-label">Reserva tu cita</span>
+      </button>
+      <button class="btn-primary btn-with-icon" (click)="onVerCalendario()">
+        <span class="material-symbols-rounded btn-icon">calendar_month</span>
+        <span class="btn-label">Ver calendario</span>
+      </button>
+      <button class="btn-primary btn-with-icon" (click)="onPerfil()">
+        <span class="material-symbols-rounded btn-icon">account_circle</span>
+        <span class="btn-label">Mi perfil</span>
+      </button>
+    </div>
 
-      <p class="lead error" *ngIf="perfilError() as err">
-        {{ err }}
-      </p>
+    <!-- Profesor -->
+    <div class="dashboard-actions" *ngIf="role() === 'profesor'">
+      <button class="btn-primary btn-with-icon" (click)="onReservaCita()">
+        <span class="material-symbols-rounded btn-icon">event_available</span>
+        <span class="btn-label">Mis citas</span>
+      </button>
+      <button class="btn-primary btn-with-icon" (click)="onVerCalendario()">
+        <span class="material-symbols-rounded btn-icon">calendar_month</span>
+        <span class="btn-label">Ver calendario</span>
+      </button>
+      <button class="btn-primary btn-with-icon" (click)="onMisGrupos()">
+        <span class="material-symbols-rounded btn-icon">groups</span>
+        <span class="btn-label">Mis grupos</span>
+      </button>
+      <button class="btn-primary btn-with-icon" (click)="onPerfil()">
+        <span class="material-symbols-rounded btn-icon">account_circle</span>
+        <span class="btn-label">Mi perfil</span>
+      </button>
+    </div>
 
-      <!-- Cliente -->
-      <div class="dashboard-actions" *ngIf="role() === 'cliente'">
-        <button class="btn-primary btn-with-icon" (click)="onReservaCita()">
-          <span class="material-symbols-rounded btn-icon">event_available</span>
-          <span class="btn-label">Reserva tu cita</span>
-        </button>
-        <button class="btn-primary btn-with-icon" (click)="onVerCalendario()">
-          <span class="material-symbols-rounded btn-icon">calendar_month</span>
-          <span class="btn-label">Ver calendario</span>
-        </button>
-        <button class="btn-primary btn-with-icon" (click)="onPerfil()">
-          <span class="material-symbols-rounded btn-icon">account_circle</span>
-          <span class="btn-label">Mi perfil</span>
-        </button>
-      </div>
-
-      <!-- Profesor -->
-      <div class="dashboard-actions" *ngIf="role() === 'profesor'">
-        <button class="btn-primary btn-with-icon" (click)="onReservaCita()">
-          <span class="material-symbols-rounded btn-icon">event_available</span>
-          <span class="btn-label">Mis citas</span>
-        </button>
-        <button class="btn-primary btn-with-icon" (click)="onVerCalendario()">
-          <span class="material-symbols-rounded btn-icon">calendar_month</span>
-          <span class="btn-label">Ver calendario</span>
-        </button>
-        <button class="btn-primary btn-with-icon" (click)="onMisGrupos()">
-          <span class="material-symbols-rounded btn-icon">groups</span>
-          <span class="btn-label">Mis grupos</span>
-        </button>
-        <button class="btn-primary btn-with-icon" (click)="onPerfil()">
-          <span class="material-symbols-rounded btn-icon">account_circle</span>
-          <span class="btn-label">Mi perfil</span>
-        </button>
-      </div>
-
-      <!-- Admin -->
-      <div class="dashboard-actions" *ngIf="role() === 'admin'">
-        <button class="btn-primary btn-with-icon" (click)="onVerCitas()">
-          <span class="material-symbols-rounded btn-icon">event_note</span>
-          <span class="btn-label">Ver citas</span>
-        </button>
-        <button class="btn-primary btn-with-icon" (click)="onVerCalendario()">
-          <span class="material-symbols-rounded btn-icon">calendar_month</span>
-          <span class="btn-label">Ver calendario</span>
-        </button>
-        <button class="btn-primary btn-with-icon" (click)="onVerGrupos()">
-          <span class="material-symbols-rounded btn-icon">groups</span>
-          <span class="btn-label">Ver grupos</span>
-        </button>
-        <button class="btn-primary btn-with-icon" (click)="onGestionarPerfiles()">
-          <span class="material-symbols-rounded btn-icon">manage_accounts</span>
-          <span class="btn-label">Gestionar perfiles</span>
-        </button>
-        <button class="btn-primary btn-with-icon" (click)="onPerfil()">
-          <span class="material-symbols-rounded btn-icon">account_circle</span>
-          <span class="btn-label">Mi perfil</span>
-        </button>
-      </div>
-    </ng-container>
-
-    <ng-template #perfilLoading>
-      <h1>Cargando tu perfil...</h1>
-      <p class="lead">Estamos preparando tu espacio en RNACE.</p>
-    </ng-template>
+    <!-- Admin -->
+    <div class="dashboard-actions" *ngIf="role() === 'admin'">
+      <button class="btn-primary btn-with-icon" (click)="onVerCitas()">
+        <span class="material-symbols-rounded btn-icon">event_note</span>
+        <span class="btn-label">Ver citas</span>
+      </button>
+      <button class="btn-primary btn-with-icon" (click)="onVerCalendario()">
+        <span class="material-symbols-rounded btn-icon">calendar_month</span>
+        <span class="btn-label">Ver calendario</span>
+      </button>
+      <button class="btn-primary btn-with-icon" (click)="onVerGrupos()">
+        <span class="material-symbols-rounded btn-icon">groups</span>
+        <span class="btn-label">Ver grupos</span>
+      </button>
+      <button class="btn-primary btn-with-icon" (click)="onGestionarPerfiles()">
+        <span class="material-symbols-rounded btn-icon">manage_accounts</span>
+        <span class="btn-label">Gestionar perfiles</span>
+      </button>
+      <button class="btn-primary btn-with-icon" (click)="onPerfil()">
+        <span class="material-symbols-rounded btn-icon">account_circle</span>
+        <span class="btn-label">Mi perfil</span>
+      </button>
+    </div>
   </section>
 </main>

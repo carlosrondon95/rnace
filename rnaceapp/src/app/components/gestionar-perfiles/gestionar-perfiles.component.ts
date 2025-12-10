@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, computed, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
 
 interface PerfilPlan {
@@ -13,22 +14,14 @@ interface PerfilPlan {
   activo: boolean;
 }
 
-interface Perfil {
+interface Usuario {
   id: string;
-  nombre: string;
   telefono: string;
+  nombre: string;
   rol: string;
+  activo: boolean;
   creado_en: string;
   plan?: PerfilPlan;
-}
-
-interface PerfilDB {
-  id: string;
-  nombre: string | null;
-  telefono: string | null;
-  rol: string;
-  creado_en: string;
-  plan_usuario: PerfilPlan[] | null;
 }
 
 interface NuevoUsuario {
@@ -42,6 +35,16 @@ interface NuevoUsuario {
   password: string;
 }
 
+// Interfaz para datos crudos de Supabase
+interface UsuarioDB {
+  id: string;
+  telefono: string;
+  nombre: string | null;
+  rol: string;
+  activo: boolean;
+  creado_en: string;
+}
+
 @Component({
   standalone: true,
   selector: 'app-gestionar-perfiles',
@@ -51,13 +54,14 @@ interface NuevoUsuario {
 })
 export class GestionarPerfilesComponent implements OnInit {
   private router = inject(Router);
+  private authService = inject(AuthService);
 
   // Estado
   cargando = signal(true);
   error = signal<string | null>(null);
-  perfiles = signal<Perfil[]>([]);
+  usuarios = signal<Usuario[]>([]);
   busqueda = signal('');
-  
+
   // Modal nuevo usuario
   mostrarModal = signal(false);
   guardando = signal(false);
@@ -77,17 +81,18 @@ export class GestionarPerfilesComponent implements OnInit {
     password: '',
   });
 
-  // Perfiles filtrados por búsqueda
-  perfilesFiltrados = computed(() => {
+  // Usuarios filtrados por búsqueda
+  usuariosFiltrados = computed(() => {
     const busq = this.busqueda().toLowerCase().trim();
-    const lista = this.perfiles();
-    
+    const lista = this.usuarios();
+
     if (!busq) return lista;
-    
-    return lista.filter(p => 
-      p.nombre?.toLowerCase().includes(busq) ||
-      p.telefono?.includes(busq) ||
-      p.rol?.toLowerCase().includes(busq)
+
+    return lista.filter(
+      (u) =>
+        u.nombre?.toLowerCase().includes(busq) ||
+        u.telefono?.includes(busq) ||
+        u.rol?.toLowerCase().includes(busq),
     );
   });
 
@@ -110,32 +115,34 @@ export class GestionarPerfilesComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.cargarPerfiles();
+    this.cargarUsuarios();
   }
 
-  private async cargarPerfiles() {
+  private async cargarUsuarios() {
     this.cargando.set(true);
     this.error.set(null);
 
     try {
       const client = supabase();
 
-      // Query 1: Cargar perfiles
-      const { data: perfilesData, error: perfilesError } = await client
-        .from('perfiles')
-        .select('id, nombre, telefono, rol, creado_en')
+      // Query 1: Cargar usuarios
+      const { data: usuariosData, error: usuariosError } = await client
+        .from('usuarios')
+        .select('id, telefono, nombre, rol, activo, creado_en')
         .order('creado_en', { ascending: false });
 
-      if (perfilesError) {
-        console.error('Error cargando perfiles:', perfilesError);
-        this.error.set('Error al cargar los perfiles.');
+      if (usuariosError) {
+        console.error('Error cargando usuarios:', usuariosError);
+        this.error.set('Error al cargar los usuarios.');
         return;
       }
 
       // Query 2: Cargar todos los planes
       const { data: planesData, error: planesError } = await client
         .from('plan_usuario')
-        .select('usuario_id, tipo_grupo, clases_focus_semana, clases_reducido_semana, tipo_cuota, activo');
+        .select(
+          'usuario_id, tipo_grupo, clases_focus_semana, clases_reducido_semana, tipo_cuota, activo',
+        );
 
       if (planesError) {
         console.error('Error cargando planes:', planesError);
@@ -156,21 +163,21 @@ export class GestionarPerfilesComponent implements OnInit {
         }
       }
 
-      // Combinar perfiles con sus planes
-      const perfiles: Perfil[] = (perfilesData || []).map((p) => ({
-        id: p.id,
-        nombre: p.nombre || '',
-        telefono: p.telefono || '',
-        rol: p.rol,
-        creado_en: p.creado_en,
-        plan: planesMap.get(p.id),
+      // Combinar usuarios con sus planes
+      const usuarios: Usuario[] = ((usuariosData || []) as UsuarioDB[]).map((u) => ({
+        id: u.id,
+        telefono: u.telefono || '',
+        nombre: u.nombre || '',
+        rol: u.rol,
+        activo: u.activo,
+        creado_en: u.creado_en,
+        plan: planesMap.get(u.id),
       }));
 
-      this.perfiles.set(perfiles);
-
+      this.usuarios.set(usuarios);
     } catch (err) {
       console.error('Error:', err);
-      this.error.set('Error inesperado al cargar perfiles.');
+      this.error.set('Error inesperado al cargar usuarios.');
     } finally {
       this.cargando.set(false);
     }
@@ -205,7 +212,7 @@ export class GestionarPerfilesComponent implements OnInit {
     for (let i = 0; i < 8; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    this.nuevoUsuario.update(u => ({ ...u, password }));
+    this.nuevoUsuario.update((u) => ({ ...u, password }));
     this.passwordCopiada.set(false);
   }
 
@@ -217,8 +224,6 @@ export class GestionarPerfilesComponent implements OnInit {
     try {
       await navigator.clipboard.writeText(pass);
       this.passwordCopiada.set(true);
-      
-      // Reset después de 2 segundos
       setTimeout(() => this.passwordCopiada.set(false), 2000);
     } catch (err) {
       console.error('Error copiando:', err);
@@ -227,17 +232,17 @@ export class GestionarPerfilesComponent implements OnInit {
 
   // Actualizar campo del formulario
   actualizarCampo(campo: keyof NuevoUsuario, valor: string | number) {
-    this.nuevoUsuario.update(u => ({ ...u, [campo]: valor }));
-    
+    this.nuevoUsuario.update((u) => ({ ...u, [campo]: valor }));
+
     // Ajustar clases según tipo de grupo
     if (campo === 'tipoGrupo') {
       const tipo = valor as NuevoUsuario['tipoGrupo'];
       if (tipo === 'focus') {
-        this.nuevoUsuario.update(u => ({ ...u, clasesFocus: 2, clasesReducido: 0 }));
+        this.nuevoUsuario.update((u) => ({ ...u, clasesFocus: 2, clasesReducido: 0 }));
       } else if (tipo === 'reducido') {
-        this.nuevoUsuario.update(u => ({ ...u, clasesFocus: 0, clasesReducido: 2 }));
+        this.nuevoUsuario.update((u) => ({ ...u, clasesFocus: 0, clasesReducido: 2 }));
       } else if (tipo === 'hibrido') {
-        this.nuevoUsuario.update(u => ({ ...u, clasesFocus: 1, clasesReducido: 1 }));
+        this.nuevoUsuario.update((u) => ({ ...u, clasesFocus: 1, clasesReducido: 1 }));
       }
     }
   }
@@ -254,7 +259,7 @@ export class GestionarPerfilesComponent implements OnInit {
     );
   }
 
-  // Guardar nuevo usuario
+  // Guardar nuevo usuario - AHORA USA AUTHSERVICE DIRECTAMENTE
   async guardarUsuario() {
     if (!this.formularioValido()) {
       this.errorModal.set('Por favor, completa todos los campos correctamente.');
@@ -268,61 +273,29 @@ export class GestionarPerfilesComponent implements OnInit {
     const u = this.nuevoUsuario();
     const nombreCompleto = u.apellidos ? `${u.nombre} ${u.apellidos}` : u.nombre;
     const telefonoLimpio = u.telefono.replace(/[^0-9]/g, '');
-    const emailFalso = `${telefonoLimpio}@rnace.local`;
 
     try {
-      const client = supabase();
-
-      // Llamar a la Edge Function para crear el usuario
-      const { data, error } = await client.functions.invoke('crear-usuario', {
-        body: {
-          email: emailFalso,
-          password: u.password,
-          nombre: nombreCompleto,
-          telefono: telefonoLimpio,
-          rol: 'cliente',
-          tipoGrupo: u.tipoGrupo,
-          clasesFocus: u.clasesFocus,
-          clasesReducido: u.clasesReducido,
-          tipoCuota: u.tipoCuota,
-        },
+      // Usar AuthService para crear usuario con plan
+      const resultado = await this.authService.crearUsuarioConPlan({
+        telefono: telefonoLimpio,
+        password: u.password,
+        nombre: nombreCompleto,
+        rol: 'cliente',
+        tipoGrupo: u.tipoGrupo,
+        clasesFocus: u.clasesFocus,
+        clasesReducido: u.clasesReducido,
+        tipoCuota: u.tipoCuota,
       });
 
-      if (error) {
-        console.error('Error creando usuario:', error);
-        // Intentar obtener más detalles del error
-        let mensajeError = 'Error al crear el usuario.';
-        if (error.message) {
-          mensajeError = error.message;
-        }
-        // Si el error tiene context con body, extraerlo
-        const errorAny = error as { context?: { body?: string } };
-        if (errorAny.context?.body) {
-          try {
-            const body = JSON.parse(errorAny.context.body);
-            if (body.error) {
-              mensajeError = body.error;
-            }
-          } catch {
-            // Ignorar error de parsing
-          }
-        }
-        this.errorModal.set(mensajeError);
-        return;
-      }
-
-      const resultado = data as { error?: string; success?: boolean };
-
-      if (resultado?.error) {
-        this.errorModal.set(resultado.error);
+      if (!resultado.success) {
+        this.errorModal.set(resultado.error || 'Error al crear el usuario.');
         return;
       }
 
       this.exitoModal.set(`Usuario creado correctamente. Teléfono: ${telefonoLimpio}`);
-      
-      // Recargar lista
-      await this.cargarPerfiles();
 
+      // Recargar lista
+      await this.cargarUsuarios();
     } catch (err) {
       console.error('Error:', err);
       this.errorModal.set('Error inesperado al crear el usuario.');
@@ -344,7 +317,7 @@ export class GestionarPerfilesComponent implements OnInit {
   // Obtener etiqueta del grupo
   obtenerEtiquetaGrupo(plan: PerfilPlan | undefined): string {
     if (!plan) return 'Sin plan';
-    
+
     const tipo = plan.tipo_grupo || 'sin_plan';
     const focus = plan.clases_focus_semana || 0;
     const reducido = plan.clases_reducido_semana || 0;
@@ -354,7 +327,7 @@ export class GestionarPerfilesComponent implements OnInit {
     if (tipo === 'reducido') return `Reducido ${reducido}${cuota}`;
     if (tipo === 'hibrido') return `Híbrido F${focus}+R${reducido}${cuota}`;
     if (tipo === 'especial') return `Especial ${focus + reducido}${cuota}`;
-    
+
     return 'Sin plan';
   }
 
@@ -363,6 +336,11 @@ export class GestionarPerfilesComponent implements OnInit {
     if (rol === 'admin') return 'rol-admin';
     if (rol === 'profesor') return 'rol-profesor';
     return 'rol-cliente';
+  }
+
+  // Obtener clase CSS para estado activo
+  obtenerClaseActivo(activo: boolean): string {
+    return activo ? 'estado-activo' : 'estado-inactivo';
   }
 
   volver() {

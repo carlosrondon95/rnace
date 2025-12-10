@@ -1,27 +1,31 @@
 // src/app/core/auth.guard.ts
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { supabase } from './supabase.client';
+import { AuthService } from './auth.service';
 
-export const authGuard: CanActivateFn = async () => {
+export const authGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
   const router = inject(Router);
 
-  try {
-    // Esperar a que Supabase verifique la sesión
-    const {
-      data: { session },
-    } = await supabase().auth.getSession();
-
-    if (session?.user) {
-      return true;
-    }
-
-    // No hay sesión, redirigir a login
-    router.navigateByUrl('/login');
-    return false;
-  } catch (error) {
-    console.error('[AuthGuard] Error verificando sesión:', error);
-    router.navigateByUrl('/login');
-    return false;
+  if (authService.estaLogueado()) {
+    return true;
   }
+
+  // No hay sesión, redirigir a login
+  router.navigateByUrl('/login');
+  return false;
+};
+
+// Guard adicional para rutas de admin
+export const adminGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  if (authService.estaLogueado() && authService.getRol() === 'admin') {
+    return true;
+  }
+
+  // No es admin, redirigir a dashboard
+  router.navigateByUrl('/dashboard');
+  return false;
 };

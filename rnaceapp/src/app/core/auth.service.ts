@@ -1,38 +1,271 @@
-import { Injectable, signal } from '@angular/core';
-import { Session } from '@supabase/supabase-js';
+// src/app/core/auth.service.ts
+import { Injectable, signal, PLATFORM_ID, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { supabase } from './supabase.client';
+import * as bcrypt from 'bcryptjs';
 
-@Injectable({ providedIn: 'root' })
+export interface Usuario {
+  id: string;
+  telefono: string;
+  nombre: string | null;
+  rol: 'cliente' | 'profesor' | 'admin';
+  activo: boolean;
+}
+
+@Injectable({
+  providedIn: 'root',
+})
 export class AuthService {
-  private _session = signal<Session | null>(null);
-  session = this._session.asReadonly();
+  private platformId = inject(PLATFORM_ID);
+
+  // Usuario actual (null si no está logueado)
+  private usuarioActual = signal<Usuario | null>(null);
 
   constructor() {
-    // Cargar sesión inicial
-    supabase().auth.getSession().then(({ data }) => this._session.set(data.session));
-    // Suscribirse a cambios
-    supabase().auth.onAuthStateChange((_event, session) => this._session.set(session));
+    // Solo cargar de localStorage si estamos en el navegador
+    if (isPlatformBrowser(this.platformId)) {
+      this.cargarUsuarioGuardado();
+    }
   }
 
-  async signInWithPassword(email: string, password: string) {
-    const { error } = await supabase().auth.signInWithPassword({ email, password });
-    if (error) throw error;
+  // Getter para el usuario actual
+  get usuario() {
+    return this.usuarioActual;
   }
 
-  async signUp(email: string, password: string) {
-    const { error } = await supabase().auth.signUp({ email, password });
-    if (error) throw error;
+  // Verificar si hay sesión activa
+  estaLogueado(): boolean {
+    return this.usuarioActual() !== null;
   }
 
-  async signOut() {
-    await supabase().auth.signOut();
+  // Obtener rol del usuario
+  getRol(): string {
+    return this.usuarioActual()?.rol || 'cliente';
   }
 
-  userId(): string | null {
-    return this._session()?.user?.id ?? null;
+  // Obtener ID del usuario actual
+  userId = () => this.usuarioActual()?.id || null;
+
+  // Cargar usuario desde localStorage
+  private cargarUsuarioGuardado() {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    try {
+      const guardado = localStorage.getItem('rnace_usuario');
+      if (guardado) {
+        const usuario = JSON.parse(guardado) as Usuario;
+        this.usuarioActual.set(usuario);
+      }
+    } catch (error) {
+      console.error('Error cargando usuario guardado:', error);
+      localStorage.removeItem('rnace_usuario');
+    }
   }
 
-  isLoggedIn(): boolean {
-    return !!this._session()?.user;
+  // Guardar usuario en localStorage
+  private guardarUsuario(usuario: Usuario) {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('rnace_usuario', JSON.stringify(usuario));
+    }
+    this.usuarioActual.set(usuario);
+  }
+
+  // Login con teléfono y contraseña
+  async login(telefono: string, password: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Limpiar teléfono (solo números)
+      const telefonoLimpio = telefono.replace(/[^0-9]/g, '');
+
+      if (!telefonoLimpio || telefonoLimpio.length < 9) {
+        return { success: false, error: 'Teléfono inválido' };
+      }
+
+      if (!password || password.length < 4) {
+        return { success: false, error: 'Contraseña inválida' };
+      }
+
+      // Buscar usuario por teléfono
+      const { data: usuario, error } = await supabase()
+        .from('usuarios')
+        .select('*')
+        .eq('telefono', telefonoLimpio)
+        .eq('activo', true)
+        .single();
+
+      if (error || !usuario) {
+        console.log('Usuario no encontrado:', telefonoLimpio);
+        return { success: false, error: 'Usuario o contraseña incorrectos' };
+      }
+
+      // Verificar contraseña con bcrypt
+      const passwordValida = await bcrypt.compare(password, usuario.password_hash);
+
+      if (!passwordValida) {
+        console.log('Contraseña incorrecta para:', telefonoLimpio);
+        return { success: false, error: 'Usuario o contraseña incorrectos' };
+      }
+
+      // Login exitoso - guardar usuario (sin el hash)
+      const usuarioLimpio: Usuario = {
+        id: usuario.id,
+        telefono: usuario.telefono,
+        nombre: usuario.nombre,
+        rol: usuario.rol,
+        activo: usuario.activo,
+      };
+
+      this.guardarUsuario(usuarioLimpio);
+      console.log('Login exitoso:', usuarioLimpio.telefono, '- Rol:', usuarioLimpio.rol);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error en login:', error);
+      return { success: false, error: 'Error al iniciar sesión' };
+    }
+  }
+
+  // Logout
+  logout() {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem('rnace_usuario');
+    }
+    this.usuarioActual.set(null);
+  }
+
+  // Crear nuevo usuario (solo admins)
+  async crearUsuario(datos: {
+    telefono: string;
+    password: string;
+    nombre: string;
+    rol?: string;
+  }): Promise<{ success: boolean; error?: string; userId?: string }> {
+    try {
+      // Verificar que el usuario actual es admin
+      if (this.getRol() !== 'admin') {
+        return { success: false, error: 'Solo los administradores pueden crear usuarios' };
+      }
+
+      const telefonoLimpio = datos.telefono.replace(/[^0-9]/g, '');
+
+      // Verificar si ya existe
+      const { data: existente } = await supabase()
+        .from('usuarios')
+        .select('id')
+        .eq('telefono', telefonoLimpio)
+        .single();
+
+      if (existente) {
+        return { success: false, error: 'Ya existe un usuario con ese teléfono' };
+      }
+
+      // Hashear contraseña
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(datos.password, salt);
+
+      // Insertar usuario
+      const { data: nuevoUsuario, error } = await supabase()
+        .from('usuarios')
+        .insert({
+          telefono: telefonoLimpio,
+          password_hash: passwordHash,
+          nombre: datos.nombre,
+          rol: datos.rol || 'cliente',
+          activo: true,
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('Error creando usuario:', error);
+        return { success: false, error: 'Error al crear usuario: ' + error.message };
+      }
+
+      return { success: true, userId: nuevoUsuario.id };
+    } catch (error) {
+      console.error('Error:', error);
+      return { success: false, error: 'Error inesperado al crear usuario' };
+    }
+  }
+
+  // Crear usuario con plan (para el panel de admin)
+  async crearUsuarioConPlan(datos: {
+    telefono: string;
+    password: string;
+    nombre: string;
+    rol?: string;
+    tipoGrupo: string;
+    clasesFocus: number;
+    clasesReducido: number;
+    tipoCuota: string;
+  }): Promise<{ success: boolean; error?: string; userId?: string }> {
+    try {
+      // Primero crear el usuario
+      const resultado = await this.crearUsuario({
+        telefono: datos.telefono,
+        password: datos.password,
+        nombre: datos.nombre,
+        rol: datos.rol,
+      });
+
+      if (!resultado.success || !resultado.userId) {
+        return resultado;
+      }
+
+      // Luego crear el plan
+      const { error: planError } = await supabase().from('plan_usuario').insert({
+        usuario_id: resultado.userId,
+        tipo_grupo: datos.tipoGrupo,
+        clases_focus_semana: datos.clasesFocus,
+        clases_reducido_semana: datos.clasesReducido,
+        tipo_cuota: datos.tipoCuota,
+        activo: true,
+      });
+
+      if (planError) {
+        console.error('Error creando plan (no crítico):', planError);
+        // No es crítico, el usuario ya está creado
+      }
+
+      return { success: true, userId: resultado.userId };
+    } catch (error) {
+      console.error('Error:', error);
+      return { success: false, error: 'Error inesperado' };
+    }
+  }
+
+  // Cambiar contraseña
+  async cambiarPassword(
+    telefonoOId: string,
+    nuevaPassword: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Verificar que el usuario actual es admin o es su propia cuenta
+      const esAdmin = this.getRol() === 'admin';
+      const esSuCuenta =
+        this.usuarioActual()?.telefono === telefonoOId || this.usuarioActual()?.id === telefonoOId;
+
+      if (!esAdmin && !esSuCuenta) {
+        return { success: false, error: 'No tienes permisos para cambiar esta contraseña' };
+      }
+
+      // Hashear nueva contraseña
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(nuevaPassword, salt);
+
+      // Actualizar
+      const { error } = await supabase()
+        .from('usuarios')
+        .update({ password_hash: passwordHash, actualizado_en: new Date().toISOString() })
+        .or(`telefono.eq.${telefonoOId},id.eq.${telefonoOId}`);
+
+      if (error) {
+        return { success: false, error: 'Error al cambiar contraseña' };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error:', error);
+      return { success: false, error: 'Error inesperado' };
+    }
   }
 }
