@@ -1,109 +1,78 @@
 // src/app/auth/login/login.component.ts
+import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { supabase } from '../../core/supabase.client';
+import { AuthService } from '../../core/auth.service';
 
 @Component({
   standalone: true,
   selector: 'app-login',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
 })
 export class LoginComponent {
-  private fb = inject(FormBuilder);
   private router = inject(Router);
+  private authService = inject(AuthService);
 
-  loading = signal(false);
-  errorMsg = signal<string | null>(null);
+  telefono = signal('');
+  password = signal('');
+  cargando = signal(false);
+  error = signal<string | null>(null);
 
-  form = this.fb.group({
-    telefono: ['', [Validators.required, Validators.pattern(/^[0-9]{9,15}$/)]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
-  });
-
-  /**
-   * Convierte un teléfono a formato email para auth
-   * Ejemplo: 663734173 → 663734173@rnace.local
-   */
-  private telefonoToEmail(telefono: string): string {
-    // Limpiar: solo números
-    const soloNumeros = telefono.replace(/[^0-9]/g, '');
-    return `${soloNumeros}@rnace.local`;
+  constructor() {
+    // Si ya está logueado, ir al dashboard
+    if (this.authService.estaLogueado()) {
+      this.router.navigateByUrl('/dashboard');
+    }
   }
 
   async onSubmit() {
-    this.errorMsg.set(null);
+    this.error.set(null);
 
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    const tel = this.telefono().trim();
+    const pass = this.password();
+
+    if (!tel) {
+      this.error.set('Introduce tu número de teléfono');
       return;
     }
 
-    this.loading.set(true);
+    if (!pass) {
+      this.error.set('Introduce tu contraseña');
+      return;
+    }
 
-    const telefono = this.form.value.telefono!.trim();
-    const password = this.form.value.password!;
-
-    // Convertir teléfono a email falso
-    const emailFalso = this.telefonoToEmail(telefono);
-    console.log('[Login] Teléfono:', telefono, '→ Email:', emailFalso);
+    this.cargando.set(true);
 
     try {
-      const client = supabase();
+      console.log('[Login] Intentando login con:', tel);
 
-      // Login con email (que en realidad es el teléfono disfrazado)
-      const { data, error } = await client.auth.signInWithPassword({
-        email: emailFalso,
-        password: password,
-      });
+      const resultado = await this.authService.login(tel, pass);
 
-      if (error) {
-        console.error('[Supabase auth error]', error);
-
-        if (error.message.includes('Invalid login credentials')) {
-          this.errorMsg.set('Teléfono o contraseña incorrectos.');
-        } else {
-          this.errorMsg.set('Error al iniciar sesión. Verifica tus datos.');
-        }
-        return;
+      if (resultado.success) {
+        console.log('[Login] Éxito, navegando a dashboard');
+        this.router.navigateByUrl('/dashboard');
+      } else {
+        console.log('[Login] Error:', resultado.error);
+        this.error.set(resultado.error || 'Error al iniciar sesión');
       }
-
-      if (!data.session) {
-        this.errorMsg.set('No se ha podido iniciar sesión.');
-        return;
-      }
-
-      this.router.navigateByUrl('/dashboard');
-    } catch (e) {
-      console.error(e);
-      this.errorMsg.set('Error inesperado al iniciar sesión.');
+    } catch (err) {
+      console.error('[Login] Error inesperado:', err);
+      this.error.set('Error inesperado. Intenta de nuevo.');
     } finally {
-      this.loading.set(false);
+      this.cargando.set(false);
     }
   }
 
-  showFieldError(field: 'telefono' | 'password'): boolean {
-    const c = this.form.get(field);
-    return !!c && c.invalid && (c.dirty || c.touched);
+  actualizarTelefono(valor: string) {
+    // Solo permitir números
+    const soloNumeros = valor.replace(/[^0-9]/g, '');
+    this.telefono.set(soloNumeros);
   }
 
-  getFieldErrorMessage(field: 'telefono' | 'password'): string {
-    const c = this.form.get(field);
-    if (!c) return '';
-
-    if (field === 'telefono') {
-      if (c.hasError('required')) return 'Introduce tu número de teléfono.';
-      if (c.hasError('pattern')) return 'Introduce solo números (9-15 dígitos).';
-    }
-
-    if (field === 'password') {
-      if (c.hasError('required')) return 'Introduce tu contraseña.';
-      if (c.hasError('minlength')) return 'Mínimo 6 caracteres.';
-    }
-
-    return '';
+  actualizarPassword(valor: string) {
+    this.password.set(valor);
   }
 }

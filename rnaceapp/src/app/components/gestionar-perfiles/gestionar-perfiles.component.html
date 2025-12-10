@@ -42,33 +42,33 @@
   <!-- Lista de perfiles -->
   <div class="perfiles-list" *ngIf="!cargando() && !error()">
     <div class="perfiles-count">
-      {{ perfilesFiltrados().length }} usuario{{ perfilesFiltrados().length !== 1 ? 's' : '' }}
+      {{ usuariosFiltrados().length }} usuario{{ usuariosFiltrados().length !== 1 ? 's' : '' }}
     </div>
 
-    <div class="perfil-card" *ngFor="let perfil of perfilesFiltrados()">
+    <div class="perfil-card" *ngFor="let usuario of usuariosFiltrados()">
       <div class="perfil-avatar">
         <span class="material-symbols-rounded">person</span>
       </div>
 
       <div class="perfil-info">
-        <div class="perfil-nombre">{{ perfil.nombre || 'Sin nombre' }}</div>
+        <div class="perfil-nombre">{{ usuario.nombre || 'Sin nombre' }}</div>
         <div class="perfil-telefono">
           <span class="material-symbols-rounded">phone</span>
-          {{ perfil.telefono || 'Sin teléfono' }}
+          {{ usuario.telefono || 'Sin teléfono' }}
         </div>
       </div>
 
       <div class="perfil-meta">
-        <span class="perfil-rol" [ngClass]="obtenerClaseRol(perfil.rol)">
-          {{ perfil.rol }}
+        <span class="perfil-rol" [ngClass]="obtenerClaseRol(usuario.rol)">
+          {{ usuario.rol }}
         </span>
         <span class="perfil-plan">
-          {{ obtenerEtiquetaGrupo(perfil.plan) }}
+          {{ obtenerEtiquetaGrupo(usuario.plan) }}
         </span>
       </div>
 
       <div class="perfil-fecha">
-        {{ formatearFecha(perfil.creado_en) }}
+        {{ formatearFecha(usuario.creado_en) }}
       </div>
 
       <button class="btn-editar" title="Editar perfil">
@@ -77,7 +77,7 @@
     </div>
 
     <!-- Sin resultados -->
-    <div class="no-resultados" *ngIf="perfilesFiltrados().length === 0">
+    <div class="no-resultados" *ngIf="usuariosFiltrados().length === 0">
       <span class="material-symbols-rounded">person_off</span>
       <p *ngIf="busqueda()">No se encontraron usuarios para "{{ busqueda() }}"</p>
       <p *ngIf="!busqueda()">No hay usuarios registrados</p>
