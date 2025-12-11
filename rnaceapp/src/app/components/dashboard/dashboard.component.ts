@@ -33,7 +33,7 @@ export class DashboardComponent {
   }
 
   onVerCalendario() {
-    console.log('Ver calendario');
+    this.router.navigateByUrl('/calendario');
   }
 
   onPerfil() {

@@ -16,7 +16,7 @@
       <span class="material-symbols-rounded search-icon">search</span>
       <input
         type="text"
-        placeholder="Buscar por nombre, teléfono o rol..."
+        placeholder="Buscar por nombre o teléfono..."
         [ngModel]="busqueda()"
         (ngModelChange)="busqueda.set($event)"
       />
@@ -24,6 +24,62 @@
     <button class="btn-nuevo" (click)="abrirModalNuevo()">
       <span class="material-symbols-rounded">person_add</span>
       Nuevo Usuario
+    </button>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtros-bar">
+    <div class="filtros-grupo">
+      <!-- Filtro por Rol -->
+      <div class="filtro-item">
+        <label for="filtro-rol">Rol</label>
+        <select
+          id="filtro-rol"
+          [ngModel]="filtros().rol"
+          (ngModelChange)="actualizarFiltro('rol', $event)"
+        >
+          <option value="todos">Todos</option>
+          <option value="cliente">Cliente</option>
+          <option value="profesor">Profesor</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <!-- Filtro por Estado -->
+      <div class="filtro-item">
+        <label for="filtro-estado">Estado</label>
+        <select
+          id="filtro-estado"
+          [ngModel]="filtros().activo"
+          (ngModelChange)="actualizarFiltro('activo', $event)"
+        >
+          <option value="todos">Todos</option>
+          <option value="activo">Activos</option>
+          <option value="inactivo">Inactivos</option>
+        </select>
+      </div>
+
+      <!-- Filtro por Tipo de Grupo -->
+      <div class="filtro-item">
+        <label for="filtro-tipo-grupo">Tipo de grupo</label>
+        <select
+          id="filtro-tipo-grupo"
+          [ngModel]="filtros().tipoGrupo"
+          (ngModelChange)="actualizarFiltro('tipoGrupo', $event)"
+        >
+          <option value="todos">Todos</option>
+          <option value="focus">Focus</option>
+          <option value="reducido">Reducido</option>
+          <option value="hibrido">Híbrido</option>
+          <option value="especial">Especial</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Botón limpiar filtros -->
+    <button class="btn-limpiar" *ngIf="hayFiltrosActivos()" (click)="limpiarFiltros()">
+      <span class="material-symbols-rounded">filter_alt_off</span>
+      Limpiar
     </button>
   </div>
 
@@ -43,15 +99,23 @@
   <div class="perfiles-list" *ngIf="!cargando() && !error()">
     <div class="perfiles-count">
       {{ usuariosFiltrados().length }} usuario{{ usuariosFiltrados().length !== 1 ? 's' : '' }}
+      <span *ngIf="hayFiltrosActivos()" class="filtros-activos">(filtrado)</span>
     </div>
 
-    <div class="perfil-card" *ngFor="let usuario of usuariosFiltrados()">
+    <div
+      class="perfil-card"
+      *ngFor="let usuario of usuariosFiltrados()"
+      [class.inactivo]="!usuario.activo"
+    >
       <div class="perfil-avatar">
         <span class="material-symbols-rounded">person</span>
       </div>
 
       <div class="perfil-info">
-        <div class="perfil-nombre">{{ usuario.nombre || 'Sin nombre' }}</div>
+        <div class="perfil-nombre">
+          {{ usuario.nombre || 'Sin nombre' }}
+          <span class="badge-inactivo" *ngIf="!usuario.activo">Inactivo</span>
+        </div>
         <div class="perfil-telefono">
           <span class="material-symbols-rounded">phone</span>
           {{ usuario.telefono || 'Sin teléfono' }}
@@ -71,7 +135,7 @@
         {{ formatearFecha(usuario.creado_en) }}
       </div>
 
-      <button class="btn-editar" title="Editar perfil">
+      <button class="btn-editar" title="Editar perfil" (click)="abrirModalEditar(usuario)">
         <span class="material-symbols-rounded">edit</span>
       </button>
     </div>
@@ -79,13 +143,18 @@
     <!-- Sin resultados -->
     <div class="no-resultados" *ngIf="usuariosFiltrados().length === 0">
       <span class="material-symbols-rounded">person_off</span>
-      <p *ngIf="busqueda()">No se encontraron usuarios para "{{ busqueda() }}"</p>
-      <p *ngIf="!busqueda()">No hay usuarios registrados</p>
+      <p *ngIf="busqueda() || hayFiltrosActivos()">
+        No se encontraron usuarios con los filtros aplicados
+      </p>
+      <p *ngIf="!busqueda() && !hayFiltrosActivos()">No hay usuarios registrados</p>
+      <button class="btn-limpiar-inline" *ngIf="hayFiltrosActivos()" (click)="limpiarFiltros()">
+        Limpiar filtros
+      </button>
     </div>
   </div>
 </main>
 
-<!-- Modal Nuevo Usuario -->
+<!-- Modal Crear/Editar Usuario -->
 <div
   class="modal-overlay"
   *ngIf="mostrarModal()"
@@ -93,17 +162,11 @@
   aria-modal="true"
   aria-labelledby="modal-titulo"
 >
-  <!-- Botón invisible para cerrar al hacer clic fuera -->
-  <button
-    class="modal-backdrop"
-    (click)="cerrarModal()"
-    (keydown.escape)="cerrarModal()"
-    aria-label="Cerrar modal"
-  ></button>
+  <button class="modal-backdrop" (click)="cerrarModal()" aria-label="Cerrar modal"></button>
 
   <div class="modal-content">
     <div class="modal-header">
-      <h2 id="modal-titulo">Nuevo Usuario</h2>
+      <h2 id="modal-titulo">{{ modoEdicion() ? 'Editar Usuario' : 'Nuevo Usuario' }}</h2>
       <button class="btn-cerrar" (click)="cerrarModal()" aria-label="Cerrar">
         <span class="material-symbols-rounded">close</span>
       </button>
@@ -125,7 +188,7 @@
             <input
               id="nombre"
               type="text"
-              [ngModel]="nuevoUsuario().nombre"
+              [ngModel]="formulario().nombre"
               (ngModelChange)="actualizarCampo('nombre', $event)"
               placeholder="Juan"
             />
@@ -137,23 +200,53 @@
             <input
               id="apellidos"
               type="text"
-              [ngModel]="nuevoUsuario().apellidos"
+              [ngModel]="formulario().apellidos"
               (ngModelChange)="actualizarCampo('apellidos', $event)"
               placeholder="García López"
             />
           </div>
 
           <!-- Teléfono -->
-          <div class="form-group form-group--full">
-            <label for="telefono">Teléfono * (será su usuario de acceso)</label>
+          <div class="form-group">
+            <label for="telefono">Teléfono * (usuario de acceso)</label>
             <input
               id="telefono"
               type="tel"
-              [ngModel]="nuevoUsuario().telefono"
+              [ngModel]="formulario().telefono"
               (ngModelChange)="actualizarCampo('telefono', $event)"
               placeholder="612345678"
               inputmode="numeric"
             />
+          </div>
+
+          <!-- Rol (solo en edición o si es necesario) -->
+          <div class="form-group">
+            <label for="rol">Rol</label>
+            <select
+              id="rol"
+              [ngModel]="formulario().rol"
+              (ngModelChange)="actualizarCampo('rol', $event)"
+            >
+              <option *ngFor="let r of roles" [value]="r.value">{{ r.label }}</option>
+            </select>
+          </div>
+
+          <!-- Estado activo (solo en edición) -->
+          <div class="form-group form-group--full" *ngIf="modoEdicion()">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [checked]="formulario().activo"
+                (change)="actualizarCampo('activo', $any($event.target).checked)"
+              />
+              <span class="checkbox-text">Usuario activo</span>
+              <span class="checkbox-hint">Los usuarios inactivos no pueden iniciar sesión</span>
+            </label>
+          </div>
+
+          <!-- Separador -->
+          <div class="form-separator">
+            <span>Plan de clases</span>
           </div>
 
           <!-- Tipo de grupo -->
@@ -161,7 +254,7 @@
             <label for="tipoGrupo">Tipo de grupo *</label>
             <select
               id="tipoGrupo"
-              [ngModel]="nuevoUsuario().tipoGrupo"
+              [ngModel]="formulario().tipoGrupo"
               (ngModelChange)="actualizarCampo('tipoGrupo', $event)"
             >
               <option *ngFor="let tipo of tiposGrupo" [value]="tipo.value">
@@ -170,24 +263,24 @@
             </select>
           </div>
 
-          <!-- Clases Focus (visible si no es solo reducido) -->
-          <div class="form-group" *ngIf="nuevoUsuario().tipoGrupo !== 'reducido'">
-            <label for="clasesFocus">Clases Focus</label>
+          <!-- Clases Focus -->
+          <div class="form-group" *ngIf="formulario().tipoGrupo !== 'reducido'">
+            <label for="clasesFocus">Clases Focus / semana</label>
             <select
               id="clasesFocus"
-              [ngModel]="nuevoUsuario().clasesFocus"
+              [ngModel]="formulario().clasesFocus"
               (ngModelChange)="actualizarCampo('clasesFocus', +$event)"
             >
               <option *ngFor="let n of clasesOptions" [ngValue]="n">{{ n }}</option>
             </select>
           </div>
 
-          <!-- Clases Reducido (visible si no es solo focus) -->
-          <div class="form-group" *ngIf="nuevoUsuario().tipoGrupo !== 'focus'">
-            <label for="clasesReducido">Clases Reducido</label>
+          <!-- Clases Reducido -->
+          <div class="form-group" *ngIf="formulario().tipoGrupo !== 'focus'">
+            <label for="clasesReducido">Clases Reducido / semana</label>
             <select
               id="clasesReducido"
-              [ngModel]="nuevoUsuario().clasesReducido"
+              [ngModel]="formulario().clasesReducido"
               (ngModelChange)="actualizarCampo('clasesReducido', +$event)"
             >
               <option *ngFor="let n of clasesOptions" [ngValue]="n">{{ n }}</option>
@@ -195,11 +288,11 @@
           </div>
 
           <!-- Tipo de cuota (solo para especial) -->
-          <div class="form-group" *ngIf="nuevoUsuario().tipoGrupo === 'especial'">
+          <div class="form-group" *ngIf="formulario().tipoGrupo === 'especial'">
             <label for="tipoCuota">Tipo de cuota</label>
             <select
               id="tipoCuota"
-              [ngModel]="nuevoUsuario().tipoCuota"
+              [ngModel]="formulario().tipoCuota"
               (ngModelChange)="actualizarCampo('tipoCuota', $event)"
             >
               <option value="semanal">Por semana</option>
@@ -207,16 +300,27 @@
             </select>
           </div>
 
+          <!-- Separador Contraseña -->
+          <div class="form-separator">
+            <span>{{ modoEdicion() ? 'Cambiar contraseña (opcional)' : 'Contraseña' }}</span>
+          </div>
+
           <!-- Contraseña -->
           <div class="form-group form-group--full">
-            <label for="password-field">Contraseña * (para enviar al usuario)</label>
+            <label for="password-field">
+              {{ modoEdicion() ? 'Nueva contraseña' : 'Contraseña * (para enviar al usuario)' }}
+            </label>
             <div class="password-row">
               <input
                 id="password-field"
                 type="text"
-                [value]="nuevoUsuario().password"
+                [value]="formulario().password"
                 readonly
-                placeholder="Pulsa 'Generar' para crear una contraseña"
+                [placeholder]="
+                  modoEdicion()
+                    ? 'Dejar vacío para no cambiar'
+                    : 'Pulsa Generar para crear una contraseña'
+                "
                 class="password-input"
               />
               <button type="button" class="btn-generar" (click)="generarPassword()">
@@ -227,16 +331,15 @@
                 type="button"
                 class="btn-copiar"
                 (click)="copiarPassword()"
-                [disabled]="!nuevoUsuario().password"
+                [disabled]="!formulario().password"
                 [class.copiada]="passwordCopiada()"
-                [attr.aria-label]="passwordCopiada() ? 'Copiada' : 'Copiar contraseña'"
               >
                 <span class="material-symbols-rounded">
                   {{ passwordCopiada() ? 'check' : 'content_copy' }}
                 </span>
               </button>
             </div>
-            <span class="password-hint" *ngIf="nuevoUsuario().password">
+            <span class="password-hint" *ngIf="formulario().password">
               Copia esta contraseña y envíala al usuario por WhatsApp
             </span>
           </div>
@@ -262,7 +365,7 @@
       >
         <span class="material-symbols-rounded" *ngIf="!guardando()">save</span>
         <span class="spinner-small" *ngIf="guardando()"></span>
-        {{ guardando() ? 'Guardando...' : 'Guardar Usuario' }}
+        {{ guardando() ? 'Guardando...' : modoEdicion() ? 'Guardar Cambios' : 'Crear Usuario' }}
       </button>
     </div>
   </div>

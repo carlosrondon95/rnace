@@ -1,0 +1,783 @@
+// src/app/components/calendario/calendario.component.scss
+
+$color-bg: #494b46;
+$color-primary: #b8b29e;
+$color-secondary: #ebe9e3;
+$color-surface: #3a3b37;
+$color-surface-light: #454641;
+$color-border-soft: rgba(232, 233, 227, 0.12);
+$color-text-muted: rgba(235, 233, 227, 0.7);
+$color-success: #4ade80;
+$color-error: #f87171;
+$color-warning: #fbbf24;
+$color-focus: #60a5fa;
+$color-reducido: #a78bfa;
+$color-bloqueado: #252623; // Color oscuro para días bloqueados
+
+// ====== LAYOUT ======
+.calendario-page {
+  min-height: 100vh;
+  padding: 2rem 1.5rem;
+  background: radial-gradient(circle at top, #55574f 0, $color-bg 45%, #32332f 100%);
+  color: $color-secondary;
+}
+
+// ====== HEADER ======
+.page-header {
+  max-width: 1200px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+}
+
+.btn-volver {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: none;
+  color: $color-text-muted;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition:
+    color 0.15s,
+    background 0.15s;
+
+  &:hover {
+    color: $color-secondary;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.2rem;
+  }
+}
+
+// ====== ESTADOS ======
+.loading-state {
+  max-width: 1200px;
+  margin: 3rem auto;
+  text-align: center;
+  color: $color-text-muted;
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 1rem;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: $color-primary;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ====== CONTAINER ======
+.calendario-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+// ====== NAVEGACIÓN MES ======
+.mes-navegacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: $color-surface;
+  border-radius: 14px;
+  border: 1px solid $color-border-soft;
+}
+
+.btn-nav {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid $color-border-soft;
+  border-radius: 10px;
+  color: $color-text-muted;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: $color-primary;
+    color: $color-primary;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.5rem;
+  }
+}
+
+.mes-info {
+  flex: 1;
+  text-align: center;
+
+  h2 {
+    margin: 0 0 0.25rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: $color-secondary;
+  }
+}
+
+.mes-estado {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(248, 113, 113, 0.2);
+  color: $color-error;
+
+  &.mes-abierto {
+    background: rgba(74, 222, 128, 0.2);
+    color: $color-success;
+  }
+}
+
+// ====== PANEL ADMIN ======
+.panel-admin {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  background: $color-surface;
+  border-radius: 14px;
+  border: 1px solid $color-border-soft;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.estadisticas {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  flex: 1;
+  min-width: 100px;
+  padding: 1rem;
+  background: #2f302d;
+  border-radius: 10px;
+  border: 1px solid rgba(232, 233, 227, 0.1);
+  text-align: center;
+
+  .stat-label {
+    display: block;
+    font-size: 0.75rem;
+    color: $color-text-muted;
+    margin-bottom: 0.4rem;
+  }
+
+  .stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: $color-secondary;
+
+    &.stat-focus {
+      color: $color-focus;
+    }
+
+    &.stat-reducido {
+      color: $color-reducido;
+    }
+  }
+}
+
+.btn-admin {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.2rem;
+  }
+
+  &--primary {
+    background: $color-primary;
+    color: #252521;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    }
+  }
+
+  &--secondary {
+    background: transparent;
+    border: 1px solid $color-border-soft;
+    color: $color-text-muted;
+
+    &:hover:not(:disabled) {
+      border-color: $color-primary;
+      color: $color-primary;
+      background: rgba(184, 178, 158, 0.05);
+    }
+  }
+
+  &--danger {
+    background: rgba(248, 113, 113, 0.15);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    color: $color-error;
+
+    &:hover:not(:disabled) {
+      background: rgba(248, 113, 113, 0.25);
+    }
+  }
+}
+
+// ====== MODO EDICIÓN ======
+.edicion-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.edicion-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 10px;
+  color: $color-warning;
+
+  .material-symbols-rounded {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+}
+
+.edicion-texto {
+  strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: rgba(251, 191, 36, 0.9);
+  }
+}
+
+.edicion-resumen {
+  text-align: center;
+  padding: 0.75rem;
+  background: #2f302d;
+  border-radius: 8px;
+
+  .festivos-count {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: $color-primary;
+  }
+}
+
+.edicion-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.btn-edicion {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.1rem;
+  }
+}
+
+.btn-cancelar {
+  background: transparent;
+  border: 1px solid $color-border-soft;
+  color: $color-text-muted;
+
+  &:hover:not(:disabled) {
+    border-color: $color-secondary;
+    color: $color-secondary;
+  }
+}
+
+.btn-guardar {
+  background: $color-primary;
+  color: #252521;
+  border: none;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  }
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: #252521;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+// ====== MENSAJES ======
+.mensaje-exito,
+.mensaje-error {
+  max-width: 1200px;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+
+  .material-symbols-rounded {
+    font-size: 1.3rem;
+  }
+}
+
+.mensaje-exito {
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: $color-success;
+}
+
+.mensaje-error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: $color-error;
+}
+
+// ====== CALENDARIO GRID ======
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.dia-header {
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: $color-text-muted;
+  background: $color-surface;
+  border-radius: 8px;
+
+  // Domingos y sábados con estilo diferente
+  &:first-child,
+  &:last-child {
+    background: $color-bloqueado;
+    color: rgba(235, 233, 227, 0.4);
+  }
+}
+
+// Estilos base para día-celda (ahora es un button)
+.dia-celda {
+  // Reset de estilos de botón
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+
+  min-height: 100px;
+  padding: 0.5rem;
+  background: $color-surface;
+  border: 1px solid $color-border-soft;
+  border-radius: 10px;
+  position: relative;
+  transition: all 0.15s;
+  color: $color-secondary;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  &.clickable {
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      border-color: $color-primary;
+      background: $color-surface-light;
+      transform: translateY(-1px);
+    }
+
+    &:focus {
+      outline: 2px solid $color-primary;
+      outline-offset: 2px;
+    }
+  }
+
+  &:disabled:not(.clickable) {
+    cursor: default;
+    opacity: 1; // No queremos que se vean deshabilitados visualmente
+  }
+
+  &--otro-mes {
+    opacity: 0.3;
+    background: #2f302d;
+
+    .dia-numero {
+      color: $color-text-muted;
+    }
+  }
+
+  &--hoy {
+    border-color: $color-primary;
+    box-shadow: 0 0 0 2px rgba(184, 178, 158, 0.2);
+
+    .dia-numero {
+      background: $color-primary;
+      color: #252521;
+      font-weight: 700;
+    }
+  }
+
+  // Días bloqueados (fines de semana)
+  &--bloqueado {
+    background: $color-bloqueado;
+    border-color: rgba(232, 233, 227, 0.05);
+
+    .dia-numero {
+      color: rgba(235, 233, 227, 0.35);
+    }
+  }
+
+  &--festivo {
+    background: rgba(248, 113, 113, 0.08);
+    border-color: rgba(248, 113, 113, 0.3);
+  }
+
+  &--festivo-seleccionado {
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.4);
+    border-width: 2px;
+  }
+
+  &--con-reservas {
+    border-color: rgba(184, 178, 158, 0.4);
+  }
+}
+
+.dia-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: $color-secondary;
+  margin-bottom: 0.5rem;
+}
+
+.festivo-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.5rem;
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: $color-error;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 0.5rem;
+
+  .material-symbols-rounded {
+    font-size: 0.9rem;
+  }
+}
+
+// ====== RESERVAS ======
+.reservas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+  width: 100%;
+}
+
+.reserva-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  background: #2f302d;
+  border: 1px solid rgba(232, 233, 227, 0.15);
+  border-radius: 6px;
+  font-size: 0.7rem;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #34352f;
+    border-color: rgba(232, 233, 227, 0.25);
+  }
+
+  &.reserva-propia {
+    background: rgba(184, 178, 158, 0.15);
+    border-color: rgba(184, 178, 158, 0.4);
+
+    .reserva-label {
+      color: $color-primary;
+      font-weight: 600;
+    }
+  }
+
+  &.reserva-focus {
+    border-left: 3px solid $color-focus;
+  }
+
+  &.reserva-reducido {
+    border-left: 3px solid $color-reducido;
+  }
+}
+
+.reserva-hora {
+  font-weight: 600;
+  color: $color-secondary;
+  white-space: nowrap;
+}
+
+.reserva-modalidad {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: $color-text-muted;
+}
+
+.reserva-usuario {
+  flex: 1;
+  color: $color-text-muted;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reserva-label {
+  flex: 1;
+  color: $color-text-muted;
+  white-space: nowrap;
+}
+
+// ====== LEYENDA ======
+.leyenda {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1rem;
+  background: $color-surface;
+  border-radius: 10px;
+  border: 1px solid $color-border-soft;
+  flex-wrap: wrap;
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: $color-text-muted;
+}
+
+.leyenda-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid rgba(232, 233, 227, 0.2);
+
+  &.leyenda-hoy {
+    background: $color-primary;
+  }
+
+  &.leyenda-bloqueado {
+    background: $color-bloqueado;
+    border-color: rgba(232, 233, 227, 0.1);
+  }
+
+  &.leyenda-festivo {
+    background: rgba(248, 113, 113, 0.3);
+    border-color: $color-error;
+  }
+
+  &.leyenda-reserva-propia {
+    background: rgba(184, 178, 158, 0.3);
+    border-color: $color-primary;
+  }
+
+  &.leyenda-focus {
+    background: $color-focus;
+  }
+
+  &.leyenda-reducido {
+    background: $color-reducido;
+  }
+}
+
+// ====== RESPONSIVE ======
+@media (max-width: 900px) {
+  .calendario-page {
+    padding: 1rem;
+  }
+
+  .mes-navegacion {
+    flex-wrap: wrap;
+  }
+
+  .admin-actions {
+    flex-direction: column;
+
+    .btn-admin {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .estadisticas {
+    flex-direction: column;
+
+    .stat-card {
+      min-width: 100%;
+    }
+  }
+
+  .calendario-grid {
+    gap: 4px;
+  }
+
+  .dia-celda {
+    min-height: 80px;
+    padding: 0.3rem;
+  }
+
+  .dia-numero {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+  }
+
+  .reserva-item {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .festivo-badge {
+    font-size: 0.6rem;
+    padding: 0.2rem 0.4rem;
+
+    .material-symbols-rounded {
+      font-size: 0.8rem;
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .dia-celda {
+    min-height: 60px;
+  }
+
+  .reserva-usuario,
+  .reserva-label {
+    display: none;
+  }
+
+  .leyenda {
+    gap: 1rem;
+  }
+
+  .leyenda-item {
+    font-size: 0.7rem;
+
+    span:not(.leyenda-color) {
+      display: none;
+    }
+  }
+
+  .edicion-actions {
+    flex-direction: column;
+
+    .btn-edicion {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}

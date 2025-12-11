@@ -1,0 +1,247 @@
+<!-- src/app/components/calendario/calendario.component.html -->
+
+<main class="calendario-page">
+  <!-- Header -->
+  <header class="page-header">
+    <button class="btn-volver" (click)="volver()">
+      <span class="material-symbols-rounded">arrow_back</span>
+      Volver
+    </button>
+    <h1>Calendario de Citas</h1>
+  </header>
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="cargando()">
+    <div class="spinner"></div>
+    <p>Cargando calendario...</p>
+  </div>
+
+  <!-- Contenido principal -->
+  <div class="calendario-container" *ngIf="!cargando()">
+    <!-- Navegación del mes -->
+    <div class="mes-navegacion">
+      <button class="btn-nav" (click)="mesAnterior()" [disabled]="guardando()">
+        <span class="material-symbols-rounded">chevron_left</span>
+      </button>
+
+      <div class="mes-info">
+        <h2>{{ nombreMes() | titlecase }}</h2>
+        <span class="mes-estado" [class.mes-abierto]="mesEstaAbierto()">
+          {{ mesEstaAbierto() ? 'Mes abierto' : 'Mes cerrado' }}
+        </span>
+      </div>
+
+      <button class="btn-nav" (click)="mesSiguiente()" [disabled]="guardando()">
+        <span class="material-symbols-rounded">chevron_right</span>
+      </button>
+    </div>
+
+    <!-- Panel de control (solo admin) -->
+    <div class="panel-admin" *ngIf="esAdmin()">
+      <!-- Botones de acción arriba -->
+      <div class="admin-actions" *ngIf="!modoEdicion()">
+        <button
+          class="btn-admin btn-admin--primary"
+          (click)="activarModoEdicion()"
+          [disabled]="guardando()"
+          *ngIf="!mesEstaAbierto()"
+        >
+          <span class="material-symbols-rounded">edit_calendar</span>
+          Configurar y abrir mes
+        </button>
+
+        <button
+          class="btn-admin btn-admin--secondary"
+          (click)="activarModoEdicion()"
+          [disabled]="guardando()"
+          *ngIf="mesEstaAbierto()"
+        >
+          <span class="material-symbols-rounded">edit_calendar</span>
+          Editar días festivos
+        </button>
+
+        <button
+          class="btn-admin btn-admin--danger"
+          (click)="cerrarMes()"
+          [disabled]="guardando()"
+          *ngIf="mesEstaAbierto()"
+        >
+          <span class="material-symbols-rounded">lock</span>
+          Cerrar mes
+        </button>
+      </div>
+
+      <!-- Estadísticas debajo de los botones -->
+      <div class="estadisticas" *ngIf="!modoEdicion()">
+        <div class="stat-card">
+          <span class="stat-label">Total reservas</span>
+          <span class="stat-value">{{ totalReservas() }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Focus</span>
+          <span class="stat-value stat-focus">{{ reservasPorModalidad().focus }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Reducido</span>
+          <span class="stat-value stat-reducido">{{ reservasPorModalidad().reducido }}</span>
+        </div>
+      </div>
+
+      <!-- Modo edición -->
+      <div class="edicion-panel" *ngIf="modoEdicion()">
+        <div class="edicion-info">
+          <span class="material-symbols-rounded">info</span>
+          <div class="edicion-texto">
+            <strong>Modo configuración</strong>
+            <p>Haz clic en los días laborables (lun-vie) para marcarlos como festivos/cerrados</p>
+          </div>
+        </div>
+
+        <div class="edicion-resumen">
+          <span class="festivos-count">
+            {{ festivosSeleccionados().size }} día{{
+              festivosSeleccionados().size !== 1 ? 's' : ''
+            }}
+            festivo{{ festivosSeleccionados().size !== 1 ? 's' : '' }}
+          </span>
+        </div>
+
+        <div class="edicion-actions">
+          <button
+            class="btn-edicion btn-cancelar"
+            (click)="cancelarEdicion()"
+            [disabled]="guardando()"
+          >
+            Cancelar
+          </button>
+          <button
+            class="btn-edicion btn-guardar"
+            (click)="guardarYAbrirMes()"
+            [disabled]="guardando()"
+          >
+            <span class="material-symbols-rounded" *ngIf="!guardando()">save</span>
+            <span class="spinner-small" *ngIf="guardando()"></span>
+            {{
+              guardando()
+                ? 'Guardando...'
+                : mesEstaAbierto()
+                  ? 'Guardar cambios'
+                  : 'Guardar y abrir mes'
+            }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mensajes -->
+    <div class="mensaje-exito" *ngIf="mensajeExito()">
+      <span class="material-symbols-rounded">check_circle</span>
+      {{ mensajeExito() }}
+    </div>
+
+    <div class="mensaje-error" *ngIf="error()">
+      <span class="material-symbols-rounded">error</span>
+      {{ error() }}
+    </div>
+
+    <!-- Calendario -->
+    <div class="calendario-grid">
+      <!-- Cabecera días de la semana -->
+      @for (dia of diasSemana; track dia) {
+        <div class="dia-header">{{ dia }}</div>
+      }
+
+      <!-- Celdas de días -->
+      @for (dia of diasCalendario(); track dia.fecha) {
+        <button
+          type="button"
+          [class]="getDiaClases(dia)"
+          [class.clickable]="modoEdicion() && dia.esDelMes && dia.esLaborable"
+          [disabled]="!(modoEdicion() && dia.esDelMes && dia.esLaborable)"
+          [attr.aria-label]="'Día ' + dia.dia + (dia.esFestivo ? ' - Festivo' : '')"
+          (click)="onClickDia(dia)"
+        >
+          <!-- Número del día -->
+          <div class="dia-numero">
+            {{ dia.dia }}
+          </div>
+
+          <!-- Indicador de festivo (modo edición) -->
+          @if (modoEdicion() && esFestivoSeleccionado(dia.fecha)) {
+            <div class="festivo-badge">
+              <span class="material-symbols-rounded">block</span>
+              Festivo
+            </div>
+          }
+
+          <!-- Indicador de festivo (modo normal) -->
+          @if (!modoEdicion() && dia.esFestivo && dia.esDelMes) {
+            <div class="festivo-badge">
+              <span class="material-symbols-rounded">event_busy</span>
+              Festivo
+            </div>
+          }
+
+          <!-- Lista de reservas -->
+          @if (dia.reservas.length > 0 && !modoEdicion()) {
+            <div class="reservas-lista">
+              @for (reserva of dia.reservas; track reserva.id) {
+                <div
+                  class="reserva-item"
+                  [class.reserva-propia]="reserva.es_propia"
+                  [class.reserva-focus]="reserva.modalidad === 'focus'"
+                  [class.reserva-reducido]="reserva.modalidad === 'reducido'"
+                >
+                  <span class="reserva-hora">{{ reserva.hora }}</span>
+                  <span class="reserva-modalidad">
+                    {{ reserva.modalidad === 'focus' ? 'F' : 'R' }}
+                  </span>
+                  @if (esAdmin()) {
+                    <span class="reserva-usuario">{{ reserva.usuario_nombre }}</span>
+                  }
+                  @if (!esAdmin() && reserva.es_propia) {
+                    <span class="reserva-label">Tu clase</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </button>
+      }
+    </div>
+
+    <!-- Leyenda -->
+    <div class="leyenda">
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-hoy"></span>
+        <span>Hoy</span>
+      </div>
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-bloqueado"></span>
+        <span>Fin de semana</span>
+      </div>
+      @if (!modoEdicion()) {
+        <div class="leyenda-item">
+          <span class="leyenda-color leyenda-festivo"></span>
+          <span>Festivo</span>
+        </div>
+      }
+      @if (!esAdmin()) {
+        <div class="leyenda-item">
+          <span class="leyenda-color leyenda-reserva-propia"></span>
+          <span>Tus clases</span>
+        </div>
+      }
+      @if (esAdmin()) {
+        <div class="leyenda-item">
+          <span class="leyenda-color leyenda-focus"></span>
+          <span>Focus</span>
+        </div>
+        <div class="leyenda-item">
+          <span class="leyenda-color leyenda-reducido"></span>
+          <span>Reducido</span>
+        </div>
+      }
+    </div>
+  </div>
+</main>
