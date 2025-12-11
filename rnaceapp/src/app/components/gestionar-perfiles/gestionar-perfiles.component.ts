@@ -24,10 +24,12 @@ interface Usuario {
   plan?: PerfilPlan;
 }
 
-interface NuevoUsuario {
+interface FormularioUsuario {
   nombre: string;
   apellidos: string;
   telefono: string;
+  rol: 'cliente' | 'profesor' | 'admin';
+  activo: boolean;
   tipoGrupo: 'focus' | 'reducido' | 'hibrido' | 'especial';
   clasesFocus: number;
   clasesReducido: number;
@@ -35,7 +37,6 @@ interface NuevoUsuario {
   password: string;
 }
 
-// Interfaz para datos crudos de Supabase
 interface UsuarioDB {
   id: string;
   telefono: string;
@@ -43,6 +44,12 @@ interface UsuarioDB {
   rol: string;
   activo: boolean;
   creado_en: string;
+}
+
+interface Filtros {
+  rol: string;
+  activo: string;
+  tipoGrupo: string;
 }
 
 @Component({
@@ -62,18 +69,29 @@ export class GestionarPerfilesComponent implements OnInit {
   usuarios = signal<Usuario[]>([]);
   busqueda = signal('');
 
-  // Modal nuevo usuario
+  // Filtros
+  filtros = signal<Filtros>({
+    rol: 'todos',
+    activo: 'todos',
+    tipoGrupo: 'todos',
+  });
+
+  // Modal (compartido para crear/editar)
   mostrarModal = signal(false);
+  modoEdicion = signal(false);
+  usuarioEditandoId = signal<string | null>(null);
   guardando = signal(false);
   errorModal = signal<string | null>(null);
   exitoModal = signal<string | null>(null);
   passwordCopiada = signal(false);
 
-  // Formulario nuevo usuario
-  nuevoUsuario = signal<NuevoUsuario>({
+  // Formulario
+  formulario = signal<FormularioUsuario>({
     nombre: '',
     apellidos: '',
     telefono: '',
+    rol: 'cliente',
+    activo: true,
     tipoGrupo: 'focus',
     clasesFocus: 2,
     clasesReducido: 0,
@@ -81,22 +99,39 @@ export class GestionarPerfilesComponent implements OnInit {
     password: '',
   });
 
-  // Usuarios filtrados por búsqueda
+  // Usuarios filtrados
   usuariosFiltrados = computed(() => {
     const busq = this.busqueda().toLowerCase().trim();
-    const lista = this.usuarios();
+    const f = this.filtros();
+    let lista = this.usuarios();
 
-    if (!busq) return lista;
+    // Filtro por búsqueda
+    if (busq) {
+      lista = lista.filter(
+        (u) => u.nombre?.toLowerCase().includes(busq) || u.telefono?.includes(busq),
+      );
+    }
 
-    return lista.filter(
-      (u) =>
-        u.nombre?.toLowerCase().includes(busq) ||
-        u.telefono?.includes(busq) ||
-        u.rol?.toLowerCase().includes(busq),
-    );
+    // Filtro por rol
+    if (f.rol !== 'todos') {
+      lista = lista.filter((u) => u.rol === f.rol);
+    }
+
+    // Filtro por estado activo
+    if (f.activo !== 'todos') {
+      const esActivo = f.activo === 'activo';
+      lista = lista.filter((u) => u.activo === esActivo);
+    }
+
+    // Filtro por tipo de grupo
+    if (f.tipoGrupo !== 'todos') {
+      lista = lista.filter((u) => u.plan?.tipo_grupo === f.tipoGrupo);
+    }
+
+    return lista;
   });
 
-  // Opciones para el formulario
+  // Opciones
   tiposGrupo = [
     { value: 'focus', label: 'Focus (máx 3 personas)' },
     { value: 'reducido', label: 'Reducido (máx 8 personas)' },
@@ -104,9 +139,14 @@ export class GestionarPerfilesComponent implements OnInit {
     { value: 'especial', label: 'Especial (cuota personalizada)' },
   ];
 
+  roles = [
+    { value: 'cliente', label: 'Cliente' },
+    { value: 'profesor', label: 'Profesor' },
+    { value: 'admin', label: 'Administrador' },
+  ];
+
   clasesOptions = [0, 1, 2, 3, 4, 5, 6, 7];
 
-  // Cerrar modal con Escape
   @HostListener('document:keydown.escape')
   onEscapeKey() {
     if (this.mostrarModal()) {
@@ -118,14 +158,15 @@ export class GestionarPerfilesComponent implements OnInit {
     this.cargarUsuarios();
   }
 
-  private async cargarUsuarios() {
+  // ========== CARGA DE DATOS ==========
+
+  async cargarUsuarios() {
     this.cargando.set(true);
     this.error.set(null);
 
     try {
       const client = supabase();
 
-      // Query 1: Cargar usuarios
       const { data: usuariosData, error: usuariosError } = await client
         .from('usuarios')
         .select('id, telefono, nombre, rol, activo, creado_en')
@@ -137,7 +178,6 @@ export class GestionarPerfilesComponent implements OnInit {
         return;
       }
 
-      // Query 2: Cargar todos los planes
       const { data: planesData, error: planesError } = await client
         .from('plan_usuario')
         .select(
@@ -146,10 +186,8 @@ export class GestionarPerfilesComponent implements OnInit {
 
       if (planesError) {
         console.error('Error cargando planes:', planesError);
-        // No es crítico, seguimos sin planes
       }
 
-      // Crear mapa de planes por usuario_id
       const planesMap = new Map<string, PerfilPlan>();
       if (planesData) {
         for (const plan of planesData) {
@@ -163,7 +201,6 @@ export class GestionarPerfilesComponent implements OnInit {
         }
       }
 
-      // Combinar usuarios con sus planes
       const usuarios: Usuario[] = ((usuariosData || []) as UsuarioDB[]).map((u) => ({
         id: u.id,
         telefono: u.telefono || '',
@@ -183,12 +220,35 @@ export class GestionarPerfilesComponent implements OnInit {
     }
   }
 
-  // Abrir modal de nuevo usuario
+  // ========== FILTROS ==========
+
+  actualizarFiltro(filtro: keyof Filtros, valor: string) {
+    this.filtros.update((f) => ({ ...f, [filtro]: valor }));
+  }
+
+  limpiarFiltros() {
+    this.filtros.set({ rol: 'todos', activo: 'todos', tipoGrupo: 'todos' });
+    this.busqueda.set('');
+  }
+
+  hayFiltrosActivos(): boolean {
+    const f = this.filtros();
+    return (
+      f.rol !== 'todos' || f.activo !== 'todos' || f.tipoGrupo !== 'todos' || this.busqueda() !== ''
+    );
+  }
+
+  // ========== MODAL CREAR ==========
+
   abrirModalNuevo() {
-    this.nuevoUsuario.set({
+    this.modoEdicion.set(false);
+    this.usuarioEditandoId.set(null);
+    this.formulario.set({
       nombre: '',
       apellidos: '',
       telefono: '',
+      rol: 'cliente',
+      activo: true,
       tipoGrupo: 'focus',
       clasesFocus: 2,
       clasesReducido: 0,
@@ -201,24 +261,72 @@ export class GestionarPerfilesComponent implements OnInit {
     this.mostrarModal.set(true);
   }
 
-  cerrarModal() {
-    this.mostrarModal.set(false);
+  // ========== MODAL EDITAR ==========
+
+  abrirModalEditar(usuario: Usuario) {
+    this.modoEdicion.set(true);
+    this.usuarioEditandoId.set(usuario.id);
+
+    // Separar nombre y apellidos
+    const partes = (usuario.nombre || '').split(' ');
+    const nombre = partes[0] || '';
+    const apellidos = partes.slice(1).join(' ') || '';
+
+    this.formulario.set({
+      nombre: nombre,
+      apellidos: apellidos,
+      telefono: usuario.telefono,
+      rol: usuario.rol as 'cliente' | 'profesor' | 'admin',
+      activo: usuario.activo,
+      tipoGrupo: (usuario.plan?.tipo_grupo as FormularioUsuario['tipoGrupo']) || 'focus',
+      clasesFocus: usuario.plan?.clases_focus_semana || 0,
+      clasesReducido: usuario.plan?.clases_reducido_semana || 0,
+      tipoCuota: (usuario.plan?.tipo_cuota as 'semanal' | 'mensual') || 'semanal',
+      password: '',
+    });
+
+    this.errorModal.set(null);
+    this.exitoModal.set(null);
+    this.passwordCopiada.set(false);
+    this.mostrarModal.set(true);
   }
 
-  // Generar contraseña aleatoria
+  cerrarModal() {
+    this.mostrarModal.set(false);
+    this.modoEdicion.set(false);
+    this.usuarioEditandoId.set(null);
+  }
+
+  // ========== FORMULARIO ==========
+
+  actualizarCampo(campo: keyof FormularioUsuario, valor: string | number | boolean) {
+    this.formulario.update((f) => ({ ...f, [campo]: valor }));
+
+    // Ajustar clases según tipo de grupo
+    if (campo === 'tipoGrupo') {
+      const tipo = valor as FormularioUsuario['tipoGrupo'];
+      if (tipo === 'focus') {
+        this.formulario.update((f) => ({ ...f, clasesFocus: 2, clasesReducido: 0 }));
+      } else if (tipo === 'reducido') {
+        this.formulario.update((f) => ({ ...f, clasesFocus: 0, clasesReducido: 2 }));
+      } else if (tipo === 'hibrido') {
+        this.formulario.update((f) => ({ ...f, clasesFocus: 1, clasesReducido: 1 }));
+      }
+    }
+  }
+
   generarPassword() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
     let password = '';
     for (let i = 0; i < 8; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    this.nuevoUsuario.update((u) => ({ ...u, password }));
+    this.formulario.update((f) => ({ ...f, password }));
     this.passwordCopiada.set(false);
   }
 
-  // Copiar contraseña al portapapeles
   async copiarPassword() {
-    const pass = this.nuevoUsuario().password;
+    const pass = this.formulario().password;
     if (!pass) return;
 
     try {
@@ -230,36 +338,30 @@ export class GestionarPerfilesComponent implements OnInit {
     }
   }
 
-  // Actualizar campo del formulario
-  actualizarCampo(campo: keyof NuevoUsuario, valor: string | number) {
-    this.nuevoUsuario.update((u) => ({ ...u, [campo]: valor }));
-
-    // Ajustar clases según tipo de grupo
-    if (campo === 'tipoGrupo') {
-      const tipo = valor as NuevoUsuario['tipoGrupo'];
-      if (tipo === 'focus') {
-        this.nuevoUsuario.update((u) => ({ ...u, clasesFocus: 2, clasesReducido: 0 }));
-      } else if (tipo === 'reducido') {
-        this.nuevoUsuario.update((u) => ({ ...u, clasesFocus: 0, clasesReducido: 2 }));
-      } else if (tipo === 'hibrido') {
-        this.nuevoUsuario.update((u) => ({ ...u, clasesFocus: 1, clasesReducido: 1 }));
-      }
-    }
-  }
-
-  // Validar formulario
   formularioValido(): boolean {
-    const u = this.nuevoUsuario();
-    return !!(
-      u.nombre.trim() &&
-      u.telefono.trim() &&
-      u.telefono.length >= 9 &&
-      u.password.length >= 6 &&
-      (u.clasesFocus > 0 || u.clasesReducido > 0)
+    const f = this.formulario();
+    const baseValido = !!(
+      f.nombre.trim() &&
+      f.telefono.trim() &&
+      f.telefono.length >= 9 &&
+      (f.clasesFocus > 0 || f.clasesReducido > 0)
     );
+
+    // En modo crear, la contraseña es obligatoria
+    if (!this.modoEdicion()) {
+      return baseValido && f.password.length >= 6;
+    }
+
+    // En modo editar, la contraseña es opcional (si se pone, mínimo 6)
+    if (f.password && f.password.length < 6) {
+      return false;
+    }
+
+    return baseValido;
   }
 
-  // Guardar nuevo usuario - AHORA USA AUTHSERVICE DIRECTAMENTE
+  // ========== GUARDAR ==========
+
   async guardarUsuario() {
     if (!this.formularioValido()) {
       this.errorModal.set('Por favor, completa todos los campos correctamente.');
@@ -270,41 +372,112 @@ export class GestionarPerfilesComponent implements OnInit {
     this.errorModal.set(null);
     this.exitoModal.set(null);
 
-    const u = this.nuevoUsuario();
-    const nombreCompleto = u.apellidos ? `${u.nombre} ${u.apellidos}` : u.nombre;
-    const telefonoLimpio = u.telefono.replace(/[^0-9]/g, '');
+    const f = this.formulario();
+    const nombreCompleto = f.apellidos ? `${f.nombre} ${f.apellidos}` : f.nombre;
+    const telefonoLimpio = f.telefono.replace(/[^0-9]/g, '');
 
     try {
-      // Usar AuthService para crear usuario con plan
-      const resultado = await this.authService.crearUsuarioConPlan({
-        telefono: telefonoLimpio,
-        password: u.password,
-        nombre: nombreCompleto,
-        rol: 'cliente',
-        tipoGrupo: u.tipoGrupo,
-        clasesFocus: u.clasesFocus,
-        clasesReducido: u.clasesReducido,
-        tipoCuota: u.tipoCuota,
-      });
-
-      if (!resultado.success) {
-        this.errorModal.set(resultado.error || 'Error al crear el usuario.');
-        return;
+      if (this.modoEdicion()) {
+        await this.actualizarUsuario(nombreCompleto, telefonoLimpio, f);
+      } else {
+        await this.crearNuevoUsuario(nombreCompleto, telefonoLimpio, f);
       }
-
-      this.exitoModal.set(`Usuario creado correctamente. Teléfono: ${telefonoLimpio}`);
-
-      // Recargar lista
-      await this.cargarUsuarios();
     } catch (err) {
       console.error('Error:', err);
-      this.errorModal.set('Error inesperado al crear el usuario.');
+      this.errorModal.set('Error inesperado.');
     } finally {
       this.guardando.set(false);
     }
   }
 
-  // Formatear fecha
+  private async crearNuevoUsuario(nombre: string, telefono: string, f: FormularioUsuario) {
+    const resultado = await this.authService.crearUsuarioConPlan({
+      telefono: telefono,
+      password: f.password,
+      nombre: nombre,
+      rol: f.rol,
+      tipoGrupo: f.tipoGrupo,
+      clasesFocus: f.clasesFocus,
+      clasesReducido: f.clasesReducido,
+      tipoCuota: f.tipoCuota,
+    });
+
+    if (!resultado.success) {
+      this.errorModal.set(resultado.error || 'Error al crear el usuario.');
+      return;
+    }
+
+    this.exitoModal.set(`Usuario creado. Teléfono: ${telefono}`);
+    await this.cargarUsuarios();
+  }
+
+  private async actualizarUsuario(nombre: string, telefono: string, f: FormularioUsuario) {
+    const userId = this.usuarioEditandoId();
+    if (!userId) return;
+
+    const client = supabase();
+
+    // Actualizar datos del usuario
+    const { error: userError } = await client
+      .from('usuarios')
+      .update({
+        nombre: nombre,
+        telefono: telefono,
+        rol: f.rol,
+        activo: f.activo,
+        actualizado_en: new Date().toISOString(),
+      })
+      .eq('id', userId);
+
+    if (userError) {
+      this.errorModal.set('Error al actualizar usuario: ' + userError.message);
+      return;
+    }
+
+    // Actualizar o crear plan
+    const { data: planExistente } = await client
+      .from('plan_usuario')
+      .select('id')
+      .eq('usuario_id', userId)
+      .single();
+
+    if (planExistente) {
+      await client
+        .from('plan_usuario')
+        .update({
+          tipo_grupo: f.tipoGrupo,
+          clases_focus_semana: f.clasesFocus,
+          clases_reducido_semana: f.clasesReducido,
+          tipo_cuota: f.tipoCuota,
+        })
+        .eq('usuario_id', userId);
+    } else {
+      await client.from('plan_usuario').insert({
+        usuario_id: userId,
+        tipo_grupo: f.tipoGrupo,
+        clases_focus_semana: f.clasesFocus,
+        clases_reducido_semana: f.clasesReducido,
+        tipo_cuota: f.tipoCuota,
+        activo: true,
+      });
+    }
+
+    // Si se especificó nueva contraseña, cambiarla
+    if (f.password && f.password.length >= 6) {
+      const passResult = await this.authService.cambiarPassword(userId, f.password);
+      if (!passResult.success) {
+        this.errorModal.set('Usuario actualizado pero error al cambiar contraseña.');
+        await this.cargarUsuarios();
+        return;
+      }
+    }
+
+    this.exitoModal.set('Usuario actualizado correctamente.');
+    await this.cargarUsuarios();
+  }
+
+  // ========== UTILIDADES ==========
+
   formatearFecha(fecha: string): string {
     if (!fecha) return '-';
     return new Date(fecha).toLocaleDateString('es-ES', {
@@ -314,7 +487,6 @@ export class GestionarPerfilesComponent implements OnInit {
     });
   }
 
-  // Obtener etiqueta del grupo
   obtenerEtiquetaGrupo(plan: PerfilPlan | undefined): string {
     if (!plan) return 'Sin plan';
 
@@ -331,14 +503,12 @@ export class GestionarPerfilesComponent implements OnInit {
     return 'Sin plan';
   }
 
-  // Obtener clase CSS para el rol
   obtenerClaseRol(rol: string): string {
     if (rol === 'admin') return 'rol-admin';
     if (rol === 'profesor') return 'rol-profesor';
     return 'rol-cliente';
   }
 
-  // Obtener clase CSS para estado activo
   obtenerClaseActivo(activo: boolean): string {
     return activo ? 'estado-activo' : 'estado-inactivo';
   }

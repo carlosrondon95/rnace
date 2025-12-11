@@ -1,6 +1,6 @@
 // src/app/app.routes.ts
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { authGuard, adminGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -27,10 +27,18 @@ export const routes: Routes = [
       import('./components/reservas/reserva-cita.component').then((m) => m.ReservaCitaComponent),
   },
 
-  // Gestionar perfiles (protegido, admin)
+  // Calendario (protegido, todos los usuarios)
+  {
+    path: 'calendario',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./components/calendario/calendario.component').then((m) => m.CalendarioComponent),
+  },
+
+  // Gestionar perfiles (protegido, solo admin)
   {
     path: 'gestionar-perfiles',
-    canActivate: [authGuard],
+    canActivate: [authGuard, adminGuard],
     loadComponent: () =>
       import('./components/gestionar-perfiles/gestionar-perfiles.component').then(
         (m) => m.GestionarPerfilesComponent,
