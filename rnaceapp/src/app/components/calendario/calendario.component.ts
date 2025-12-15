@@ -1,17 +1,16 @@
 // src/app/components/calendario/calendario.component.ts
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
 
 interface DiaCalendario {
-  fecha: string; // YYYY-MM-DD
-  dia: number; // 1-31
-  diaSemana: number; // 0-6 (0=domingo)
+  fecha: string;
+  dia: number;
+  diaSemana: number;
   esDelMes: boolean;
   esHoy: boolean;
-  esLaborable: boolean; // lunes-viernes
+  esLaborable: boolean;
   esFestivo: boolean;
   mesAbierto: boolean;
   reservas: ReservaCalendario[];
@@ -25,7 +24,7 @@ interface ReservaCalendario {
   hora: string;
   modalidad: 'focus' | 'reducido';
   estado: string;
-  es_propia: boolean; // true si es del usuario actual
+  es_propia: boolean;
 }
 
 interface MesAgenda {
@@ -34,7 +33,6 @@ interface MesAgenda {
   abierto: boolean;
 }
 
-// Interfaz para la respuesta de Supabase
 interface ReservaDB {
   id: number;
   sesion_id: number;
@@ -64,7 +62,6 @@ interface UsuarioDB {
   styleUrls: ['./calendario.component.scss'],
 })
 export class CalendarioComponent implements OnInit {
-  private router = inject(Router);
   private auth = inject(AuthService);
 
   // Estado
@@ -75,18 +72,18 @@ export class CalendarioComponent implements OnInit {
 
   // Fecha actual del calendario
   anioActual = signal(new Date().getFullYear());
-  mesActual = signal(new Date().getMonth() + 1); // 1-12
+  mesActual = signal(new Date().getMonth() + 1);
 
   // Datos
   diasCalendario = signal<DiaCalendario[]>([]);
   mesAgenda = signal<MesAgenda | null>(null);
-  festivosSeleccionados = signal<Set<string>>(new Set()); // Set de fechas YYYY-MM-DD
+  festivosSeleccionados = signal<Set<string>>(new Set());
 
   // Usuario
   esAdmin = computed(() => this.auth.getRol() === 'admin');
   userId = computed(() => this.auth.userId());
 
-  // Modo edición (solo admin)
+  // Modo edición
   modoEdicion = signal(false);
 
   // Computed
@@ -94,14 +91,13 @@ export class CalendarioComponent implements OnInit {
     const fecha = new Date(this.anioActual(), this.mesActual() - 1, 1);
     const nombreMes = fecha.toLocaleDateString('es-ES', { month: 'long' });
     const anio = this.anioActual();
-    return `${nombreMes} ${anio}`; // Sin "de"
+    return `${nombreMes} ${anio}`;
   });
 
   mesEstaAbierto = computed(() => this.mesAgenda()?.abierto ?? false);
 
   diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-  // Resumen de reservas (solo admin)
   totalReservas = computed(() => {
     return this.diasCalendario().reduce((total, dia) => total + dia.reservas.length, 0);
   });
@@ -124,8 +120,6 @@ export class CalendarioComponent implements OnInit {
     this.cargarCalendario();
   }
 
-  // ========== CARGA DE DATOS ==========
-
   async cargarCalendario() {
     this.cargando.set(true);
     this.error.set(null);
@@ -136,7 +130,6 @@ export class CalendarioComponent implements OnInit {
       const mes = this.mesActual();
       const client = supabase();
 
-      // 1. Cargar estado del mes (agenda_mes)
       const { data: agendaData } = await client
         .from('agenda_mes')
         .select('*')
@@ -146,7 +139,6 @@ export class CalendarioComponent implements OnInit {
 
       this.mesAgenda.set(agendaData || { anio, mes, abierto: false });
 
-      // 2. Cargar festivos del mes
       const primerDia = `${anio}-${mes.toString().padStart(2, '0')}-01`;
       const ultimoDia = new Date(anio, mes, 0).toISOString().split('T')[0];
 
@@ -159,11 +151,9 @@ export class CalendarioComponent implements OnInit {
       const festivosSet = new Set<string>();
       (festivosData || []).forEach((f) => festivosSet.add(f.fecha));
 
-      // 3. Cargar reservas del mes
       let reservasData: ReservaDB[] = [];
 
       if (this.esAdmin()) {
-        // Admin ve todas las reservas
         const { data } = await client
           .from('reservas')
           .select(
@@ -185,7 +175,6 @@ export class CalendarioComponent implements OnInit {
 
         reservasData = (data as ReservaDB[]) || [];
 
-        // Cargar nombres de usuarios
         const userIds = [...new Set(reservasData.map((r) => r.usuario_id))];
         if (userIds.length > 0) {
           const { data: usuariosData } = await client
@@ -205,7 +194,6 @@ export class CalendarioComponent implements OnInit {
           }));
         }
       } else {
-        // Cliente solo ve sus reservas
         const uid = this.userId();
         if (uid) {
           const { data } = await client
@@ -236,7 +224,6 @@ export class CalendarioComponent implements OnInit {
         }
       }
 
-      // 4. Construir calendario
       const dias = this.construirDiasCalendario(anio, mes, festivosSet, reservasData);
       this.diasCalendario.set(dias);
     } catch (err) {
@@ -260,13 +247,10 @@ export class CalendarioComponent implements OnInit {
     const mesAbierto = this.mesAgenda()?.abierto ?? false;
     const userId = this.userId();
 
-    // Agrupar reservas por fecha
     const reservasPorFecha = new Map<string, ReservaCalendario[]>();
     reservasData.forEach((r) => {
-      // Verificar que sesiones existe y tiene al menos un elemento
       if (!r.sesiones || r.sesiones.length === 0) return;
 
-      // Acceder al primer elemento del array de sesiones
       const sesion = r.sesiones[0];
       const fecha = sesion.fecha_inicio.split('T')[0];
       const hora = sesion.fecha_inicio.split('T')[1].substring(0, 5);
@@ -288,7 +272,6 @@ export class CalendarioComponent implements OnInit {
       reservasPorFecha.get(fecha)!.push(reserva);
     });
 
-    // Días del mes anterior (para completar la primera semana)
     const primerDiaSemana = primerDia.getDay();
     if (primerDiaSemana > 0) {
       const mesAnterior = mes === 1 ? 12 : mes - 1;
@@ -313,11 +296,10 @@ export class CalendarioComponent implements OnInit {
       }
     }
 
-    // Días del mes actual
     for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
       const fecha = `${anio}-${mes.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
       const diaSemana = new Date(fecha).getDay();
-      const esLaborable = diaSemana >= 1 && diaSemana <= 5; // Lunes a viernes
+      const esLaborable = diaSemana >= 1 && diaSemana <= 5;
       const esFestivo = festivos.has(fecha);
 
       dias.push({
@@ -333,7 +315,6 @@ export class CalendarioComponent implements OnInit {
       });
     }
 
-    // Días del mes siguiente (para completar la última semana)
     const ultimoDiaSemana = ultimoDia.getDay();
     if (ultimoDiaSemana < 6) {
       const mesSiguiente = mes === 12 ? 1 : mes + 1;
@@ -359,8 +340,6 @@ export class CalendarioComponent implements OnInit {
     return dias;
   }
 
-  // ========== NAVEGACIÓN ==========
-
   mesAnterior() {
     if (this.mesActual() === 1) {
       this.mesActual.set(12);
@@ -385,12 +364,9 @@ export class CalendarioComponent implements OnInit {
     this.cargarCalendario();
   }
 
-  // ========== GESTIÓN DE MES (ADMIN) ==========
-
   activarModoEdicion() {
     if (!this.esAdmin()) return;
 
-    // Cargar festivos existentes
     const festivosActuales = new Set<string>();
     this.diasCalendario().forEach((dia) => {
       if (dia.esFestivo && dia.esDelMes) {
@@ -443,7 +419,6 @@ export class CalendarioComponent implements OnInit {
       const primerDia = `${anio}-${mes.toString().padStart(2, '0')}-01`;
       const ultimoDia = new Date(anio, mes, 0).toISOString().split('T')[0];
 
-      // 1. Eliminar festivos existentes del mes
       const { error: deleteError } = await client
         .from('festivos')
         .delete()
@@ -456,7 +431,6 @@ export class CalendarioComponent implements OnInit {
         return;
       }
 
-      // 2. Insertar nuevos festivos (si hay)
       const festivosArray = [...this.festivosSeleccionados()];
 
       if (festivosArray.length > 0) {
@@ -474,8 +448,6 @@ export class CalendarioComponent implements OnInit {
         }
       }
 
-      // 3. Abrir/actualizar el mes en agenda_mes
-      // Primero verificamos si existe
       const { data: existente } = await client
         .from('agenda_mes')
         .select('anio, mes')
@@ -484,7 +456,6 @@ export class CalendarioComponent implements OnInit {
         .maybeSingle();
 
       if (existente) {
-        // Actualizar
         const { error: updateError } = await client
           .from('agenda_mes')
           .update({ abierto: true })
@@ -497,7 +468,6 @@ export class CalendarioComponent implements OnInit {
           return;
         }
       } else {
-        // Insertar
         const { error: insertError } = await client
           .from('agenda_mes')
           .insert({ anio, mes, abierto: true });
@@ -509,11 +479,20 @@ export class CalendarioComponent implements OnInit {
         }
       }
 
+      // Generar sesiones del mes
+      const { error: genError } = await client.rpc('generar_sesiones_mes', {
+        p_anio: anio,
+        p_mes: mes,
+      });
+
+      if (genError) {
+        console.warn('No se pudieron generar sesiones automáticamente:', genError);
+      }
+
       this.mensajeExito.set('Mes configurado correctamente. Los usuarios ya pueden reservar.');
       this.modoEdicion.set(false);
       this.festivosSeleccionados.set(new Set());
 
-      // Recargar calendario
       await this.cargarCalendario();
     } catch (err) {
       console.error('Error:', err);
@@ -540,7 +519,6 @@ export class CalendarioComponent implements OnInit {
       const mes = this.mesActual();
       const client = supabase();
 
-      // Verificar si existe el registro
       const { data: existente } = await client
         .from('agenda_mes')
         .select('anio, mes')
@@ -578,15 +556,12 @@ export class CalendarioComponent implements OnInit {
     }
   }
 
-  // ========== UTILIDADES ==========
-
   getDiaClases(dia: DiaCalendario): string {
     const clases = ['dia-celda'];
 
     if (!dia.esDelMes) clases.push('dia-celda--otro-mes');
     if (dia.esHoy) clases.push('dia-celda--hoy');
 
-    // Fines de semana siempre bloqueados (oscuros)
     if (!dia.esLaborable && dia.esDelMes) clases.push('dia-celda--bloqueado');
 
     if (dia.esDelMes && dia.esLaborable) {
@@ -610,9 +585,5 @@ export class CalendarioComponent implements OnInit {
     if (this.modoEdicion() && this.esAdmin()) {
       this.toggleFestivo(dia);
     }
-  }
-
-  volver() {
-    this.router.navigateByUrl('/dashboard');
   }
 }

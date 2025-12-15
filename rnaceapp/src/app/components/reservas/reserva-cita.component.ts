@@ -1,4 +1,4 @@
-// src/app/reservas/reserva-cita.component.ts
+// src/app/components/reservas/reserva-cita.component.ts
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
@@ -6,6 +6,7 @@ import { supabase } from '../../core/supabase.client';
 import { AuthService } from '../../core/auth.service';
 
 type Modalidad = 'focus' | 'reducido';
+type TipoGrupo = 'focus' | 'reducido' | 'hibrido' | 'especial';
 
 interface SesionDB {
   sesion_id: number;
@@ -43,7 +44,7 @@ interface DiaAgrupado {
 }
 
 interface CuposUsuario {
-  tipo_grupo: string;
+  tipo_grupo: TipoGrupo;
   sesiones_focus_mes: number;
   sesiones_reducido_mes: number;
   usadas_focus_mes: number;
@@ -52,6 +53,16 @@ interface CuposUsuario {
   disponibles_reducido_mes: number;
   tiene_recuperacion_focus: boolean;
   tiene_recuperacion_reducido: boolean;
+}
+
+interface PlanUsuario {
+  tipo_grupo: TipoGrupo;
+  clases_focus_semana: number;
+  clases_reducido_semana: number;
+  sesiones_fijas_mes_focus: number | null;
+  sesiones_fijas_mes_reducido: number | null;
+  tipo_cuota: string;
+  activo: boolean;
 }
 
 interface ResultadoReserva {
@@ -86,6 +97,7 @@ export class ReservaCitaComponent implements OnInit {
   modalidad = signal<Modalidad>('focus');
   sesiones = signal<Sesion[]>([]);
   cupos = signal<CuposUsuario | null>(null);
+  plan = signal<PlanUsuario | null>(null);
   mesActual = signal({ anio: new Date().getFullYear(), mes: new Date().getMonth() + 1 });
   mesAbierto = signal(false);
 
@@ -93,12 +105,40 @@ export class ReservaCitaComponent implements OnInit {
   sesionSeleccionada = signal<Sesion | null>(null);
   usarRecuperacion = signal(false);
 
-  // Computed
+  // Computed: tipo de grupo del usuario
+  tipoGrupo = computed<TipoGrupo>(() => {
+    const c = this.cupos();
+    return (c?.tipo_grupo as TipoGrupo) || 'focus';
+  });
+
+  // Computed: modalidades disponibles según el plan
+  modalidadesDisponibles = computed<Modalidad[]>(() => {
+    const tipo = this.tipoGrupo();
+    switch (tipo) {
+      case 'focus':
+        return ['focus'];
+      case 'reducido':
+        return ['reducido'];
+      case 'hibrido':
+      case 'especial':
+        return ['focus', 'reducido'];
+      default:
+        return ['focus'];
+    }
+  });
+
+  // Computed: si puede cambiar de modalidad
+  puedeToggleModalidad = computed(() => {
+    return this.modalidadesDisponibles().length > 1;
+  });
+
+  // Computed: sesiones filtradas por modalidad
   sesionesFiltradas = computed(() => {
     const mod = this.modalidad();
     return this.sesiones().filter((s) => s.modalidad === mod);
   });
 
+  // Computed: días agrupados
   diasAgrupados = computed(() => {
     const sesiones = this.sesionesFiltradas();
     const diasMap = new Map<string, DiaAgrupado>();
@@ -115,16 +155,15 @@ export class ReservaCitaComponent implements OnInit {
       diasMap.get(sesion.fecha)!.sesiones.push(sesion);
     }
 
-    // Ordenar sesiones dentro de cada día por hora
     for (const dia of diasMap.values()) {
       dia.sesiones.sort((a, b) => a.hora.localeCompare(b.hora));
     }
 
-    // Ordenar días por fecha
     return Array.from(diasMap.values()).sort((a, b) => a.fecha.localeCompare(b.fecha));
   });
 
-  cuposDisponibles = computed(() => {
+  // Computed: cupos de la modalidad actual
+  cuposModalidadActual = computed(() => {
     const c = this.cupos();
     const mod = this.modalidad();
     if (!c) return { disponibles: 0, total: 0, usadas: 0, tieneRecuperacion: false };
@@ -146,15 +185,86 @@ export class ReservaCitaComponent implements OnInit {
     }
   });
 
+  // Computed: info de cupos para mostrar (según tipo de grupo)
+  infoCupos = computed(() => {
+    const c = this.cupos();
+    const tipo = this.tipoGrupo();
+
+    if (!c) return null;
+
+    switch (tipo) {
+      case 'focus':
+        return {
+          tipo: 'focus' as const,
+          titulo: 'Clases Focus',
+          usadas: c.usadas_focus_mes,
+          total: c.sesiones_focus_mes,
+          disponibles: c.disponibles_focus_mes,
+          recuperacion: c.tiene_recuperacion_focus,
+        };
+
+      case 'reducido':
+        return {
+          tipo: 'reducido' as const,
+          titulo: 'Clases Reducido',
+          usadas: c.usadas_reducido_mes,
+          total: c.sesiones_reducido_mes,
+          disponibles: c.disponibles_reducido_mes,
+          recuperacion: c.tiene_recuperacion_reducido,
+        };
+
+      case 'hibrido':
+        return {
+          tipo: 'hibrido' as const,
+          focus: {
+            usadas: c.usadas_focus_mes,
+            total: c.sesiones_focus_mes,
+            disponibles: c.disponibles_focus_mes,
+            recuperacion: c.tiene_recuperacion_focus,
+          },
+          reducido: {
+            usadas: c.usadas_reducido_mes,
+            total: c.sesiones_reducido_mes,
+            disponibles: c.disponibles_reducido_mes,
+            recuperacion: c.tiene_recuperacion_reducido,
+          },
+        };
+
+      case 'especial': {
+        const planData = this.plan();
+        return {
+          tipo: 'especial' as const,
+          focus: {
+            usadas: c.usadas_focus_mes,
+            total: planData?.sesiones_fijas_mes_focus || c.sesiones_focus_mes,
+            disponibles: c.disponibles_focus_mes,
+            recuperacion: c.tiene_recuperacion_focus,
+          },
+          reducido: {
+            usadas: c.usadas_reducido_mes,
+            total: planData?.sesiones_fijas_mes_reducido || c.sesiones_reducido_mes,
+            disponibles: c.disponibles_reducido_mes,
+            recuperacion: c.tiene_recuperacion_reducido,
+          },
+        };
+      }
+
+      default:
+        return null;
+    }
+  });
+
+  // Computed: si puede reservar en la modalidad actual
   puedeReservar = computed(() => {
-    const cupos = this.cuposDisponibles();
+    const cupos = this.cuposModalidadActual();
     return cupos.disponibles > 0 || cupos.tieneRecuperacion;
   });
 
   nombreMes = computed(() => {
     const { anio, mes } = this.mesActual();
     const fecha = new Date(anio, mes - 1, 1);
-    return fecha.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    const nombreMes = fecha.toLocaleDateString('es-ES', { month: 'long' });
+    return `${nombreMes} ${anio}`;
   });
 
   ngOnInit() {
@@ -190,7 +300,18 @@ export class ReservaCitaComponent implements OnInit {
         return;
       }
 
-      // 2. Cargar cupos del usuario
+      // 2. Cargar plan del usuario
+      const { data: planData } = await client
+        .from('plan_usuario')
+        .select('*')
+        .eq('usuario_id', userId)
+        .maybeSingle();
+
+      if (planData) {
+        this.plan.set(planData as PlanUsuario);
+      }
+
+      // 3. Cargar cupos del usuario
       const { data: cuposData, error: cuposError } = await client
         .rpc('obtener_cupos_usuario', {
           p_usuario_id: userId,
@@ -207,7 +328,15 @@ export class ReservaCitaComponent implements OnInit {
 
       this.cupos.set(cuposData as CuposUsuario);
 
-      // 3. Cargar sesiones del mes
+      // 4. Establecer modalidad inicial según tipo de grupo
+      const tipoGrupo = (cuposData as CuposUsuario).tipo_grupo as TipoGrupo;
+      if (tipoGrupo === 'reducido') {
+        this.modalidad.set('reducido');
+      } else {
+        this.modalidad.set('focus');
+      }
+
+      // 5. Cargar sesiones del mes
       const inicioMes = `${anio}-${mes.toString().padStart(2, '0')}-01`;
       const finMes = new Date(anio, mes, 0).toISOString().split('T')[0];
 
@@ -226,7 +355,6 @@ export class ReservaCitaComponent implements OnInit {
         return;
       }
 
-      // Mapear datos con tipo correcto
       const sesionesTyped: Sesion[] = ((sesionesData as SesionDB[]) || []).map((s) => ({
         id: s.sesion_id,
         fecha_inicio: s.fecha_inicio,
@@ -251,7 +379,10 @@ export class ReservaCitaComponent implements OnInit {
   }
 
   selectModalidad(mod: Modalidad) {
+    // Solo permitir cambiar si tiene acceso a esa modalidad
+    if (!this.modalidadesDisponibles().includes(mod)) return;
     if (this.modalidad() === mod) return;
+
     this.modalidad.set(mod);
     this.sesionSeleccionada.set(null);
     this.usarRecuperacion.set(false);
@@ -293,7 +424,6 @@ export class ReservaCitaComponent implements OnInit {
     try {
       const client = supabase();
 
-      // Llamar a la función crear_reserva
       const { data, error } = await client
         .rpc('crear_reserva', {
           p_usuario_id: userId,
@@ -319,7 +449,6 @@ export class ReservaCitaComponent implements OnInit {
       this.sesionSeleccionada.set(null);
       this.usarRecuperacion.set(false);
 
-      // Recargar datos
       await this.cargarDatos();
     } catch (err) {
       console.error('Error inesperado:', err);
@@ -375,7 +504,7 @@ export class ReservaCitaComponent implements OnInit {
     this.router.navigateByUrl('/dashboard');
   }
 
-  // Helpers (públicos para usar en template)
+  // Helpers
   formatearFecha(fecha: string): string {
     const d = new Date(fecha + 'T00:00:00');
     return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
@@ -397,5 +526,9 @@ export class ReservaCitaComponent implements OnInit {
     if (sesion.estado === 'completa') return 'Completa';
     if (sesion.estado === 'pasada') return 'Pasada';
     return `${sesion.plazas_disponibles}/${sesion.capacidad}`;
+  }
+
+  getNombreModalidad(mod: Modalidad): string {
+    return mod === 'focus' ? 'Focus' : 'Reducido';
   }
 }
