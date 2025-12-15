@@ -12,54 +12,14 @@ $color-error: #f87171;
 $color-warning: #fbbf24;
 $color-focus: #60a5fa;
 $color-reducido: #a78bfa;
-$color-bloqueado: #252623; // Color oscuro para días bloqueados
+$color-bloqueado: #252623;
 
 // ====== LAYOUT ======
 .calendario-page {
   min-height: 100vh;
-  padding: 2rem 1.5rem;
+  padding: 72px 1.5rem 2rem; // 72px para el navbar fijo
   background: radial-gradient(circle at top, #55574f 0, $color-bg 45%, #32332f 100%);
   color: $color-secondary;
-}
-
-// ====== HEADER ======
-.page-header {
-  max-width: 1200px;
-  margin: 0 auto 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-
-  h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-  }
-}
-
-.btn-volver {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: transparent;
-  border: none;
-  color: $color-text-muted;
-  font-size: 0.9rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition:
-    color 0.15s,
-    background 0.15s;
-
-  &:hover {
-    color: $color-secondary;
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  .material-symbols-rounded {
-    font-size: 1.2rem;
-  }
 }
 
 // ====== ESTADOS ======
@@ -159,11 +119,11 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
   letter-spacing: 0.5px;
   padding: 0.2rem 0.6rem;
   border-radius: 6px;
-  background: rgba(248, 113, 113, 0.2);
+  background: rgba($color-error, 0.2);
   color: $color-error;
 
   &.mes-abierto {
-    background: rgba(74, 222, 128, 0.2);
+    background: rgba($color-success, 0.2);
     color: $color-success;
   }
 }
@@ -215,7 +175,6 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
     &.stat-focus {
       color: $color-focus;
     }
-
     &.stat-reducido {
       color: $color-reducido;
     }
@@ -261,17 +220,17 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
     &:hover:not(:disabled) {
       border-color: $color-primary;
       color: $color-primary;
-      background: rgba(184, 178, 158, 0.05);
+      background: rgba($color-primary, 0.05);
     }
   }
 
   &--danger {
-    background: rgba(248, 113, 113, 0.15);
-    border: 1px solid rgba(248, 113, 113, 0.3);
+    background: rgba($color-error, 0.15);
+    border: 1px solid rgba($color-error, 0.3);
     color: $color-error;
 
     &:hover:not(:disabled) {
-      background: rgba(248, 113, 113, 0.25);
+      background: rgba($color-error, 0.25);
     }
   }
 }
@@ -288,8 +247,8 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
   align-items: flex-start;
   gap: 0.75rem;
   padding: 1rem;
-  background: rgba(251, 191, 36, 0.1);
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  background: rgba($color-warning, 0.1);
+  border: 1px solid rgba($color-warning, 0.3);
   border-radius: 10px;
   color: $color-warning;
 
@@ -305,11 +264,10 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
     margin-bottom: 0.25rem;
     font-size: 0.9rem;
   }
-
   p {
     margin: 0;
     font-size: 0.8rem;
-    color: rgba(251, 191, 36, 0.9);
+    color: rgba($color-warning, 0.9);
   }
 }
 
@@ -347,7 +305,6 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
     opacity: 0.5;
     cursor: not-allowed;
   }
-
   .material-symbols-rounded {
     font-size: 1.1rem;
   }
@@ -402,14 +359,14 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
 }
 
 .mensaje-exito {
-  background: rgba(74, 222, 128, 0.1);
-  border: 1px solid rgba(74, 222, 128, 0.3);
+  background: rgba($color-success, 0.1);
+  border: 1px solid rgba($color-success, 0.3);
   color: $color-success;
 }
 
 .mensaje-error {
-  background: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: rgba($color-error, 0.1);
+  border: 1px solid rgba($color-error, 0.3);
   color: $color-error;
 }
 
@@ -432,7 +389,6 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
   background: $color-surface;
   border-radius: 8px;
 
-  // Domingos y sábados con estilo diferente
   &:first-child,
   &:last-child {
     background: $color-bloqueado;
@@ -440,11 +396,8 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
   }
 }
 
-// Estilos base para día-celda (ahora es un button)
 .dia-celda {
-  // Reset de estilos de botón
   appearance: none;
-  -webkit-appearance: none;
   font-family: inherit;
   font-size: inherit;
   text-align: left;
@@ -479,13 +432,12 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
 
   &:disabled:not(.clickable) {
     cursor: default;
-    opacity: 1; // No queremos que se vean deshabilitados visualmente
+    opacity: 1;
   }
 
   &--otro-mes {
     opacity: 0.3;
     background: #2f302d;
-
     .dia-numero {
       color: $color-text-muted;
     }
@@ -493,7 +445,7 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
 
   &--hoy {
     border-color: $color-primary;
-    box-shadow: 0 0 0 2px rgba(184, 178, 158, 0.2);
+    box-shadow: 0 0 0 2px rgba($color-primary, 0.2);
 
     .dia-numero {
       background: $color-primary;
@@ -502,29 +454,27 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
     }
   }
 
-  // Días bloqueados (fines de semana)
   &--bloqueado {
     background: $color-bloqueado;
     border-color: rgba(232, 233, 227, 0.05);
-
     .dia-numero {
       color: rgba(235, 233, 227, 0.35);
     }
   }
 
   &--festivo {
-    background: rgba(248, 113, 113, 0.08);
-    border-color: rgba(248, 113, 113, 0.3);
+    background: rgba($color-error, 0.08);
+    border-color: rgba($color-error, 0.3);
   }
 
   &--festivo-seleccionado {
-    background: rgba(251, 191, 36, 0.12);
-    border-color: rgba(251, 191, 36, 0.4);
+    background: rgba($color-warning, 0.12);
+    border-color: rgba($color-warning, 0.4);
     border-width: 2px;
   }
 
   &--con-reservas {
-    border-color: rgba(184, 178, 158, 0.4);
+    border-color: rgba($color-primary, 0.4);
   }
 }
 
@@ -546,8 +496,8 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
   align-items: center;
   gap: 0.3rem;
   padding: 0.3rem 0.5rem;
-  background: rgba(248, 113, 113, 0.15);
-  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: rgba($color-error, 0.15);
+  border: 1px solid rgba($color-error, 0.3);
   border-radius: 6px;
   font-size: 0.65rem;
   font-weight: 600;
@@ -587,9 +537,8 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
   }
 
   &.reserva-propia {
-    background: rgba(184, 178, 158, 0.15);
-    border-color: rgba(184, 178, 158, 0.4);
-
+    background: rgba($color-primary, 0.15);
+    border-color: rgba($color-primary, 0.4);
     .reserva-label {
       color: $color-primary;
       font-weight: 600;
@@ -599,7 +548,6 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
   &.reserva-focus {
     border-left: 3px solid $color-focus;
   }
-
   &.reserva-reducido {
     border-left: 3px solid $color-reducido;
   }
@@ -668,26 +616,21 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
   &.leyenda-hoy {
     background: $color-primary;
   }
-
   &.leyenda-bloqueado {
     background: $color-bloqueado;
     border-color: rgba(232, 233, 227, 0.1);
   }
-
   &.leyenda-festivo {
-    background: rgba(248, 113, 113, 0.3);
+    background: rgba($color-error, 0.3);
     border-color: $color-error;
   }
-
   &.leyenda-reserva-propia {
-    background: rgba(184, 178, 158, 0.3);
+    background: rgba($color-primary, 0.3);
     border-color: $color-primary;
   }
-
   &.leyenda-focus {
     background: $color-focus;
   }
-
   &.leyenda-reducido {
     background: $color-reducido;
   }
@@ -696,7 +639,7 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
 // ====== RESPONSIVE ======
 @media (max-width: 900px) {
   .calendario-page {
-    padding: 1rem;
+    padding: 68px 1rem 1.5rem;
   }
 
   .mes-navegacion {
@@ -705,7 +648,6 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
 
   .admin-actions {
     flex-direction: column;
-
     .btn-admin {
       width: 100%;
       justify-content: center;
@@ -714,7 +656,6 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
 
   .estadisticas {
     flex-direction: column;
-
     .stat-card {
       min-width: 100%;
     }
@@ -743,7 +684,6 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
   .festivo-badge {
     font-size: 0.6rem;
     padding: 0.2rem 0.4rem;
-
     .material-symbols-rounded {
       font-size: 0.8rem;
     }
@@ -766,7 +706,6 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
 
   .leyenda-item {
     font-size: 0.7rem;
-
     span:not(.leyenda-color) {
       display: none;
     }
@@ -774,7 +713,6 @@ $color-bloqueado: #252623; // Color oscuro para días bloqueados
 
   .edicion-actions {
     flex-direction: column;
-
     .btn-edicion {
       width: 100%;
       justify-content: center;

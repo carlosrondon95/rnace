@@ -1,172 +1,348 @@
-<main class="reserva-page">
-  <!-- Botón volver -->
-  <button class="btn-volver" (click)="volver()">
-    <span class="material-symbols-rounded">arrow_back</span>
-    Volver
-  </button>
+<!-- src/app/components/reservas/reserva-cita.component.html -->
 
+<main class="reserva-page">
   <section class="reserva-card">
     <!-- Loading -->
-    <div class="loading-state" *ngIf="cargando()">
-      <div class="spinner"></div>
-      <p>Cargando disponibilidad...</p>
-    </div>
+    @if (cargando()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando disponibilidad...</p>
+      </div>
+    }
 
     <!-- Error general (mes cerrado, etc.) -->
-    <div class="error-state" *ngIf="!cargando() && error() && !mesAbierto()">
-      <span class="material-symbols-rounded error-icon">event_busy</span>
-      <h2>Mes no disponible</h2>
-      <p>{{ error() }}</p>
-      <button class="btn-primary" (click)="volver()">Volver al inicio</button>
-    </div>
+    @if (!cargando() && error() && !mesAbierto()) {
+      <div class="error-state">
+        <span class="material-symbols-rounded error-icon">event_busy</span>
+        <h2>Mes no disponible</h2>
+        <p>{{ error() }}</p>
+        <button class="btn-primary" (click)="volver()">Volver al inicio</button>
+      </div>
+    }
 
     <!-- Contenido principal -->
-    <ng-container *ngIf="!cargando() && mesAbierto()">
+    @if (!cargando() && mesAbierto()) {
       <header class="reserva-header">
         <h1>Reservar cita</h1>
         <p class="lead">{{ nombreMes() | titlecase }}</p>
       </header>
 
-      <!-- Info de cupos -->
-      <div class="cupos-info" *ngIf="cupos() as c">
-        <div class="cupo-card">
-          <span class="cupo-label">Clases {{ modalidad() === 'focus' ? 'Focus' : 'Reducido' }}</span>
-          <span class="cupo-value">
-            {{ cuposDisponibles().usadas }} / {{ cuposDisponibles().total }}
-          </span>
-          <span class="cupo-detail">usadas este mes</span>
+      <!-- ========== INFO DE CUPOS SEGÚN TIPO DE PLAN ========== -->
+      @if (infoCupos(); as info) {
+        <div class="cupos-section">
+          <!-- Plan FOCUS: Solo muestra focus -->
+          @if (info.tipo === 'focus') {
+            <div class="cupos-single">
+              <div class="cupo-card cupo-focus">
+                <div class="cupo-header">
+                  <span class="cupo-icon material-symbols-rounded">fitness_center</span>
+                  <span class="cupo-label">{{ info.titulo }}</span>
+                </div>
+                <div class="cupo-body">
+                  <span class="cupo-value">{{ info.usadas }} / {{ info.total }}</span>
+                  <span class="cupo-detail">usadas este mes</span>
+                </div>
+                @if (info.disponibles > 0) {
+                  <div class="cupo-disponible">
+                    {{ info.disponibles }} disponible{{ info.disponibles !== 1 ? 's' : '' }}
+                  </div>
+                }
+                @if (info.recuperacion) {
+                  <div class="cupo-recuperacion">
+                    <span class="material-symbols-rounded">replay</span>
+                    1 recuperación disponible
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Plan REDUCIDO: Solo muestra reducido -->
+          @if (info.tipo === 'reducido') {
+            <div class="cupos-single">
+              <div class="cupo-card cupo-reducido">
+                <div class="cupo-header">
+                  <span class="cupo-icon material-symbols-rounded">groups</span>
+                  <span class="cupo-label">{{ info.titulo }}</span>
+                </div>
+                <div class="cupo-body">
+                  <span class="cupo-value">{{ info.usadas }} / {{ info.total }}</span>
+                  <span class="cupo-detail">usadas este mes</span>
+                </div>
+                @if (info.disponibles > 0) {
+                  <div class="cupo-disponible">
+                    {{ info.disponibles }} disponible{{ info.disponibles !== 1 ? 's' : '' }}
+                  </div>
+                }
+                @if (info.recuperacion) {
+                  <div class="cupo-recuperacion">
+                    <span class="material-symbols-rounded">replay</span>
+                    1 recuperación disponible
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Plan HÍBRIDO: Muestra ambos -->
+          @if (info.tipo === 'hibrido') {
+            <div class="cupos-dual">
+              <div class="cupo-card cupo-focus" [class.cupo-active]="modalidad() === 'focus'">
+                <div class="cupo-header">
+                  <span class="cupo-icon material-symbols-rounded">fitness_center</span>
+                  <span class="cupo-label">Focus</span>
+                </div>
+                <div class="cupo-body">
+                  <span class="cupo-value">{{ info.focus.usadas }} / {{ info.focus.total }}</span>
+                  <span class="cupo-detail">usadas</span>
+                </div>
+                @if (info.focus.disponibles > 0) {
+                  <div class="cupo-disponible">{{ info.focus.disponibles }} disp.</div>
+                }
+                @if (info.focus.recuperacion) {
+                  <div class="cupo-recuperacion">
+                    <span class="material-symbols-rounded">replay</span> 1 recup.
+                  </div>
+                }
+              </div>
+
+              <div class="cupo-card cupo-reducido" [class.cupo-active]="modalidad() === 'reducido'">
+                <div class="cupo-header">
+                  <span class="cupo-icon material-symbols-rounded">groups</span>
+                  <span class="cupo-label">Reducido</span>
+                </div>
+                <div class="cupo-body">
+                  <span class="cupo-value"
+                    >{{ info.reducido.usadas }} / {{ info.reducido.total }}</span
+                  >
+                  <span class="cupo-detail">usadas</span>
+                </div>
+                @if (info.reducido.disponibles > 0) {
+                  <div class="cupo-disponible">{{ info.reducido.disponibles }} disp.</div>
+                }
+                @if (info.reducido.recuperacion) {
+                  <div class="cupo-recuperacion">
+                    <span class="material-symbols-rounded">replay</span> 1 recup.
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Plan ESPECIAL: Muestra sesiones fijas al mes -->
+          @if (info.tipo === 'especial') {
+            <div class="cupos-especial">
+              <div class="cupos-especial-header">
+                <span class="material-symbols-rounded">star</span>
+                <span>Plan Especial</span>
+              </div>
+              <div class="cupos-dual">
+                @if (info.focus.total > 0) {
+                  <div class="cupo-card cupo-focus" [class.cupo-active]="modalidad() === 'focus'">
+                    <div class="cupo-header">
+                      <span class="cupo-icon material-symbols-rounded">fitness_center</span>
+                      <span class="cupo-label">Focus</span>
+                    </div>
+                    <div class="cupo-body">
+                      <span class="cupo-value"
+                        >{{ info.focus.usadas }} / {{ info.focus.total }}</span
+                      >
+                      <span class="cupo-detail">al mes</span>
+                    </div>
+                    @if (info.focus.disponibles > 0) {
+                      <div class="cupo-disponible">{{ info.focus.disponibles }} disp.</div>
+                    }
+                  </div>
+                }
+                @if (info.reducido.total > 0) {
+                  <div
+                    class="cupo-card cupo-reducido"
+                    [class.cupo-active]="modalidad() === 'reducido'"
+                  >
+                    <div class="cupo-header">
+                      <span class="cupo-icon material-symbols-rounded">groups</span>
+                      <span class="cupo-label">Reducido</span>
+                    </div>
+                    <div class="cupo-body">
+                      <span class="cupo-value"
+                        >{{ info.reducido.usadas }} / {{ info.reducido.total }}</span
+                      >
+                      <span class="cupo-detail">al mes</span>
+                    </div>
+                    @if (info.reducido.disponibles > 0) {
+                      <div class="cupo-disponible">{{ info.reducido.disponibles }} disp.</div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
         </div>
-        <div class="cupo-card" *ngIf="cuposDisponibles().tieneRecuperacion">
-          <span class="cupo-label">Recuperación</span>
-          <span class="cupo-value cupo-recuperacion">1</span>
-          <span class="cupo-detail">disponible</span>
-        </div>
-      </div>
+      }
 
-      <!-- Selector de modalidad -->
-      <div class="mode-toggle">
-        <button
-          type="button"
-          class="mode-btn"
-          [class.mode-btn--active]="modalidad() === 'focus'"
-          (click)="selectModalidad('focus')"
-        >
-          Grupo Focus
-          <span class="mode-subtitle">Máx. 3 personas por turno</span>
-        </button>
-
-        <button
-          type="button"
-          class="mode-btn"
-          [class.mode-btn--active]="modalidad() === 'reducido'"
-          (click)="selectModalidad('reducido')"
-        >
-          Grupo Reducido
-          <span class="mode-subtitle">Máx. 8 personas por turno</span>
-        </button>
-      </div>
-
-      <!-- Aviso sin cupo -->
-      <div class="aviso-cupo" *ngIf="!puedeReservar()">
-        <span class="material-symbols-rounded">info</span>
-        <span>Has alcanzado tu límite de clases {{ modalidad() === 'focus' ? 'Focus' : 'Reducido' }} este mes.</span>
-      </div>
-
-      <!-- Grid de sesiones por día -->
-      <div class="schedule-grid" *ngIf="diasAgrupados().length > 0; else noSesiones">
-        <div class="day-card" *ngFor="let dia of diasAgrupados()">
-          <div class="day-header">
-            <span class="day-name">{{ dia.diaNombre }}</span>
-            <span class="day-date">{{ dia.fechaFormateada }}</span>
-          </div>
-          <div class="slots">
+      <!-- ========== SELECTOR DE MODALIDAD (solo si puede elegir) ========== -->
+      @if (puedeToggleModalidad()) {
+        <div class="mode-toggle">
+          @for (mod of modalidadesDisponibles(); track mod) {
             <button
               type="button"
-              class="slot-btn"
-              *ngFor="let sesion of dia.sesiones"
-              [class]="getEstadoClase(sesion)"
-              [disabled]="sesion.estado !== 'disponible'"
-              (click)="selectSesion(sesion)"
+              class="mode-btn"
+              [class.mode-btn--active]="modalidad() === mod"
+              [class.mode-btn--focus]="mod === 'focus'"
+              [class.mode-btn--reducido]="mod === 'reducido'"
+              (click)="selectModalidad(mod)"
             >
-              <span class="slot-hora">{{ sesion.hora }}</span>
-              <span class="slot-plazas">{{ getEstadoTexto(sesion) }}</span>
+              <span class="mode-icon material-symbols-rounded">
+                {{ mod === 'focus' ? 'fitness_center' : 'groups' }}
+              </span>
+              <div class="mode-content">
+                <span class="mode-name">Grupo {{ getNombreModalidad(mod) }}</span>
+                <span class="mode-subtitle">
+                  {{ mod === 'focus' ? 'Máx. 3 personas' : 'Máx. 8 personas' }}
+                </span>
+              </div>
             </button>
-          </div>
+          }
         </div>
-      </div>
+      }
 
-      <ng-template #noSesiones>
+      <!-- Aviso sin cupo -->
+      @if (!puedeReservar()) {
+        <div class="aviso-cupo">
+          <span class="material-symbols-rounded">info</span>
+          <span
+            >Has alcanzado tu límite de clases {{ getNombreModalidad(modalidad()) }} este mes.</span
+          >
+        </div>
+      }
+
+      <!-- ========== GRID DE SESIONES ========== -->
+      @if (diasAgrupados().length > 0) {
+        <div class="schedule-grid">
+          @for (dia of diasAgrupados(); track dia.fecha) {
+            <div class="day-card">
+              <div class="day-header">
+                <span class="day-name">{{ dia.diaNombre }}</span>
+                <span class="day-date">{{ dia.fechaFormateada }}</span>
+              </div>
+              <div class="slots">
+                @for (sesion of dia.sesiones; track sesion.id) {
+                  <button
+                    type="button"
+                    class="slot-btn"
+                    [class]="getEstadoClase(sesion)"
+                    [disabled]="sesion.estado !== 'disponible'"
+                    (click)="selectSesion(sesion)"
+                  >
+                    <span class="slot-hora">{{ sesion.hora }}</span>
+                    <span class="slot-plazas">{{ getEstadoTexto(sesion) }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
         <div class="no-sesiones">
           <span class="material-symbols-rounded">event_busy</span>
-          <p>No hay sesiones disponibles de {{ modalidad() === 'focus' ? 'Focus' : 'Reducido' }} este mes.</p>
+          <p>No hay sesiones de {{ getNombreModalidad(modalidad()) }} disponibles este mes.</p>
+          <p class="no-sesiones-hint">Es posible que aún no se hayan generado los horarios.</p>
         </div>
-      </ng-template>
+      }
 
-      <!-- Mensajes -->
-      <div class="mensaje-exito" *ngIf="mensajeExito() as msg">
-        <span class="material-symbols-rounded">check_circle</span>
-        {{ msg }}
-      </div>
-
-      <div class="mensaje-error" *ngIf="error() && mesAbierto()">
-        <span class="material-symbols-rounded">error</span>
-        {{ error() }}
-      </div>
-
-      <!-- Panel de confirmación -->
-      <div class="confirm-panel" *ngIf="sesionSeleccionada() as sesion">
-        <div class="confirm-info">
-          <p class="confirm-title">Has seleccionado:</p>
-          <p class="confirm-detail">
-            <strong>{{ modalidad() === 'focus' ? 'Grupo Focus' : 'Grupo Reducido' }}</strong>
-            · {{ obtenerNombreDia(sesion.dia_semana) }} {{ formatearFecha(sesion.fecha) }} a las {{ sesion.hora }}
-          </p>
-          
-          <!-- Opción de usar recuperación -->
-          <label class="recuperacion-check" *ngIf="cuposDisponibles().tieneRecuperacion && cuposDisponibles().disponibles === 0">
-            <input type="checkbox" [checked]="usarRecuperacion()" (change)="toggleRecuperacion()">
-            <span>Usar mi clase de recuperación</span>
-          </label>
+      <!-- ========== MENSAJES ========== -->
+      @if (mensajeExito(); as msg) {
+        <div class="mensaje-exito">
+          <span class="material-symbols-rounded">check_circle</span>
+          {{ msg }}
         </div>
+      }
 
-        <div class="confirm-actions">
-          <!-- Si hay plazas y tiene cupo -->
-          <button
-            type="button"
-            class="btn-confirm"
-            *ngIf="sesion.estado === 'disponible' && (cuposDisponibles().disponibles > 0 || usarRecuperacion())"
-            [disabled]="guardando()"
-            (click)="onConfirmar()"
-          >
-            <span *ngIf="!guardando()">Confirmar reserva</span>
-            <span *ngIf="guardando()">Reservando...</span>
-          </button>
-
-          <!-- Si no tiene cupo pero puede usar recuperación -->
-          <button
-            type="button"
-            class="btn-confirm btn-secondary"
-            *ngIf="sesion.estado === 'disponible' && cuposDisponibles().disponibles === 0 && !usarRecuperacion() && cuposDisponibles().tieneRecuperacion"
-            disabled
-          >
-            Selecciona usar recuperación
-          </button>
-
-          <!-- Si está completa, ofrecer lista de espera -->
-          <button
-            type="button"
-            class="btn-lista-espera"
-            *ngIf="sesion.estado === 'completa'"
-            [disabled]="guardando()"
-            (click)="onListaEspera()"
-          >
-            <span *ngIf="!guardando()">Añadirme a lista de espera</span>
-            <span *ngIf="guardando()">Procesando...</span>
-          </button>
+      @if (error() && mesAbierto()) {
+        <div class="mensaje-error">
+          <span class="material-symbols-rounded">error</span>
+          {{ error() }}
         </div>
-      </div>
+      }
 
-      <!-- Leyenda -->
+      <!-- ========== PANEL DE CONFIRMACIÓN ========== -->
+      @if (sesionSeleccionada(); as sesion) {
+        <div class="confirm-panel">
+          <div class="confirm-info">
+            <p class="confirm-title">Has seleccionado:</p>
+            <p class="confirm-detail">
+              <strong>Grupo {{ getNombreModalidad(modalidad()) }}</strong>
+              · {{ obtenerNombreDia(sesion.dia_semana) }} {{ formatearFecha(sesion.fecha) }} a las
+              {{ sesion.hora }}
+            </p>
+
+            <!-- Opción de usar recuperación -->
+            @if (
+              cuposModalidadActual().tieneRecuperacion && cuposModalidadActual().disponibles === 0
+            ) {
+              <label class="recuperacion-check">
+                <input
+                  type="checkbox"
+                  [checked]="usarRecuperacion()"
+                  (change)="toggleRecuperacion()"
+                />
+                <span>Usar mi clase de recuperación</span>
+              </label>
+            }
+          </div>
+
+          <div class="confirm-actions">
+            <!-- Si hay plazas y tiene cupo -->
+            @if (
+              sesion.estado === 'disponible' &&
+              (cuposModalidadActual().disponibles > 0 || usarRecuperacion())
+            ) {
+              <button
+                type="button"
+                class="btn-confirm"
+                [disabled]="guardando()"
+                (click)="onConfirmar()"
+              >
+                @if (!guardando()) {
+                  <span>Confirmar reserva</span>
+                } @else {
+                  <span>Reservando...</span>
+                }
+              </button>
+            }
+
+            <!-- Si no tiene cupo pero puede usar recuperación -->
+            @if (
+              sesion.estado === 'disponible' &&
+              cuposModalidadActual().disponibles === 0 &&
+              !usarRecuperacion() &&
+              cuposModalidadActual().tieneRecuperacion
+            ) {
+              <button type="button" class="btn-confirm btn-secondary" disabled>
+                Selecciona usar recuperación
+              </button>
+            }
+
+            <!-- Si está completa, ofrecer lista de espera -->
+            @if (sesion.estado === 'completa') {
+              <button
+                type="button"
+                class="btn-lista-espera"
+                [disabled]="guardando()"
+                (click)="onListaEspera()"
+              >
+                @if (!guardando()) {
+                  <span>Añadirme a lista de espera</span>
+                } @else {
+                  <span>Procesando...</span>
+                }
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- ========== LEYENDA ========== -->
       <div class="leyenda">
         <div class="leyenda-item">
           <span class="leyenda-color leyenda-disponible"></span>
@@ -181,6 +357,6 @@
           <span>Seleccionada</span>
         </div>
       </div>
-    </ng-container>
+    }
   </section>
 </main>
