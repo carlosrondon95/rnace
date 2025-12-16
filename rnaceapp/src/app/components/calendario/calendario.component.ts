@@ -1,6 +1,7 @@
 // src/app/components/calendario/calendario.component.ts
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
 
@@ -54,6 +55,32 @@ interface UsuarioDB {
   telefono: string;
 }
 
+interface ReservaDBLista {
+  id: number;
+  sesion_id: number;
+  es_recuperacion: boolean;
+  sesiones:
+    | {
+        fecha_inicio: string;
+        modalidad: string;
+      }
+    | {
+        fecha_inicio: string;
+        modalidad: string;
+      }[];
+}
+
+interface ReservaLista {
+  id: number;
+  sesion_id: number;
+  fecha: string;
+  hora: string;
+  modalidad: 'focus' | 'reducido';
+  dia_nombre: string;
+  es_recuperacion: boolean;
+  puede_cancelar: boolean;
+}
+
 @Component({
   standalone: true,
   selector: 'app-calendario',
@@ -63,6 +90,7 @@ interface UsuarioDB {
 })
 export class CalendarioComponent implements OnInit {
   private auth = inject(AuthService);
+  private router = inject(Router);
 
   // Estado
   cargando = signal(true);
@@ -76,6 +104,7 @@ export class CalendarioComponent implements OnInit {
 
   // Datos
   diasCalendario = signal<DiaCalendario[]>([]);
+  reservasLista = signal<ReservaLista[]>([]);
   mesAgenda = signal<MesAgenda | null>(null);
   festivosSeleccionados = signal<Set<string>>(new Set());
 
@@ -117,7 +146,11 @@ export class CalendarioComponent implements OnInit {
   });
 
   ngOnInit() {
-    this.cargarCalendario();
+    if (this.esAdmin()) {
+      this.cargarCalendario();
+    } else {
+      this.cargarReservasLista();
+    }
   }
 
   async cargarCalendario() {
@@ -130,73 +163,54 @@ export class CalendarioComponent implements OnInit {
       const mes = this.mesActual();
       const client = supabase();
 
-      const { data: agendaData } = await client
-        .from('agenda_mes')
-        .select('*')
-        .eq('anio', anio)
-        .eq('mes', mes)
-        .maybeSingle();
+      // Cargar agenda del mes
+      try {
+        const { data: agendaData, error: agendaError } = await client
+          .from('agenda_mes')
+          .select('*')
+          .eq('anio', anio)
+          .eq('mes', mes)
+          .maybeSingle();
 
-      this.mesAgenda.set(agendaData || { anio, mes, abierto: false });
+        if (agendaError && agendaError.code !== 'PGRST116') {
+          // PGRST116 es "no hay resultados", eso está bien
+          console.error('Error cargando agenda:', agendaError);
+        }
+
+        this.mesAgenda.set(agendaData || { anio, mes, abierto: false });
+      } catch (err) {
+        console.error('Error al cargar agenda del mes:', err);
+        this.mesAgenda.set({ anio, mes, abierto: false });
+      }
 
       const primerDia = `${anio}-${mes.toString().padStart(2, '0')}-01`;
       const ultimoDia = new Date(anio, mes, 0).toISOString().split('T')[0];
 
-      const { data: festivosData } = await client
-        .from('festivos')
-        .select('fecha')
-        .gte('fecha', primerDia)
-        .lte('fecha', ultimoDia);
-
+      // Cargar festivos
       const festivosSet = new Set<string>();
-      (festivosData || []).forEach((f) => festivosSet.add(f.fecha));
+      try {
+        const { data: festivosData, error: festivosError } = await client
+          .from('festivos')
+          .select('fecha')
+          .gte('fecha', primerDia)
+          .lte('fecha', ultimoDia);
+
+        if (festivosError) {
+          console.warn('Error cargando festivos:', festivosError);
+        } else {
+          (festivosData || []).forEach((f) => festivosSet.add(f.fecha));
+        }
+      } catch (err) {
+        console.warn('Error al cargar festivos:', err);
+      }
 
       let reservasData: ReservaDB[] = [];
 
-      if (this.esAdmin()) {
-        const { data } = await client
-          .from('reservas')
-          .select(
-            `
-            id,
-            sesion_id,
-            usuario_id,
-            estado,
-            sesiones (
-              fecha_inicio,
-              modalidad
-            )
-          `,
-          )
-          .gte('sesiones.fecha_inicio', primerDia)
-          .lte('sesiones.fecha_inicio', ultimoDia + 'T23:59:59')
-          .eq('estado', 'activa')
-          .order('sesiones(fecha_inicio)', { ascending: true });
-
-        reservasData = (data as ReservaDB[]) || [];
-
-        const userIds = [...new Set(reservasData.map((r) => r.usuario_id))];
-        if (userIds.length > 0) {
-          const { data: usuariosData } = await client
-            .from('usuarios')
-            .select('id, nombre, telefono')
-            .in('id', userIds);
-
-          const usuariosMap = new Map<string, { nombre: string; telefono: string }>();
-          ((usuariosData as UsuarioDB[]) || []).forEach((u) => {
-            usuariosMap.set(u.id, { nombre: u.nombre, telefono: u.telefono });
-          });
-
-          reservasData = reservasData.map((r) => ({
-            ...r,
-            usuario_nombre: usuariosMap.get(r.usuario_id)?.nombre || 'Sin nombre',
-            usuario_telefono: usuariosMap.get(r.usuario_id)?.telefono || '',
-          }));
-        }
-      } else {
-        const uid = this.userId();
-        if (uid) {
-          const { data } = await client
+      // Cargar reservas
+      try {
+        if (this.esAdmin()) {
+          // ADMIN: cargar todas las reservas del mes
+          const { data, error } = await client
             .from('reservas')
             .select(
               `
@@ -204,30 +218,91 @@ export class CalendarioComponent implements OnInit {
               sesion_id,
               usuario_id,
               estado,
-              sesiones (
+              sesiones!inner (
                 fecha_inicio,
                 modalidad
               )
             `,
             )
-            .eq('usuario_id', uid)
             .gte('sesiones.fecha_inicio', primerDia)
             .lte('sesiones.fecha_inicio', ultimoDia + 'T23:59:59')
-            .eq('estado', 'activa')
-            .order('sesiones(fecha_inicio)', { ascending: true });
+            .eq('estado', 'activa');
 
-          reservasData = ((data as ReservaDB[]) || []).map((r) => ({
-            ...r,
-            usuario_nombre: this.auth.usuario()?.nombre || 'Tú',
-            usuario_telefono: this.auth.usuario()?.telefono || '',
-          }));
+          if (error) {
+            console.warn('Error cargando reservas:', error);
+          } else {
+            reservasData = (data as ReservaDB[]) || [];
+          }
+
+          // Cargar nombres de usuarios
+          if (reservasData.length > 0) {
+            try {
+              const userIds = [...new Set(reservasData.map((r) => r.usuario_id))];
+              const { data: usuariosData, error: usuariosError } = await client
+                .from('usuarios')
+                .select('id, nombre, telefono')
+                .in('id', userIds);
+
+              if (usuariosError) {
+                console.warn('Error cargando usuarios:', usuariosError);
+              } else {
+                const usuariosMap = new Map<string, { nombre: string; telefono: string }>();
+                ((usuariosData as UsuarioDB[]) || []).forEach((u) => {
+                  usuariosMap.set(u.id, { nombre: u.nombre, telefono: u.telefono });
+                });
+
+                reservasData = reservasData.map((r) => ({
+                  ...r,
+                  usuario_nombre: usuariosMap.get(r.usuario_id)?.nombre || 'Sin nombre',
+                  usuario_telefono: usuariosMap.get(r.usuario_id)?.telefono || '',
+                }));
+              }
+            } catch (err) {
+              console.warn('Error al cargar nombres de usuarios:', err);
+            }
+          }
+        } else {
+          // CLIENTE: solo sus propias reservas
+          const uid = this.userId();
+          if (uid) {
+            const { data, error } = await client
+              .from('reservas')
+              .select(
+                `
+                id,
+                sesion_id,
+                usuario_id,
+                estado,
+                sesiones!inner (
+                  fecha_inicio,
+                  modalidad
+                )
+              `,
+              )
+              .eq('usuario_id', uid)
+              .gte('sesiones.fecha_inicio', primerDia)
+              .lte('sesiones.fecha_inicio', ultimoDia + 'T23:59:59')
+              .eq('estado', 'activa');
+
+            if (error) {
+              console.warn('Error cargando reservas del usuario:', error);
+            } else {
+              reservasData = ((data as ReservaDB[]) || []).map((r) => ({
+                ...r,
+                usuario_nombre: this.auth.usuario()?.nombre || 'Tú',
+                usuario_telefono: this.auth.usuario()?.telefono || '',
+              }));
+            }
+          }
         }
+      } catch (err) {
+        console.warn('Error al cargar reservas:', err);
       }
 
       const dias = this.construirDiasCalendario(anio, mes, festivosSet, reservasData);
       this.diasCalendario.set(dias);
     } catch (err) {
-      console.error('Error cargando calendario:', err);
+      console.error('Error general cargando calendario:', err);
       this.error.set('Error al cargar el calendario.');
     } finally {
       this.cargando.set(false);
@@ -241,12 +316,17 @@ export class CalendarioComponent implements OnInit {
     reservasData: ReservaDB[],
   ): DiaCalendario[] {
     const dias: DiaCalendario[] = [];
-    const primerDia = new Date(anio, mes - 1, 1);
-    const ultimoDia = new Date(anio, mes, 0);
+
+    // Obtener información del mes
+    const primerDia = new Date(anio, mes - 1, 1); // Primer día del mes
+    const ultimoDiaMes = new Date(anio, mes, 0).getDate(); // Último día del mes (0 = último día del mes anterior)
+    const primerDiaSemana = primerDia.getDay(); // 0=Dom, 1=Lun, etc
+
     const hoy = new Date().toISOString().split('T')[0];
     const mesAbierto = this.mesAgenda()?.abierto ?? false;
     const userId = this.userId();
 
+    // Mapa de reservas por fecha
     const reservasPorFecha = new Map<string, ReservaCalendario[]>();
     reservasData.forEach((r) => {
       if (!r.sesiones || r.sesiones.length === 0) return;
@@ -272,20 +352,24 @@ export class CalendarioComponent implements OnInit {
       reservasPorFecha.get(fecha)!.push(reserva);
     });
 
-    const primerDiaSemana = primerDia.getDay();
+    // Días del mes anterior para completar primera semana (si el mes no empieza en domingo)
     if (primerDiaSemana > 0) {
       const mesAnterior = mes === 1 ? 12 : mes - 1;
       const anioAnterior = mes === 1 ? anio - 1 : anio;
-      const ultimoDiaMesAnterior = new Date(anioAnterior, mesAnterior, 0).getDate();
+      const ultimoDiaMesAnterior = new Date(anio, mes - 1, 0).getDate();
 
-      for (let i = primerDiaSemana - 1; i >= 0; i--) {
-        const dia = ultimoDiaMesAnterior - i;
+      for (
+        let dia = ultimoDiaMesAnterior - primerDiaSemana + 1;
+        dia <= ultimoDiaMesAnterior;
+        dia++
+      ) {
         const fecha = `${anioAnterior}-${mesAnterior.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
+        const fechaObj = new Date(fecha);
 
         dias.push({
           fecha,
           dia,
-          diaSemana: new Date(fecha).getDay(),
+          diaSemana: fechaObj.getDay(),
           esDelMes: false,
           esHoy: false,
           esLaborable: false,
@@ -296,10 +380,12 @@ export class CalendarioComponent implements OnInit {
       }
     }
 
-    for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
+    // Días del mes actual
+    for (let dia = 1; dia <= ultimoDiaMes; dia++) {
       const fecha = `${anio}-${mes.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
-      const diaSemana = new Date(fecha).getDay();
-      const esLaborable = diaSemana >= 1 && diaSemana <= 5;
+      const fechaObj = new Date(fecha);
+      const diaSemana = fechaObj.getDay(); // 0=Dom, 1=Lun, ..., 6=Sáb
+      const esLaborable = diaSemana >= 1 && diaSemana <= 5; // Lunes a Viernes
       const esFestivo = festivos.has(fecha);
 
       dias.push({
@@ -315,18 +401,22 @@ export class CalendarioComponent implements OnInit {
       });
     }
 
-    const ultimoDiaSemana = ultimoDia.getDay();
-    if (ultimoDiaSemana < 6) {
+    // Días del mes siguiente para completar última semana (hasta el sábado)
+    const totalDias = dias.length;
+    const diasFaltantes = totalDias % 7 === 0 ? 0 : 7 - (totalDias % 7);
+
+    if (diasFaltantes > 0) {
       const mesSiguiente = mes === 12 ? 1 : mes + 1;
       const anioSiguiente = mes === 12 ? anio + 1 : anio;
 
-      for (let dia = 1; dia <= 6 - ultimoDiaSemana; dia++) {
+      for (let dia = 1; dia <= diasFaltantes; dia++) {
         const fecha = `${anioSiguiente}-${mesSiguiente.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
+        const fechaObj = new Date(fecha);
 
         dias.push({
           fecha,
           dia,
-          diaSemana: new Date(fecha).getDay(),
+          diaSemana: fechaObj.getDay(),
           esDelMes: false,
           esHoy: false,
           esLaborable: false,
@@ -562,6 +652,7 @@ export class CalendarioComponent implements OnInit {
     if (!dia.esDelMes) clases.push('dia-celda--otro-mes');
     if (dia.esHoy) clases.push('dia-celda--hoy');
 
+    // Fin de semana o festivo = bloqueado
     if (!dia.esLaborable && dia.esDelMes) clases.push('dia-celda--bloqueado');
 
     if (dia.esDelMes && dia.esLaborable) {
@@ -570,6 +661,7 @@ export class CalendarioComponent implements OnInit {
           clases.push('dia-celda--festivo-seleccionado');
         }
       } else {
+        // MOSTRAR FESTIVOS COMO BLOQUEADOS PARA CLIENTES TAMBIÉN
         if (dia.esFestivo) clases.push('dia-celda--festivo');
       }
     }
@@ -585,5 +677,121 @@ export class CalendarioComponent implements OnInit {
     if (this.modoEdicion() && this.esAdmin()) {
       this.toggleFestivo(dia);
     }
+  }
+
+  async cargarReservasLista() {
+    const uid = this.userId();
+    if (!uid) return;
+
+    this.cargando.set(true);
+    this.error.set(null);
+
+    try {
+      const client = supabase();
+      const hoy = new Date().toISOString();
+
+      // Cargar reservas futuras del usuario
+      const { data, error } = await client
+        .from('reservas')
+        .select(
+          `
+          id,
+          sesion_id,
+          es_recuperacion,
+          sesiones!inner (
+            fecha_inicio,
+            modalidad
+          )
+        `,
+        )
+        .eq('usuario_id', uid)
+        .eq('estado', 'activa')
+        .gte('sesiones.fecha_inicio', hoy)
+        .order('sesiones(fecha_inicio)', { ascending: true });
+
+      if (error) {
+        console.error('Error cargando reservas:', error);
+        this.error.set('Error al cargar tus reservas.');
+        this.reservasLista.set([]);
+        return;
+      }
+
+      const reservas: ReservaLista[] = (data || []).map((r: ReservaDBLista) => {
+        const sesion = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
+        const fechaInicio = new Date(sesion.fecha_inicio);
+        const ahora = new Date();
+        const horasHastaClase = (fechaInicio.getTime() - ahora.getTime()) / (1000 * 60 * 60);
+
+        return {
+          id: r.id,
+          sesion_id: r.sesion_id,
+          fecha: fechaInicio.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          }),
+          hora: fechaInicio.toLocaleTimeString('es-ES', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          modalidad: sesion.modalidad as 'focus' | 'reducido',
+          dia_nombre: fechaInicio.toLocaleDateString('es-ES', { weekday: 'long' }),
+          es_recuperacion: r.es_recuperacion || false,
+          puede_cancelar: horasHastaClase >= 1, // Puede cancelar si faltan más de 1 hora
+        };
+      });
+
+      this.reservasLista.set(reservas);
+    } catch (err) {
+      console.error('Error:', err);
+      this.error.set('Error al cargar tus reservas.');
+    } finally {
+      this.cargando.set(false);
+    }
+  }
+
+  async cancelarReserva(reservaId: number) {
+    if (!confirm('¿Estás seguro de cancelar esta reserva?')) {
+      return;
+    }
+
+    this.guardando.set(true);
+    this.error.set(null);
+    this.mensajeExito.set(null);
+
+    try {
+      const uid = this.userId();
+      if (!uid) return;
+
+      const { data, error } = await supabase().rpc('cancelar_reserva', {
+        p_usuario_id: uid,
+        p_reserva_id: reservaId,
+      });
+
+      if (error) {
+        this.error.set('Error al cancelar la reserva: ' + error.message);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const resultado = data[0];
+        if (resultado.ok) {
+          this.mensajeExito.set(resultado.mensaje);
+          // Recargar lista
+          await this.cargarReservasLista();
+        } else {
+          this.error.set(resultado.mensaje);
+        }
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      this.error.set('Error al cancelar la reserva.');
+    } finally {
+      this.guardando.set(false);
+    }
+  }
+  volver() {
+    this.router.navigateByUrl('/dashboard');
   }
 }

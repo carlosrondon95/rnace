@@ -1,8 +1,9 @@
 // src/app/components/dashboard/dashboard.component.ts
 import { CommonModule } from '@angular/common';
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { supabase } from '../../core/supabase.client';
 
 @Component({
   standalone: true,
@@ -11,7 +12,6 @@ import { AuthService } from '../../core/auth.service';
   template: `
     <main class="dashboard-page">
       <div class="dashboard-container">
-        <!-- Bienvenida -->
         <header class="welcome-section">
           <h1>¡Hola, {{ nombreUsuario() }}!</h1>
           <p class="welcome-subtitle">
@@ -25,7 +25,6 @@ import { AuthService } from '../../core/auth.service';
           </p>
         </header>
 
-        <!-- Acciones rápidas - Cliente -->
         @if (isCliente()) {
           <section class="actions-grid">
             <a routerLink="/reservar-cita" class="action-card action-card--primary">
@@ -48,7 +47,6 @@ import { AuthService } from '../../core/auth.service';
           </section>
         }
 
-        <!-- Acciones rápidas - Profesor -->
         @if (isProfesor()) {
           <section class="actions-grid">
             <a routerLink="/calendario" class="action-card action-card--primary">
@@ -62,10 +60,18 @@ import { AuthService } from '../../core/auth.service';
           </section>
         }
 
-        <!-- Acciones rápidas - Admin -->
         @if (isAdmin()) {
           <section class="actions-grid actions-grid--admin">
-            <a routerLink="/calendario" class="action-card action-card--primary">
+            <a routerLink="/admin-reservas" class="action-card action-card--primary">
+              <span class="action-icon material-symbols-rounded">event_note</span>
+              <div class="action-content">
+                <h3>Gestionar reservas</h3>
+                <p>Ver y modificar reservas</p>
+              </div>
+              <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+            </a>
+
+            <a routerLink="/calendario" class="action-card">
               <span class="action-icon material-symbols-rounded">calendar_month</span>
               <div class="action-content">
                 <h3>Calendario</h3>
@@ -84,17 +90,16 @@ import { AuthService } from '../../core/auth.service';
             </a>
 
             <a routerLink="/reservar-cita" class="action-card">
-              <span class="action-icon material-symbols-rounded">event_available</span>
+              <span class="action-icon material-symbols-rounded">visibility</span>
               <div class="action-content">
-                <h3>Ver reservas</h3>
-                <p>Sesiones disponibles</p>
+                <h3>Ver sesiones</h3>
+                <p>Disponibilidad de clases</p>
               </div>
               <span class="action-arrow material-symbols-rounded">arrow_forward</span>
             </a>
           </section>
         }
 
-        <!-- Info del usuario -->
         <section class="user-info">
           <div class="user-info-card">
             <span class="user-info-icon material-symbols-rounded">person</span>
@@ -102,8 +107,8 @@ import { AuthService } from '../../core/auth.service';
               <span class="user-info-label">Tu cuenta</span>
               <span class="user-info-value">{{ auth.usuario()?.telefono }}</span>
             </div>
-            <span class="user-role-badge" [class]="'role-' + auth.usuario()?.rol">
-              {{ auth.usuario()?.rol | titlecase }}
+            <span class="user-role-badge" [class]="getRoleBadgeClass()">
+              {{ getRoleLabel() }}
             </span>
           </div>
         </section>
@@ -261,10 +266,26 @@ import { AuthService } from '../../core/auth.service';
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        white-space: nowrap;
 
-        &.role-cliente {
+        &.role-focus {
           background: rgba(96, 165, 250, 0.15);
           color: #60a5fa;
+        }
+
+        &.role-reducido {
+          background: rgba(167, 139, 250, 0.15);
+          color: #a78bfa;
+        }
+
+        &.role-hibrido {
+          background: rgba(74, 222, 128, 0.15);
+          color: #4ade80;
+        }
+
+        &.role-especial {
+          background: rgba(251, 191, 36, 0.15);
+          color: #fbbf24;
         }
 
         &.role-profesor {
@@ -298,12 +319,75 @@ import { AuthService } from '../../core/auth.service';
     `,
   ],
 })
-export class DashboardComponent {
+export class DashboardComponent implements OnInit {
   auth = inject(AuthService);
+
+  tipoGrupo = signal<string | null>(null);
+  cargandoGrupo = signal(true);
 
   nombreUsuario = computed(() => this.auth.usuario()?.nombre || 'Usuario');
 
   isCliente = computed(() => this.auth.usuario()?.rol === 'cliente');
   isProfesor = computed(() => this.auth.usuario()?.rol === 'profesor');
   isAdmin = computed(() => this.auth.usuario()?.rol === 'admin');
+
+  ngOnInit() {
+    if (this.isCliente()) {
+      this.cargarTipoGrupo();
+    }
+  }
+
+  async cargarTipoGrupo() {
+    const userId = this.auth.userId();
+    if (!userId) return;
+
+    try {
+      const { data } = await supabase()
+        .from('plan_usuario')
+        .select('tipo_grupo')
+        .eq('usuario_id', userId)
+        .eq('activo', true)
+        .single();
+
+      if (data) {
+        this.tipoGrupo.set(data.tipo_grupo);
+      }
+    } catch (error) {
+      console.error('Error cargando tipo de grupo:', error);
+    } finally {
+      this.cargandoGrupo.set(false);
+    }
+  }
+
+  getRoleLabel(): string {
+    const rol = this.auth.usuario()?.rol;
+
+    if (rol === 'admin') return 'Admin';
+    if (rol === 'profesor') return 'Profesor';
+
+    // Para clientes, mostrar su grupo
+    const grupo = this.tipoGrupo();
+    if (grupo === 'focus') return 'Focus';
+    if (grupo === 'reducido') return 'Reducido';
+    if (grupo === 'hibrido') return 'Híbrido';
+    if (grupo === 'especial') return 'Especial';
+
+    return 'Cliente';
+  }
+
+  getRoleBadgeClass(): string {
+    const rol = this.auth.usuario()?.rol;
+
+    if (rol === 'admin') return 'user-role-badge role-admin';
+    if (rol === 'profesor') return 'user-role-badge role-profesor';
+
+    // Para clientes, usar clase según su grupo
+    const grupo = this.tipoGrupo();
+    if (grupo === 'focus') return 'user-role-badge role-focus';
+    if (grupo === 'reducido') return 'user-role-badge role-reducido';
+    if (grupo === 'hibrido') return 'user-role-badge role-hibrido';
+    if (grupo === 'especial') return 'user-role-badge role-especial';
+
+    return 'user-role-badge role-focus';
+  }
 }

@@ -1,6 +1,34 @@
 <!-- src/app/components/reservas/reserva-cita.component.html -->
 
 <main class="reserva-page">
+  <!-- Header con volver y navegación de mes -->
+  <header class="page-header">
+    <button class="btn-volver" (click)="volver()">
+      <span class="material-symbols-rounded">arrow_back</span>
+      Volver
+    </button>
+    <h1>{{ esAdmin() ? 'Ver Sesiones' : 'Reservar cita' }}</h1>
+  </header>
+
+  <!-- Navegación de meses -->
+  <div class="mes-navegacion">
+    <button class="btn-mes" (click)="mesAnterior()">
+      <span class="material-symbols-rounded">chevron_left</span>
+    </button>
+    <span class="mes-nombre">{{ nombreMes() }}</span>
+    <button class="btn-mes" (click)="mesSiguiente()">
+      <span class="material-symbols-rounded">chevron_right</span>
+    </button>
+  </div>
+
+  <!-- Badge mes cerrado -->
+  @if (!mesAbierto() && !esAdmin()) {
+    <div class="mes-cerrado-badge">
+      <span class="material-symbols-rounded">lock</span>
+      Mes cerrado para reservas
+    </div>
+  }
+
   <section class="reserva-card">
     <!-- Loading -->
     @if (cargando()) {
@@ -10,27 +38,20 @@
       </div>
     }
 
-    <!-- Error general (mes cerrado, etc.) -->
+    <!-- Error (mes cerrado) -->
     @if (!cargando() && error() && !mesAbierto()) {
       <div class="error-state">
         <span class="material-symbols-rounded error-icon">event_busy</span>
         <h2>Mes no disponible</h2>
         <p>{{ error() }}</p>
-        <button class="btn-primary" (click)="volver()">Volver al inicio</button>
       </div>
     }
 
     <!-- Contenido principal -->
-    @if (!cargando() && mesAbierto()) {
-      <header class="reserva-header">
-        <h1>Reservar cita</h1>
-        <p class="lead">{{ nombreMes() | titlecase }}</p>
-      </header>
-
-      <!-- ========== INFO DE CUPOS SEGÚN TIPO DE PLAN ========== -->
-      @if (infoCupos(); as info) {
+    @if (!cargando() && (mesAbierto() || esAdmin())) {
+      <!-- Info de cupos (solo clientes) -->
+      @if (!esAdmin() && infoCupos(); as info) {
         <div class="cupos-section">
-          <!-- Plan FOCUS: Solo muestra focus -->
           @if (info.tipo === 'focus') {
             <div class="cupos-single">
               <div class="cupo-card cupo-focus">
@@ -42,7 +63,7 @@
                   <span class="cupo-value">{{ info.usadas }} / {{ info.total }}</span>
                   <span class="cupo-detail">usadas este mes</span>
                 </div>
-                @if (info.disponibles > 0) {
+                @if (info.disponibles && info.disponibles > 0) {
                   <div class="cupo-disponible">
                     {{ info.disponibles }} disponible{{ info.disponibles !== 1 ? 's' : '' }}
                   </div>
@@ -57,7 +78,6 @@
             </div>
           }
 
-          <!-- Plan REDUCIDO: Solo muestra reducido -->
           @if (info.tipo === 'reducido') {
             <div class="cupos-single">
               <div class="cupo-card cupo-reducido">
@@ -69,7 +89,7 @@
                   <span class="cupo-value">{{ info.usadas }} / {{ info.total }}</span>
                   <span class="cupo-detail">usadas este mes</span>
                 </div>
-                @if (info.disponibles > 0) {
+                @if (info.disponibles && info.disponibles > 0) {
                   <div class="cupo-disponible">
                     {{ info.disponibles }} disponible{{ info.disponibles !== 1 ? 's' : '' }}
                   </div>
@@ -84,8 +104,7 @@
             </div>
           }
 
-          <!-- Plan HÍBRIDO: Muestra ambos -->
-          @if (info.tipo === 'hibrido') {
+          @if (info.tipo === 'hibrido' && info.focus && info.reducido) {
             <div class="cupos-dual">
               <div class="cupo-card cupo-focus" [class.cupo-active]="modalidad() === 'focus'">
                 <div class="cupo-header">
@@ -129,8 +148,7 @@
             </div>
           }
 
-          <!-- Plan ESPECIAL: Muestra sesiones fijas al mes -->
-          @if (info.tipo === 'especial') {
+          @if (info.tipo === 'especial' && info.focus && info.reducido) {
             <div class="cupos-especial">
               <div class="cupos-especial-header">
                 <span class="material-symbols-rounded">star</span>
@@ -180,7 +198,7 @@
         </div>
       }
 
-      <!-- ========== SELECTOR DE MODALIDAD (solo si puede elegir) ========== -->
+      <!-- Selector de modalidad -->
       @if (puedeToggleModalidad()) {
         <div class="mode-toggle">
           @for (mod of modalidadesDisponibles(); track mod) {
@@ -206,8 +224,16 @@
         </div>
       }
 
+      <!-- Aviso admin -->
+      @if (esAdmin()) {
+        <div class="aviso-admin">
+          <span class="material-symbols-rounded">info</span>
+          <span>Estás viendo las sesiones como administrador. No puedes reservar.</span>
+        </div>
+      }
+
       <!-- Aviso sin cupo -->
-      @if (!puedeReservar()) {
+      @if (!esAdmin() && !puedeReservar()) {
         <div class="aviso-cupo">
           <span class="material-symbols-rounded">info</span>
           <span
@@ -216,27 +242,66 @@
         </div>
       }
 
-      <!-- ========== GRID DE SESIONES ========== -->
-      @if (diasAgrupados().length > 0) {
-        <div class="schedule-grid">
-          @for (dia of diasAgrupados(); track dia.fecha) {
-            <div class="day-card">
-              <div class="day-header">
-                <span class="day-name">{{ dia.diaNombre }}</span>
-                <span class="day-date">{{ dia.fechaFormateada }}</span>
+      <!-- Grid de sesiones por semanas -->
+      @if (semanasAgrupadas().length > 0) {
+        <div class="semanas-container">
+          @for (semana of semanasAgrupadas(); track semana.numeroSemana) {
+            <div class="semana-card">
+              <div class="semana-header">
+                <span class="semana-label">{{ semana.tituloSemana }}</span>
               </div>
-              <div class="slots">
-                @for (sesion of dia.sesiones; track sesion.id) {
-                  <button
-                    type="button"
-                    class="slot-btn"
-                    [class]="getEstadoClase(sesion)"
-                    [disabled]="sesion.estado !== 'disponible'"
-                    (click)="selectSesion(sesion)"
+
+              <div class="semana-grid">
+                @for (dia of semana.dias; track dia.fecha) {
+                  <div
+                    class="dia-col"
+                    [class.dia-col--fin-semana]="dia.esFinSemana"
+                    [class.dia-col--festivo]="dia.esFestivo"
                   >
-                    <span class="slot-hora">{{ sesion.hora }}</span>
-                    <span class="slot-plazas">{{ getEstadoTexto(sesion) }}</span>
-                  </button>
+                    <div class="dia-header">
+                      <span class="dia-nombre">{{ dia.diaNombre }}</span>
+                      <span class="dia-fecha">{{ dia.fechaFormateada }}</span>
+                    </div>
+
+                    <!-- Mostrar badge si es festivo o fin de semana -->
+                    @if (dia.esFestivo) {
+                      <div class="dia-bloqueado">
+                        <span class="material-symbols-rounded">block</span>
+                        <span>Festivo</span>
+                      </div>
+                    } @else if (dia.esFinSemana) {
+                      <div class="dia-bloqueado">
+                        <span class="material-symbols-rounded">event_busy</span>
+                        <span>Cerrado</span>
+                      </div>
+                    } @else if (dia.sesiones.length === 0) {
+                      <div class="dia-vacio">
+                        <span>Sin sesiones</span>
+                      </div>
+                    }
+
+                    <!-- Slots de sesiones -->
+                    @if (dia.sesiones.length > 0 && !dia.esFestivo && !dia.esFinSemana) {
+                      <div class="dia-slots">
+                        @for (sesion of dia.sesiones; track sesion.id) {
+                          <button
+                            type="button"
+                            class="slot-btn"
+                            [class]="getEstadoClase(sesion)"
+                            [disabled]="
+                              sesion.estado === 'pasada' ||
+                              sesion.estado === 'bloqueada' ||
+                              esAdmin()
+                            "
+                            (click)="selectSesion(sesion)"
+                          >
+                            <span class="slot-hora">{{ sesion.hora }}</span>
+                            <span class="slot-plazas">{{ getEstadoTexto(sesion) }}</span>
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
                 }
               </div>
             </div>
@@ -250,7 +315,7 @@
         </div>
       }
 
-      <!-- ========== MENSAJES ========== -->
+      <!-- Mensajes -->
       @if (mensajeExito(); as msg) {
         <div class="mensaje-exito">
           <span class="material-symbols-rounded">check_circle</span>
@@ -265,84 +330,7 @@
         </div>
       }
 
-      <!-- ========== PANEL DE CONFIRMACIÓN ========== -->
-      @if (sesionSeleccionada(); as sesion) {
-        <div class="confirm-panel">
-          <div class="confirm-info">
-            <p class="confirm-title">Has seleccionado:</p>
-            <p class="confirm-detail">
-              <strong>Grupo {{ getNombreModalidad(modalidad()) }}</strong>
-              · {{ obtenerNombreDia(sesion.dia_semana) }} {{ formatearFecha(sesion.fecha) }} a las
-              {{ sesion.hora }}
-            </p>
-
-            <!-- Opción de usar recuperación -->
-            @if (
-              cuposModalidadActual().tieneRecuperacion && cuposModalidadActual().disponibles === 0
-            ) {
-              <label class="recuperacion-check">
-                <input
-                  type="checkbox"
-                  [checked]="usarRecuperacion()"
-                  (change)="toggleRecuperacion()"
-                />
-                <span>Usar mi clase de recuperación</span>
-              </label>
-            }
-          </div>
-
-          <div class="confirm-actions">
-            <!-- Si hay plazas y tiene cupo -->
-            @if (
-              sesion.estado === 'disponible' &&
-              (cuposModalidadActual().disponibles > 0 || usarRecuperacion())
-            ) {
-              <button
-                type="button"
-                class="btn-confirm"
-                [disabled]="guardando()"
-                (click)="onConfirmar()"
-              >
-                @if (!guardando()) {
-                  <span>Confirmar reserva</span>
-                } @else {
-                  <span>Reservando...</span>
-                }
-              </button>
-            }
-
-            <!-- Si no tiene cupo pero puede usar recuperación -->
-            @if (
-              sesion.estado === 'disponible' &&
-              cuposModalidadActual().disponibles === 0 &&
-              !usarRecuperacion() &&
-              cuposModalidadActual().tieneRecuperacion
-            ) {
-              <button type="button" class="btn-confirm btn-secondary" disabled>
-                Selecciona usar recuperación
-              </button>
-            }
-
-            <!-- Si está completa, ofrecer lista de espera -->
-            @if (sesion.estado === 'completa') {
-              <button
-                type="button"
-                class="btn-lista-espera"
-                [disabled]="guardando()"
-                (click)="onListaEspera()"
-              >
-                @if (!guardando()) {
-                  <span>Añadirme a lista de espera</span>
-                } @else {
-                  <span>Procesando...</span>
-                }
-              </button>
-            }
-          </div>
-        </div>
-      }
-
-      <!-- ========== LEYENDA ========== -->
+      <!-- Leyenda -->
       <div class="leyenda">
         <div class="leyenda-item">
           <span class="leyenda-color leyenda-disponible"></span>
@@ -353,10 +341,73 @@
           <span>Completa</span>
         </div>
         <div class="leyenda-item">
+          <span class="leyenda-color leyenda-bloqueada"></span>
+          <span>Cerrada</span>
+        </div>
+        <div class="leyenda-item">
           <span class="leyenda-color leyenda-seleccionada"></span>
           <span>Seleccionada</span>
         </div>
       </div>
     }
   </section>
+
+  <!-- Panel de confirmación (solo clientes) -->
+  @if (!esAdmin() && sesionSeleccionada(); as sesion) {
+    <div class="confirm-panel">
+      <div class="confirm-info">
+        <p class="confirm-title">Has seleccionado:</p>
+        <p class="confirm-detail">
+          <strong>Grupo {{ getNombreModalidad(modalidad()) }}</strong>
+          · {{ obtenerNombreDia(sesion.dia_semana) }} {{ formatearFecha(sesion.fecha) }} a las
+          {{ sesion.hora }}
+        </p>
+
+        @if (cuposModalidadActual().tieneRecuperacion && cuposModalidadActual().disponibles === 0) {
+          <label class="recuperacion-check">
+            <input type="checkbox" [checked]="usarRecuperacion()" (change)="toggleRecuperacion()" />
+            <span>Usar mi clase de recuperación</span>
+          </label>
+        }
+      </div>
+
+      <div class="confirm-actions">
+        @if (
+          sesion.estado === 'disponible' &&
+          (cuposModalidadActual().disponibles > 0 || usarRecuperacion())
+        ) {
+          <button
+            type="button"
+            class="btn-confirm"
+            [disabled]="guardando()"
+            (click)="onConfirmar()"
+          >
+            {{ guardando() ? 'Reservando...' : 'Confirmar reserva' }}
+          </button>
+        }
+
+        @if (
+          sesion.estado === 'disponible' &&
+          cuposModalidadActual().disponibles === 0 &&
+          !usarRecuperacion() &&
+          cuposModalidadActual().tieneRecuperacion
+        ) {
+          <button type="button" class="btn-confirm btn-secondary" disabled>
+            Selecciona usar recuperación
+          </button>
+        }
+
+        @if (sesion.estado === 'completa') {
+          <button
+            type="button"
+            class="btn-lista-espera"
+            [disabled]="guardando()"
+            (click)="onListaEspera()"
+          >
+            {{ guardando() ? 'Procesando...' : 'Añadirme a lista de espera' }}
+          </button>
+        }
+      </div>
+    </div>
+  }
 </main>
