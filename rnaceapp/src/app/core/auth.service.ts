@@ -17,36 +17,28 @@ export interface Usuario {
 })
 export class AuthService {
   private platformId = inject(PLATFORM_ID);
-
-  // Usuario actual (null si no está logueado)
   private usuarioActual = signal<Usuario | null>(null);
 
   constructor() {
-    // Solo cargar de localStorage si estamos en el navegador
     if (isPlatformBrowser(this.platformId)) {
       this.cargarUsuarioGuardado();
     }
   }
 
-  // Getter para el usuario actual
   get usuario() {
     return this.usuarioActual;
   }
 
-  // Verificar si hay sesión activa
   estaLogueado(): boolean {
     return this.usuarioActual() !== null;
   }
 
-  // Obtener rol del usuario
   getRol(): string {
     return this.usuarioActual()?.rol || 'cliente';
   }
 
-  // Obtener ID del usuario actual
   userId = () => this.usuarioActual()?.id || null;
 
-  // Cargar usuario desde localStorage
   private cargarUsuarioGuardado() {
     if (!isPlatformBrowser(this.platformId)) return;
 
@@ -62,7 +54,6 @@ export class AuthService {
     }
   }
 
-  // Guardar usuario en localStorage
   private guardarUsuario(usuario: Usuario) {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('rnace_usuario', JSON.stringify(usuario));
@@ -70,10 +61,8 @@ export class AuthService {
     this.usuarioActual.set(usuario);
   }
 
-  // Login con teléfono y contraseña
   async login(telefono: string, password: string): Promise<{ success: boolean; error?: string }> {
     try {
-      // Limpiar teléfono (solo números)
       const telefonoLimpio = telefono.replace(/[^0-9]/g, '');
 
       if (!telefonoLimpio || telefonoLimpio.length < 9) {
@@ -84,7 +73,6 @@ export class AuthService {
         return { success: false, error: 'Contraseña inválida' };
       }
 
-      // Buscar usuario por teléfono
       const { data: usuario, error } = await supabase()
         .from('usuarios')
         .select('*')
@@ -93,19 +81,15 @@ export class AuthService {
         .single();
 
       if (error || !usuario) {
-        console.log('Usuario no encontrado:', telefonoLimpio);
         return { success: false, error: 'Usuario o contraseña incorrectos' };
       }
 
-      // Verificar contraseña con bcrypt
       const passwordValida = await bcrypt.compare(password, usuario.password_hash);
 
       if (!passwordValida) {
-        console.log('Contraseña incorrecta para:', telefonoLimpio);
         return { success: false, error: 'Usuario o contraseña incorrectos' };
       }
 
-      // Login exitoso - guardar usuario (sin el hash)
       const usuarioLimpio: Usuario = {
         id: usuario.id,
         telefono: usuario.telefono,
@@ -115,8 +99,6 @@ export class AuthService {
       };
 
       this.guardarUsuario(usuarioLimpio);
-      console.log('Login exitoso:', usuarioLimpio.telefono, '- Rol:', usuarioLimpio.rol);
-
       return { success: true };
     } catch (error) {
       console.error('Error en login:', error);
@@ -124,7 +106,6 @@ export class AuthService {
     }
   }
 
-  // Logout
   logout() {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('rnace_usuario');
@@ -132,7 +113,6 @@ export class AuthService {
     this.usuarioActual.set(null);
   }
 
-  // Crear nuevo usuario (solo admins)
   async crearUsuario(datos: {
     telefono: string;
     password: string;
@@ -140,14 +120,12 @@ export class AuthService {
     rol?: string;
   }): Promise<{ success: boolean; error?: string; userId?: string }> {
     try {
-      // Verificar que el usuario actual es admin
       if (this.getRol() !== 'admin') {
         return { success: false, error: 'Solo los administradores pueden crear usuarios' };
       }
 
       const telefonoLimpio = datos.telefono.replace(/[^0-9]/g, '');
 
-      // Verificar si ya existe
       const { data: existente } = await supabase()
         .from('usuarios')
         .select('id')
@@ -158,11 +136,9 @@ export class AuthService {
         return { success: false, error: 'Ya existe un usuario con ese teléfono' };
       }
 
-      // Hashear contraseña
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(datos.password, salt);
 
-      // Insertar usuario
       const { data: nuevoUsuario, error } = await supabase()
         .from('usuarios')
         .insert({
@@ -187,7 +163,7 @@ export class AuthService {
     }
   }
 
-  // Crear usuario con plan (para el panel de admin)
+  // Crear usuario con plan - SOPORTA PLAN ESPECIAL
   async crearUsuarioConPlan(datos: {
     telefono: string;
     password: string;
@@ -197,9 +173,10 @@ export class AuthService {
     clasesFocus: number;
     clasesReducido: number;
     tipoCuota: string;
+    sesionesFijasFocus?: number;
+    sesionesFijasReducido?: number;
   }): Promise<{ success: boolean; error?: string; userId?: string }> {
     try {
-      // Primero crear el usuario
       const resultado = await this.crearUsuario({
         telefono: datos.telefono,
         password: datos.password,
@@ -211,19 +188,29 @@ export class AuthService {
         return resultado;
       }
 
-      // Luego crear el plan
-      const { error: planError } = await supabase().from('plan_usuario').insert({
+      const planData: Record<string, unknown> = {
         usuario_id: resultado.userId,
         tipo_grupo: datos.tipoGrupo,
-        clases_focus_semana: datos.clasesFocus,
-        clases_reducido_semana: datos.clasesReducido,
         tipo_cuota: datos.tipoCuota,
         activo: true,
-      });
+      };
+
+      if (datos.tipoGrupo === 'especial') {
+        planData['clases_focus_semana'] = 0;
+        planData['clases_reducido_semana'] = 0;
+        planData['sesiones_fijas_mes_focus'] = datos.sesionesFijasFocus || 0;
+        planData['sesiones_fijas_mes_reducido'] = datos.sesionesFijasReducido || 0;
+      } else {
+        planData['clases_focus_semana'] = datos.clasesFocus;
+        planData['clases_reducido_semana'] = datos.clasesReducido;
+        planData['sesiones_fijas_mes_focus'] = null;
+        planData['sesiones_fijas_mes_reducido'] = null;
+      }
+
+      const { error: planError } = await supabase().from('plan_usuario').insert(planData);
 
       if (planError) {
-        console.error('Error creando plan (no crítico):', planError);
-        // No es crítico, el usuario ya está creado
+        console.error('Error creando plan:', planError);
       }
 
       return { success: true, userId: resultado.userId };
@@ -233,13 +220,36 @@ export class AuthService {
     }
   }
 
-  // Cambiar contraseña
+  // Eliminar usuario (solo admin)
+  async eliminarUsuario(userId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (this.getRol() !== 'admin') {
+        return { success: false, error: 'Solo los administradores pueden eliminar usuarios' };
+      }
+
+      if (this.userId() === userId) {
+        return { success: false, error: 'No puedes eliminar tu propia cuenta' };
+      }
+
+      const { error } = await supabase().from('usuarios').delete().eq('id', userId);
+
+      if (error) {
+        console.error('Error eliminando usuario:', error);
+        return { success: false, error: 'Error al eliminar: ' + error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error:', error);
+      return { success: false, error: 'Error inesperado' };
+    }
+  }
+
   async cambiarPassword(
     telefonoOId: string,
     nuevaPassword: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      // Verificar que el usuario actual es admin o es su propia cuenta
       const esAdmin = this.getRol() === 'admin';
       const esSuCuenta =
         this.usuarioActual()?.telefono === telefonoOId || this.usuarioActual()?.id === telefonoOId;
@@ -248,11 +258,9 @@ export class AuthService {
         return { success: false, error: 'No tienes permisos para cambiar esta contraseña' };
       }
 
-      // Hashear nueva contraseña
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(nuevaPassword, salt);
 
-      // Actualizar
       const { error } = await supabase()
         .from('usuarios')
         .update({ password_hash: passwordHash, actualizado_en: new Date().toISOString() })
