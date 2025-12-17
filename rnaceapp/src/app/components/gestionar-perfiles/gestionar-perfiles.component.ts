@@ -6,14 +6,18 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
 
-interface PerfilPlan {
-  tipo_grupo: string;
-  clases_focus_semana: number;
-  clases_reducido_semana: number;
-  sesiones_fijas_mes_focus?: number | null;
-  sesiones_fijas_mes_reducido?: number | null;
-  tipo_cuota: string;
-  activo: boolean;
+interface HorarioDisponible {
+  id: number;
+  modalidad: 'focus' | 'reducido';
+  dia_semana: number; // 1=Lunes, 5=Viernes
+  hora: string;
+  capacidad_maxima: number;
+}
+
+interface HorarioFijoUsuario {
+  id: number;
+  horario_disponible_id: number;
+  horario?: HorarioDisponible;
 }
 
 interface Usuario {
@@ -23,7 +27,8 @@ interface Usuario {
   rol: string;
   activo: boolean;
   creado_en: string;
-  plan?: PerfilPlan;
+  tipo_grupo?: string;
+  horarios_fijos?: HorarioFijoUsuario[];
 }
 
 interface FormularioUsuario {
@@ -33,18 +38,20 @@ interface FormularioUsuario {
   rol: 'cliente' | 'profesor' | 'admin';
   activo: boolean;
   tipoGrupo: 'focus' | 'reducido' | 'hibrido' | 'especial';
-  clasesFocus: number;
-  clasesReducido: number;
-  sesionesFijasFocus: number;
-  sesionesFijasReducido: number;
-  tipoCuota: 'semanal' | 'mensual';
   password: string;
+  horariosSeleccionados: number[]; // IDs de horarios_disponibles
 }
 
 interface Filtros {
   rol: string;
   activo: string;
   tipoGrupo: string;
+}
+
+interface HorarioPorDia {
+  dia: number;
+  diaNombre: string;
+  horarios: HorarioDisponible[];
 }
 
 @Component({
@@ -62,6 +69,9 @@ export class GestionarPerfilesComponent implements OnInit {
   error = signal<string | null>(null);
   usuarios = signal<Usuario[]>([]);
   busqueda = signal('');
+
+  // Horarios disponibles del centro
+  horariosDisponibles = signal<HorarioDisponible[]>([]);
 
   filtros = signal<Filtros>({
     rol: 'todos',
@@ -90,13 +100,85 @@ export class GestionarPerfilesComponent implements OnInit {
     rol: 'cliente',
     activo: true,
     tipoGrupo: 'focus',
-    clasesFocus: 2,
-    clasesReducido: 0,
-    sesionesFijasFocus: 4,
-    sesionesFijasReducido: 0,
-    tipoCuota: 'semanal',
     password: '',
+    horariosSeleccionados: [],
   });
+
+  // Nombres de días
+  diasSemana: { [key: number]: string } = {
+    1: 'Lunes',
+    2: 'Martes',
+    3: 'Miércoles',
+    4: 'Jueves',
+    5: 'Viernes',
+  };
+
+  // Horarios agrupados por día para el selector
+  horariosFocusPorDia = computed((): HorarioPorDia[] => {
+    const horarios = this.horariosDisponibles().filter(h => h.modalidad === 'focus');
+    return this.agruparPorDia(horarios);
+  });
+
+  horariosReducidoPorDia = computed((): HorarioPorDia[] => {
+    const horarios = this.horariosDisponibles().filter(h => h.modalidad === 'reducido');
+    return this.agruparPorDia(horarios);
+  });
+
+  // Horarios filtrados según tipo de grupo seleccionado
+  horariosParaMostrar = computed((): HorarioPorDia[] => {
+    const tipo = this.formulario().tipoGrupo;
+    if (tipo === 'focus') {
+      return this.horariosFocusPorDia();
+    } else if (tipo === 'reducido') {
+      return this.horariosReducidoPorDia();
+    } else {
+      // Híbrido o especial: mostrar ambos
+      const focus = this.horariosFocusPorDia();
+      const reducido = this.horariosReducidoPorDia();
+      // Combinar y ordenar
+      const todos: HorarioPorDia[] = [];
+      for (let dia = 1; dia <= 5; dia++) {
+        const horariosDia: HorarioDisponible[] = [
+          ...(focus.find(f => f.dia === dia)?.horarios || []),
+          ...(reducido.find(r => r.dia === dia)?.horarios || []),
+        ].sort((a, b) => a.hora.localeCompare(b.hora));
+        
+        if (horariosDia.length > 0) {
+          todos.push({
+            dia,
+            diaNombre: this.diasSemana[dia],
+            horarios: horariosDia,
+          });
+        }
+      }
+      return todos;
+    }
+  });
+
+  private agruparPorDia(horarios: HorarioDisponible[]): HorarioPorDia[] {
+    const porDia = new Map<number, HorarioDisponible[]>();
+    
+    for (const h of horarios) {
+      if (!porDia.has(h.dia_semana)) {
+        porDia.set(h.dia_semana, []);
+      }
+      porDia.get(h.dia_semana)!.push(h);
+    }
+
+    const resultado: HorarioPorDia[] = [];
+    for (let dia = 1; dia <= 5; dia++) {
+      const horariosDia = porDia.get(dia) || [];
+      if (horariosDia.length > 0) {
+        resultado.push({
+          dia,
+          diaNombre: this.diasSemana[dia],
+          horarios: horariosDia.sort((a, b) => a.hora.localeCompare(b.hora)),
+        });
+      }
+    }
+
+    return resultado;
+  }
 
   usuariosFiltrados = computed(() => {
     const busq = this.busqueda().toLowerCase().trim();
@@ -119,7 +201,7 @@ export class GestionarPerfilesComponent implements OnInit {
     }
 
     if (f.tipoGrupo !== 'todos') {
-      lista = lista.filter((u) => u.plan?.tipo_grupo === f.tipoGrupo);
+      lista = lista.filter((u) => u.tipo_grupo === f.tipoGrupo);
     }
 
     return lista;
@@ -129,7 +211,7 @@ export class GestionarPerfilesComponent implements OnInit {
     { value: 'focus', label: 'Focus (máx 3 personas)' },
     { value: 'reducido', label: 'Reducido (máx 8 personas)' },
     { value: 'hibrido', label: 'Híbrido (Focus + Reducido)' },
-    { value: 'especial', label: 'Especial (sesiones fijas al mes)' },
+    { value: 'especial', label: 'Especial' },
   ];
 
   roles = [
@@ -138,9 +220,6 @@ export class GestionarPerfilesComponent implements OnInit {
     { value: 'admin', label: 'Administrador' },
   ];
 
-  clasesOptions = [0, 1, 2, 3, 4, 5, 6, 7];
-  sesionesEspecialOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20];
-
   @HostListener('document:keydown.escape')
   onEscapeKey() {
     if (this.mostrarModal()) this.cerrarModal();
@@ -148,73 +227,107 @@ export class GestionarPerfilesComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.cargarUsuarios();
+    this.cargarDatos();
   }
 
-  async cargarUsuarios() {
+  async cargarDatos() {
     this.cargando.set(true);
     this.error.set(null);
 
     try {
-      const client = supabase();
-
-      const { data: usuariosData, error: usuariosError } = await client
-        .from('usuarios')
-        .select('id, telefono, nombre, rol, activo, creado_en')
-        .order('creado_en', { ascending: false });
-
-      if (usuariosError) {
-        this.error.set('Error al cargar los usuarios.');
-        return;
-      }
-
-      const { data: planesData } = await client
-        .from('plan_usuario')
-        .select(
-          'usuario_id, tipo_grupo, clases_focus_semana, clases_reducido_semana, sesiones_fijas_mes_focus, sesiones_fijas_mes_reducido, tipo_cuota, activo',
-        );
-
-      const planesMap = new Map<string, PerfilPlan>();
-      if (planesData) {
-        for (const plan of planesData) {
-          planesMap.set(plan.usuario_id, {
-            tipo_grupo: plan.tipo_grupo,
-            clases_focus_semana: plan.clases_focus_semana,
-            clases_reducido_semana: plan.clases_reducido_semana,
-            sesiones_fijas_mes_focus: plan.sesiones_fijas_mes_focus,
-            sesiones_fijas_mes_reducido: plan.sesiones_fijas_mes_reducido,
-            tipo_cuota: plan.tipo_cuota,
-            activo: plan.activo,
-          });
-        }
-      }
-
-      const usuarios: Usuario[] = (usuariosData || []).map(
-        (u: {
-          id: string;
-          telefono: string;
-          nombre: string | null;
-          rol: string;
-          activo: boolean;
-          creado_en: string;
-        }) => ({
-          id: u.id,
-          telefono: u.telefono || '',
-          nombre: u.nombre || '',
-          rol: u.rol,
-          activo: u.activo,
-          creado_en: u.creado_en,
-          plan: planesMap.get(u.id),
-        }),
-      );
-
-      this.usuarios.set(usuarios);
+      await Promise.all([
+        this.cargarHorariosDisponibles(),
+        this.cargarUsuarios(),
+      ]);
     } catch (err) {
       console.error('Error:', err);
-      this.error.set('Error inesperado al cargar usuarios.');
+      this.error.set('Error inesperado al cargar datos.');
     } finally {
       this.cargando.set(false);
     }
+  }
+
+  async cargarHorariosDisponibles() {
+    const { data, error } = await supabase()
+      .from('horarios_disponibles')
+      .select('*')
+      .eq('activo', true)
+      .order('dia_semana')
+      .order('hora');
+
+    if (error) {
+      console.error('Error cargando horarios:', error);
+      return;
+    }
+
+    this.horariosDisponibles.set(data || []);
+  }
+
+  async cargarUsuarios() {
+    const client = supabase();
+
+    // Cargar usuarios
+    const { data: usuariosData, error: usuariosError } = await client
+      .from('usuarios')
+      .select('id, telefono, nombre, rol, activo, creado_en')
+      .order('nombre');
+
+    if (usuariosError) {
+      this.error.set('Error al cargar los usuarios.');
+      return;
+    }
+
+    // Cargar planes
+    const { data: planesData } = await client
+      .from('plan_usuario')
+      .select('usuario_id, tipo_grupo');
+
+    const planesMap = new Map<string, string>();
+    if (planesData) {
+      for (const plan of planesData) {
+        planesMap.set(plan.usuario_id, plan.tipo_grupo);
+      }
+    }
+
+    // Cargar horarios fijos de usuarios
+    const { data: horariosFijosData } = await client
+      .from('horario_fijo_usuario')
+      .select(`
+        id,
+        usuario_id,
+        horario_disponible_id,
+        horarios_disponibles (
+          id, modalidad, dia_semana, hora, capacidad_maxima
+        )
+      `)
+      .eq('activo', true);
+
+    const horariosMap = new Map<string, HorarioFijoUsuario[]>();
+    if (horariosFijosData) {
+      for (const hf of horariosFijosData) {
+        if (!horariosMap.has(hf.usuario_id)) {
+          horariosMap.set(hf.usuario_id, []);
+        }
+        horariosMap.get(hf.usuario_id)!.push({
+          id: hf.id,
+          horario_disponible_id: hf.horario_disponible_id,
+          horario: hf.horarios_disponibles as unknown as HorarioDisponible,
+        });
+      }
+    }
+
+    const usuarios: Usuario[] = (usuariosData || []).map((u) => ({
+      id: u.id,
+      telefono: u.telefono || '',
+      nombre: u.nombre || '',
+      rol: u.rol,
+      activo: u.activo,
+      creado_en: u.creado_en,
+      tipo_grupo: planesMap.get(u.id),
+      horarios_fijos: horariosMap.get(u.id) || [],
+    }));
+
+    this.usuarios.set(usuarios);
   }
 
   actualizarFiltro(filtro: keyof Filtros, valor: string) {
@@ -243,12 +356,8 @@ export class GestionarPerfilesComponent implements OnInit {
       rol: 'cliente',
       activo: true,
       tipoGrupo: 'focus',
-      clasesFocus: 2,
-      clasesReducido: 0,
-      sesionesFijasFocus: 4,
-      sesionesFijasReducido: 0,
-      tipoCuota: 'semanal',
       password: '',
+      horariosSeleccionados: [],
     });
     this.errorModal.set(null);
     this.exitoModal.set(null);
@@ -264,24 +373,21 @@ export class GestionarPerfilesComponent implements OnInit {
     const nombre = partes[0] || '';
     const apellidos = partes.slice(1).join(' ') || '';
 
+    // Obtener IDs de horarios seleccionados
+    const horariosSeleccionados = (usuario.horarios_fijos || []).map(h => h.horario_disponible_id);
+
     this.formulario.set({
       nombre: nombre,
       apellidos: apellidos,
       telefono: usuario.telefono,
       rol: usuario.rol as 'cliente' | 'profesor' | 'admin',
       activo: usuario.activo,
-      tipoGrupo: (usuario.plan?.tipo_grupo as FormularioUsuario['tipoGrupo']) || 'focus',
-      clasesFocus: usuario.plan?.clases_focus_semana || 0,
-      clasesReducido: usuario.plan?.clases_reducido_semana || 0,
-      sesionesFijasFocus: usuario.plan?.sesiones_fijas_mes_focus || 0,
-      sesionesFijasReducido: usuario.plan?.sesiones_fijas_mes_reducido || 0,
-      tipoCuota: (usuario.plan?.tipo_cuota as 'semanal' | 'mensual') || 'semanal',
+      tipoGrupo: (usuario.tipo_grupo as FormularioUsuario['tipoGrupo']) || 'focus',
       password: '',
+      horariosSeleccionados: horariosSeleccionados,
     });
-
     this.errorModal.set(null);
     this.exitoModal.set(null);
-    this.passwordCopiada.set(false);
     this.mostrarModal.set(true);
   }
 
@@ -330,18 +436,53 @@ export class GestionarPerfilesComponent implements OnInit {
   actualizarCampo(campo: keyof FormularioUsuario, valor: string | number | boolean) {
     this.formulario.update((f) => ({ ...f, [campo]: valor }));
 
+    // Si cambia el tipo de grupo, limpiar horarios seleccionados
     if (campo === 'tipoGrupo') {
-      const tipo = valor as FormularioUsuario['tipoGrupo'];
-      if (tipo === 'focus') {
-        this.formulario.update((f) => ({ ...f, clasesFocus: 2, clasesReducido: 0 }));
-      } else if (tipo === 'reducido') {
-        this.formulario.update((f) => ({ ...f, clasesFocus: 0, clasesReducido: 2 }));
-      } else if (tipo === 'hibrido') {
-        this.formulario.update((f) => ({ ...f, clasesFocus: 1, clasesReducido: 1 }));
-      } else if (tipo === 'especial') {
-        this.formulario.update((f) => ({ ...f, sesionesFijasFocus: 4, sesionesFijasReducido: 0 }));
-      }
+      this.formulario.update((f) => ({ ...f, horariosSeleccionados: [] }));
     }
+  }
+
+  // Toggle horario seleccionado
+  toggleHorario(horarioId: number) {
+    this.formulario.update((f) => {
+      const seleccionados = [...f.horariosSeleccionados];
+      const index = seleccionados.indexOf(horarioId);
+      
+      if (index > -1) {
+        seleccionados.splice(index, 1);
+      } else {
+        seleccionados.push(horarioId);
+      }
+
+      return { ...f, horariosSeleccionados: seleccionados };
+    });
+  }
+
+  isHorarioSeleccionado(horarioId: number): boolean {
+    return this.formulario().horariosSeleccionados.includes(horarioId);
+  }
+
+  // Obtener resumen de horarios seleccionados
+  getResumenHorarios(): string {
+    const ids = this.formulario().horariosSeleccionados;
+    if (ids.length === 0) return 'Ningún horario seleccionado';
+
+    const horarios = this.horariosDisponibles().filter(h => ids.includes(h.id));
+    const porDia = new Map<number, string[]>();
+
+    for (const h of horarios) {
+      if (!porDia.has(h.dia_semana)) {
+        porDia.set(h.dia_semana, []);
+      }
+      porDia.get(h.dia_semana)!.push(h.hora.slice(0, 5));
+    }
+
+    const partes: string[] = [];
+    for (const [dia, horas] of porDia) {
+      partes.push(`${this.diasSemana[dia].slice(0, 3)}: ${horas.join(', ')}`);
+    }
+
+    return partes.join(' | ');
   }
 
   generarPassword() {
@@ -371,15 +512,12 @@ export class GestionarPerfilesComponent implements OnInit {
     const f = this.formulario();
     const tieneNombre = f.nombre.trim().length > 0;
     const tieneTelefono = f.telefono.trim().length >= 9;
+    
+    // Solo clientes necesitan horarios
+    const necesitaHorarios = f.rol === 'cliente';
+    const tieneHorarios = !necesitaHorarios || f.horariosSeleccionados.length > 0;
 
-    let tieneClases = false;
-    if (f.tipoGrupo === 'especial') {
-      tieneClases = f.sesionesFijasFocus > 0 || f.sesionesFijasReducido > 0;
-    } else {
-      tieneClases = f.clasesFocus > 0 || f.clasesReducido > 0;
-    }
-
-    const baseValido = tieneNombre && tieneTelefono && tieneClases;
+    const baseValido = tieneNombre && tieneTelefono && tieneHorarios;
 
     if (!this.modoEdicion()) {
       return baseValido && f.password.length >= 6;
@@ -421,22 +559,47 @@ export class GestionarPerfilesComponent implements OnInit {
   }
 
   private async crearNuevoUsuario(nombre: string, telefono: string, f: FormularioUsuario) {
-    const resultado = await this.authService.crearUsuarioConPlan({
+    const client = supabase();
+
+    // 1. Crear usuario usando AuthService
+    const resultado = await this.authService.crearUsuario({
       telefono: telefono,
       password: f.password,
       nombre: nombre,
       rol: f.rol,
-      tipoGrupo: f.tipoGrupo,
-      clasesFocus: f.clasesFocus,
-      clasesReducido: f.clasesReducido,
-      tipoCuota: f.tipoCuota,
-      sesionesFijasFocus: f.sesionesFijasFocus,
-      sesionesFijasReducido: f.sesionesFijasReducido,
     });
 
-    if (!resultado.success) {
+    if (!resultado.success || !resultado.userId) {
       this.errorModal.set(resultado.error || 'Error al crear el usuario.');
       return;
+    }
+
+    const userId = resultado.userId;
+
+    // 2. Crear plan_usuario (solo tipo_grupo)
+    if (f.rol === 'cliente') {
+      await client.from('plan_usuario').insert({
+        usuario_id: userId,
+        tipo_grupo: f.tipoGrupo,
+        activo: true,
+      });
+
+      // 3. Crear horarios fijos
+      if (f.horariosSeleccionados.length > 0) {
+        const horariosInsert = f.horariosSeleccionados.map(horarioId => ({
+          usuario_id: userId,
+          horario_disponible_id: horarioId,
+          activo: true,
+        }));
+
+        const { error: horariosError } = await client
+          .from('horario_fijo_usuario')
+          .insert(horariosInsert);
+
+        if (horariosError) {
+          console.error('Error creando horarios fijos:', horariosError);
+        }
+      }
     }
 
     this.exitoModal.set(`Usuario creado. Teléfono: ${telefono}`);
@@ -449,6 +612,7 @@ export class GestionarPerfilesComponent implements OnInit {
 
     const client = supabase();
 
+    // 1. Actualizar usuario
     const { error: userError } = await client
       .from('usuarios')
       .update({
@@ -465,35 +629,47 @@ export class GestionarPerfilesComponent implements OnInit {
       return;
     }
 
-    const planData: Record<string, unknown> = {
-      tipo_grupo: f.tipoGrupo,
-      tipo_cuota: f.tipoCuota,
-    };
+    // 2. Actualizar plan
+    if (f.rol === 'cliente') {
+      const { data: planExistente } = await client
+        .from('plan_usuario')
+        .select('usuario_id')
+        .eq('usuario_id', userId)
+        .single();
 
-    if (f.tipoGrupo === 'especial') {
-      planData['clases_focus_semana'] = 0;
-      planData['clases_reducido_semana'] = 0;
-      planData['sesiones_fijas_mes_focus'] = f.sesionesFijasFocus;
-      planData['sesiones_fijas_mes_reducido'] = f.sesionesFijasReducido;
-    } else {
-      planData['clases_focus_semana'] = f.clasesFocus;
-      planData['clases_reducido_semana'] = f.clasesReducido;
-      planData['sesiones_fijas_mes_focus'] = null;
-      planData['sesiones_fijas_mes_reducido'] = null;
+      if (planExistente) {
+        await client
+          .from('plan_usuario')
+          .update({ tipo_grupo: f.tipoGrupo })
+          .eq('usuario_id', userId);
+      } else {
+        await client.from('plan_usuario').insert({
+          usuario_id: userId,
+          tipo_grupo: f.tipoGrupo,
+          activo: true,
+        });
+      }
+
+      // 3. Actualizar horarios fijos
+      // Eliminar los actuales
+      await client
+        .from('horario_fijo_usuario')
+        .delete()
+        .eq('usuario_id', userId);
+
+      // Insertar los nuevos
+      if (f.horariosSeleccionados.length > 0) {
+        const horariosInsert = f.horariosSeleccionados.map(horarioId => ({
+          usuario_id: userId,
+          horario_disponible_id: horarioId,
+          activo: true,
+        }));
+
+        await client.from('horario_fijo_usuario').insert(horariosInsert);
+      }
     }
 
-    const { data: planExistente } = await client
-      .from('plan_usuario')
-      .select('usuario_id')
-      .eq('usuario_id', userId)
-      .single();
-
-    if (planExistente) {
-      await client.from('plan_usuario').update(planData).eq('usuario_id', userId);
-    } else {
-      await client.from('plan_usuario').insert({ ...planData, usuario_id: userId, activo: true });
-    }
-
+    // 4. Cambiar contraseña si se indicó
     if (f.password && f.password.length >= 6) {
       const passResult = await this.authService.cambiarPassword(userId, f.password);
       if (!passResult.success) {
@@ -516,35 +692,58 @@ export class GestionarPerfilesComponent implements OnInit {
     });
   }
 
-  obtenerEtiquetaGrupo(plan: PerfilPlan | undefined): string {
-    if (!plan) return 'Sin plan';
+  obtenerEtiquetaGrupo(usuario: Usuario): string {
+    if (!usuario.tipo_grupo) return 'Sin plan';
 
-    const tipo = plan.tipo_grupo || 'sin_plan';
+    const tipo = usuario.tipo_grupo;
+    const numHorarios = usuario.horarios_fijos?.length || 0;
 
-    if (tipo === 'especial') {
-      const focus = plan.sesiones_fijas_mes_focus || 0;
-      const reducido = plan.sesiones_fijas_mes_reducido || 0;
-      if (focus > 0 && reducido > 0) return `Especial F${focus}+R${reducido}/mes`;
-      if (focus > 0) return `Especial ${focus}F/mes`;
-      if (reducido > 0) return `Especial ${reducido}R/mes`;
-      return 'Especial';
-    }
-
-    const focus = plan.clases_focus_semana || 0;
-    const reducido = plan.clases_reducido_semana || 0;
-    const cuota = plan.tipo_cuota === 'mensual' ? '/mes' : '/sem';
-
-    if (tipo === 'focus') return `Focus ${focus}${cuota}`;
-    if (tipo === 'reducido') return `Reducido ${reducido}${cuota}`;
-    if (tipo === 'hibrido') return `Híbrido F${focus}+R${reducido}${cuota}`;
+    if (tipo === 'focus') return `Focus (${numHorarios} clases/sem)`;
+    if (tipo === 'reducido') return `Reducido (${numHorarios} clases/sem)`;
+    if (tipo === 'hibrido') return `Híbrido (${numHorarios} clases/sem)`;
+    if (tipo === 'especial') return `Especial (${numHorarios} clases/sem)`;
 
     return 'Sin plan';
+  }
+
+  obtenerHorariosTexto(usuario: Usuario): string {
+    const horarios = usuario.horarios_fijos || [];
+    if (horarios.length === 0) return '';
+
+    const porDia = new Map<number, string[]>();
+    for (const hf of horarios) {
+      const h = hf.horario;
+      if (!h) continue;
+      if (!porDia.has(h.dia_semana)) {
+        porDia.set(h.dia_semana, []);
+      }
+      porDia.get(h.dia_semana)!.push(h.hora.slice(0, 5));
+    }
+
+    const partes: string[] = [];
+    for (const [dia, horas] of [...porDia.entries()].sort((a, b) => a[0] - b[0])) {
+      partes.push(`${this.diasSemana[dia].slice(0, 3)} ${horas.join(', ')}`);
+    }
+
+    return partes.join(' · ');
+  }
+
+  obtenerClaseGrupo(tipo: string | undefined): string {
+    if (tipo === 'focus') return 'grupo-focus';
+    if (tipo === 'reducido') return 'grupo-reducido';
+    if (tipo === 'hibrido') return 'grupo-hibrido';
+    if (tipo === 'especial') return 'grupo-especial';
+    return '';
   }
 
   obtenerClaseRol(rol: string): string {
     if (rol === 'admin') return 'rol-admin';
     if (rol === 'profesor') return 'rol-profesor';
     return 'rol-cliente';
+  }
+
+  formatHora(hora: string): string {
+    return hora.slice(0, 5);
   }
 
   volver() {
