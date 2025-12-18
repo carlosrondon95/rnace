@@ -1,0 +1,502 @@
+// src/app/components/lista-espera/lista-espera.component.scss
+
+// Variables
+$bg-page: radial-gradient(circle at top, #55574f 0, #494b46 45%, #32332f 100%);
+$bg-card: #3a3b37;
+$bg-card-hover: #424340;
+$bg-dark: #32332f;
+$text-primary: #ebe9e3;
+$text-secondary: rgba(235, 233, 227, 0.7);
+$text-muted: rgba(235, 233, 227, 0.5);
+$accent: #b8b29e;
+$border-color: rgba(232, 233, 227, 0.1);
+$border-hover: rgba(184, 178, 158, 0.3);
+
+// Colores
+$color-focus: #60a5fa;
+$color-reducido: #a78bfa;
+$color-success: #4ade80;
+$color-warning: #fbbf24;
+$color-danger: #ef4444;
+
+// Mixins
+@mixin card-base {
+  background: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: 12px;
+}
+
+@mixin button-reset {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+.lista-espera-page {
+  min-height: 100vh;
+  padding: 72px 1rem 2rem;
+  background: $bg-page;
+}
+
+.lista-espera-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+// Header
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0.5rem 0;
+}
+
+.btn-volver,
+.btn-refrescar {
+  @include button-reset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: $text-secondary;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: $text-primary;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.5rem;
+  }
+}
+
+.header-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.badge-total {
+  padding: 0.25rem 0.6rem;
+  background: rgba($color-warning, 0.2);
+  color: $color-warning;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+// Mensajes
+.mensaje {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+
+  .material-symbols-rounded {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+
+  &--error {
+    background: rgba($color-danger, 0.15);
+    border: 1px solid rgba($color-danger, 0.3);
+    color: $color-danger;
+  }
+
+  &--exito {
+    background: rgba($color-success, 0.15);
+    border: 1px solid rgba($color-success, 0.3);
+    color: $color-success;
+  }
+}
+
+.btn-cerrar {
+  @include button-reset;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  .material-symbols-rounded {
+    font-size: 1rem;
+  }
+}
+
+// Loading
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: $text-secondary;
+
+  p {
+    margin: 1rem 0 0;
+    font-size: 0.9rem;
+  }
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid $border-color;
+  border-top-color: $accent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Empty state
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+
+  .empty-icon {
+    font-size: 4rem;
+    color: $text-muted;
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.2rem;
+    color: $text-primary;
+  }
+
+  p {
+    margin: 0;
+    color: $text-secondary;
+    font-size: 0.9rem;
+  }
+}
+
+// Sesiones lista
+.sesiones-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sesion-card {
+  @include card-base;
+  overflow: hidden;
+}
+
+.sesion-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid $border-color;
+}
+
+.sesion-info {
+  flex: 1;
+}
+
+.sesion-fecha {
+  margin: 0 0 0.375rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: $text-primary;
+  text-transform: capitalize;
+}
+
+.sesion-detalles {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sesion-hora {
+  font-size: 0.9rem;
+  color: $text-secondary;
+}
+
+.sesion-modalidad {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.modalidad {
+  &--focus {
+    background: rgba($color-focus, 0.15);
+    color: $color-focus;
+  }
+
+  &--reducido {
+    background: rgba($color-reducido, 0.15);
+    color: $color-reducido;
+  }
+}
+
+.sesion-capacidad {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.capacidad-badge {
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &--lleno {
+    background: rgba($color-danger, 0.15);
+    color: $color-danger;
+  }
+
+  &--disponible {
+    background: rgba($color-success, 0.15);
+    color: $color-success;
+  }
+}
+
+.capacidad-detalle {
+  font-size: 0.75rem;
+  color: $text-muted;
+}
+
+// Usuarios lista
+.usuarios-lista {
+  padding: 1rem 1.25rem;
+}
+
+.usuarios-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.875rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: $text-secondary;
+
+  .material-symbols-rounded {
+    font-size: 1.1rem;
+  }
+}
+
+.usuario-item {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  transition: background 0.15s;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.usuario-posicion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba($accent, 0.15);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.posicion-numero {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: $accent;
+}
+
+.usuario-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.usuario-nombre {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: $text-primary;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.usuario-telefono {
+  font-size: 0.8rem;
+  color: $text-secondary;
+}
+
+.usuario-desde {
+  font-size: 0.7rem;
+  color: $text-muted;
+}
+
+.usuario-acciones {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.btn-accion {
+  @include button-reset;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.15s;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .material-symbols-rounded {
+    font-size: 1rem;
+  }
+
+  &--primary {
+    background: rgba($color-success, 0.15);
+    color: $color-success;
+
+    &:hover:not(:disabled) {
+      background: rgba($color-success, 0.25);
+    }
+  }
+
+  &--notify {
+    background: rgba($color-focus, 0.15);
+    color: $color-focus;
+    padding: 0.375rem;
+
+    &:hover:not(:disabled) {
+      background: rgba($color-focus, 0.25);
+    }
+  }
+
+  &--danger {
+    background: rgba($color-danger, 0.1);
+    color: rgba($color-danger, 0.7);
+    padding: 0.375rem;
+
+    &:hover:not(:disabled) {
+      background: rgba($color-danger, 0.2);
+      color: $color-danger;
+    }
+  }
+}
+
+// Responsive
+@media (max-width: 600px) {
+  .lista-espera-page {
+    padding: 68px 0.75rem 1.5rem;
+  }
+
+  .page-header {
+    gap: 0.75rem;
+  }
+
+  .header-content h1 {
+    font-size: 1.25rem;
+  }
+
+  .btn-volver,
+  .btn-refrescar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .sesion-header {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .sesion-capacidad {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .usuario-item {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .usuario-info {
+    flex: 1 1 calc(100% - 40px);
+    order: 1;
+  }
+
+  .usuario-acciones {
+    order: 2;
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+    padding-left: 36px;
+  }
+
+  .btn-accion--primary {
+    flex: 1;
+    justify-content: center;
+    max-width: 120px;
+  }
+}

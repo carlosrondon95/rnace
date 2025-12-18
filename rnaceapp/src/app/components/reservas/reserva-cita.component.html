@@ -1,31 +1,32 @@
 <!-- src/app/components/reservas/reserva-cita.component.html -->
+<!-- NUEVO SISTEMA: Recuperar clases y lista de espera -->
 
 <main class="reserva-page">
-  <!-- Header con volver y navegación de mes -->
+  <!-- Header -->
   <header class="page-header">
     <button class="btn-volver" (click)="volver()">
       <span class="material-symbols-rounded">arrow_back</span>
       Volver
     </button>
-    <h1>{{ esAdmin() ? 'Ver Sesiones' : 'Reservar cita' }}</h1>
+    <h1>Recuperar clase</h1>
   </header>
 
   <!-- Navegación de meses -->
   <div class="mes-navegacion">
-    <button class="btn-mes" (click)="mesAnterior()">
+    <button class="btn-mes" (click)="mesAnterior()" aria-label="Mes anterior">
       <span class="material-symbols-rounded">chevron_left</span>
     </button>
     <span class="mes-nombre">{{ nombreMes() }}</span>
-    <button class="btn-mes" (click)="mesSiguiente()">
+    <button class="btn-mes" (click)="mesSiguiente()" aria-label="Mes siguiente">
       <span class="material-symbols-rounded">chevron_right</span>
     </button>
   </div>
 
   <!-- Badge mes cerrado -->
-  @if (!mesAbierto() && !esAdmin()) {
-    <div class="mes-cerrado-badge">
+  @if (!mesAbierto() && !cargando()) {
+    <div class="mes-cerrado-badge" role="alert">
       <span class="material-symbols-rounded">lock</span>
-      Mes cerrado para reservas
+      Este mes aún no está abierto
     </div>
   }
 
@@ -38,169 +39,49 @@
       </div>
     }
 
-    <!-- Error (mes cerrado) -->
-    @if (!cargando() && error() && !mesAbierto()) {
-      <div class="error-state">
-        <span class="material-symbols-rounded error-icon">event_busy</span>
-        <h2>Mes no disponible</h2>
-        <p>{{ error() }}</p>
-      </div>
-    }
-
     <!-- Contenido principal -->
-    @if (!cargando() && (mesAbierto() || esAdmin())) {
-      <!-- Info de cupos (solo clientes) -->
-      @if (!esAdmin() && infoCupos(); as info) {
-        <div class="cupos-section">
-          @if (info.tipo === 'focus') {
-            <div class="cupos-single">
-              <div class="cupo-card cupo-focus">
-                <div class="cupo-header">
-                  <span class="cupo-icon material-symbols-rounded">fitness_center</span>
-                  <span class="cupo-label">{{ info.titulo }}</span>
-                </div>
-                <div class="cupo-body">
-                  <span class="cupo-value">{{ info.usadas }} / {{ info.total }}</span>
-                  <span class="cupo-detail">usadas este mes</span>
-                </div>
-                @if (info.disponibles && info.disponibles > 0) {
-                  <div class="cupo-disponible">
-                    {{ info.disponibles }} disponible{{ info.disponibles !== 1 ? 's' : '' }}
-                  </div>
-                }
-                @if (info.recuperacion) {
-                  <div class="cupo-recuperacion">
-                    <span class="material-symbols-rounded">replay</span>
-                    1 recuperación disponible
-                  </div>
-                }
-              </div>
-            </div>
-          }
-
-          @if (info.tipo === 'reducido') {
-            <div class="cupos-single">
-              <div class="cupo-card cupo-reducido">
-                <div class="cupo-header">
-                  <span class="cupo-icon material-symbols-rounded">groups</span>
-                  <span class="cupo-label">{{ info.titulo }}</span>
-                </div>
-                <div class="cupo-body">
-                  <span class="cupo-value">{{ info.usadas }} / {{ info.total }}</span>
-                  <span class="cupo-detail">usadas este mes</span>
-                </div>
-                @if (info.disponibles && info.disponibles > 0) {
-                  <div class="cupo-disponible">
-                    {{ info.disponibles }} disponible{{ info.disponibles !== 1 ? 's' : '' }}
-                  </div>
-                }
-                @if (info.recuperacion) {
-                  <div class="cupo-recuperacion">
-                    <span class="material-symbols-rounded">replay</span>
-                    1 recuperación disponible
-                  </div>
-                }
-              </div>
-            </div>
-          }
-
-          @if (info.tipo === 'hibrido' && info.focus && info.reducido) {
-            <div class="cupos-dual">
-              <div class="cupo-card cupo-focus" [class.cupo-active]="modalidad() === 'focus'">
-                <div class="cupo-header">
-                  <span class="cupo-icon material-symbols-rounded">fitness_center</span>
-                  <span class="cupo-label">Focus</span>
-                </div>
-                <div class="cupo-body">
-                  <span class="cupo-value">{{ info.focus.usadas }} / {{ info.focus.total }}</span>
-                  <span class="cupo-detail">usadas</span>
-                </div>
-                @if (info.focus.disponibles > 0) {
-                  <div class="cupo-disponible">{{ info.focus.disponibles }} disp.</div>
-                }
-                @if (info.focus.recuperacion) {
-                  <div class="cupo-recuperacion">
-                    <span class="material-symbols-rounded">replay</span> 1 recup.
-                  </div>
-                }
-              </div>
-
-              <div class="cupo-card cupo-reducido" [class.cupo-active]="modalidad() === 'reducido'">
-                <div class="cupo-header">
-                  <span class="cupo-icon material-symbols-rounded">groups</span>
-                  <span class="cupo-label">Reducido</span>
-                </div>
-                <div class="cupo-body">
-                  <span class="cupo-value"
-                    >{{ info.reducido.usadas }} / {{ info.reducido.total }}</span
-                  >
-                  <span class="cupo-detail">usadas</span>
-                </div>
-                @if (info.reducido.disponibles > 0) {
-                  <div class="cupo-disponible">{{ info.reducido.disponibles }} disp.</div>
-                }
-                @if (info.reducido.recuperacion) {
-                  <div class="cupo-recuperacion">
-                    <span class="material-symbols-rounded">replay</span> 1 recup.
-                  </div>
-                }
-              </div>
-            </div>
-          }
-
-          @if (info.tipo === 'especial' && info.focus && info.reducido) {
-            <div class="cupos-especial">
-              <div class="cupos-especial-header">
-                <span class="material-symbols-rounded">star</span>
-                <span>Plan Especial</span>
-              </div>
-              <div class="cupos-dual">
-                @if (info.focus.total > 0) {
-                  <div class="cupo-card cupo-focus" [class.cupo-active]="modalidad() === 'focus'">
-                    <div class="cupo-header">
-                      <span class="cupo-icon material-symbols-rounded">fitness_center</span>
-                      <span class="cupo-label">Focus</span>
-                    </div>
-                    <div class="cupo-body">
-                      <span class="cupo-value"
-                        >{{ info.focus.usadas }} / {{ info.focus.total }}</span
-                      >
-                      <span class="cupo-detail">al mes</span>
-                    </div>
-                    @if (info.focus.disponibles > 0) {
-                      <div class="cupo-disponible">{{ info.focus.disponibles }} disp.</div>
-                    }
-                  </div>
-                }
-                @if (info.reducido.total > 0) {
-                  <div
-                    class="cupo-card cupo-reducido"
-                    [class.cupo-active]="modalidad() === 'reducido'"
-                  >
-                    <div class="cupo-header">
-                      <span class="cupo-icon material-symbols-rounded">groups</span>
-                      <span class="cupo-label">Reducido</span>
-                    </div>
-                    <div class="cupo-body">
-                      <span class="cupo-value"
-                        >{{ info.reducido.usadas }} / {{ info.reducido.total }}</span
-                      >
-                      <span class="cupo-detail">al mes</span>
-                    </div>
-                    @if (info.reducido.disponibles > 0) {
-                      <div class="cupo-disponible">{{ info.reducido.disponibles }} disp.</div>
-                    }
-                  </div>
-                }
-              </div>
-            </div>
-          }
+    @if (!cargando() && mesAbierto()) {
+      <!-- Info de recuperaciones -->
+      <div class="recuperaciones-section">
+        <div class="recuperaciones-header">
+          <span class="material-symbols-rounded">replay</span>
+          <span>Tus recuperaciones disponibles</span>
         </div>
-      }
+
+        @if (recuperaciones().length === 0) {
+          <div class="sin-recuperaciones">
+            <p>No tienes recuperaciones pendientes.</p>
+            <p class="hint">Las recuperaciones se generan cuando cancelas una clase con más de 1 hora de antelación.</p>
+          </div>
+        } @else {
+          <div class="recuperaciones-lista">
+            @for (recup of recuperaciones(); track recup.id) {
+              <div 
+                class="recuperacion-card"
+                [class.recup-focus]="recup.modalidad === 'focus'"
+                [class.recup-reducido]="recup.modalidad === 'reducido'"
+              >
+                <div class="recup-modalidad">
+                  <span class="material-symbols-rounded">
+                    {{ recup.modalidad === 'focus' ? 'fitness_center' : 'groups' }}
+                  </span>
+                  {{ recup.modalidad === 'focus' ? 'Focus' : 'Reducido' }}
+                </div>
+                <div class="recup-validez">
+                  Válida hasta {{ formatearMesRecuperacion(recup.mes_limite, recup.anio_limite) }}
+                </div>
+                @if (recup.motivo === 'festivo') {
+                  <span class="recup-origen">Por festivo</span>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
 
       <!-- Selector de modalidad -->
       @if (puedeToggleModalidad()) {
-        <div class="mode-toggle">
+        <div class="mode-toggle" role="radiogroup" aria-label="Seleccionar modalidad">
           @for (mod of modalidadesDisponibles(); track mod) {
             <button
               type="button"
@@ -208,6 +89,7 @@
               [class.mode-btn--active]="modalidad() === mod"
               [class.mode-btn--focus]="mod === 'focus'"
               [class.mode-btn--reducido]="mod === 'reducido'"
+              [attr.aria-pressed]="modalidad() === mod"
               (click)="selectModalidad(mod)"
             >
               <span class="mode-icon material-symbols-rounded">
@@ -224,21 +106,11 @@
         </div>
       }
 
-      <!-- Aviso admin -->
-      @if (esAdmin()) {
-        <div class="aviso-admin">
+      <!-- Aviso si no tiene recuperaciones de esta modalidad -->
+      @if (!tieneRecuperacion()) {
+        <div class="aviso-sin-recup" role="alert">
           <span class="material-symbols-rounded">info</span>
-          <span>Estás viendo las sesiones como administrador. No puedes reservar.</span>
-        </div>
-      }
-
-      <!-- Aviso sin cupo -->
-      @if (!esAdmin() && !puedeReservar()) {
-        <div class="aviso-cupo">
-          <span class="material-symbols-rounded">info</span>
-          <span
-            >Has alcanzado tu límite de clases {{ getNombreModalidad(modalidad()) }} este mes.</span
-          >
+          <span>No tienes recuperaciones de {{ getNombreModalidad(modalidad()) }}. Puedes apuntarte a lista de espera.</span>
         </div>
       }
 
@@ -253,47 +125,26 @@
 
               <div class="semana-grid">
                 @for (dia of semana.dias; track dia.fecha) {
-                  <div
-                    class="dia-col"
-                    [class.dia-col--fin-semana]="dia.esFinSemana"
-                    [class.dia-col--festivo]="dia.esFestivo"
-                  >
+                  <div class="dia-col">
                     <div class="dia-header">
                       <span class="dia-nombre">{{ dia.diaNombre }}</span>
                       <span class="dia-fecha">{{ dia.fechaFormateada }}</span>
                     </div>
 
-                    <!-- Mostrar badge si es festivo o fin de semana -->
-                    @if (dia.esFestivo) {
-                      <div class="dia-bloqueado">
-                        <span class="material-symbols-rounded">block</span>
-                        <span>Festivo</span>
-                      </div>
-                    } @else if (dia.esFinSemana) {
-                      <div class="dia-bloqueado">
-                        <span class="material-symbols-rounded">event_busy</span>
-                        <span>Cerrado</span>
-                      </div>
-                    } @else if (dia.sesiones.length === 0) {
+                    @if (dia.sesiones.length === 0) {
                       <div class="dia-vacio">
                         <span>Sin sesiones</span>
                       </div>
-                    }
-
-                    <!-- Slots de sesiones -->
-                    @if (dia.sesiones.length > 0 && !dia.esFestivo && !dia.esFinSemana) {
+                    } @else {
                       <div class="dia-slots">
                         @for (sesion of dia.sesiones; track sesion.id) {
                           <button
                             type="button"
                             class="slot-btn"
                             [class]="getEstadoClase(sesion)"
-                            [disabled]="
-                              sesion.estado === 'pasada' ||
-                              sesion.estado === 'bloqueada' ||
-                              esAdmin()
-                            "
+                            [disabled]="sesion.estado === 'pasada'"
                             (click)="selectSesion(sesion)"
+                            [attr.aria-label]="dia.diaNombre + ' ' + sesion.hora + ' - ' + getEstadoTexto(sesion)"
                           >
                             <span class="slot-hora">{{ sesion.hora }}</span>
                             <span class="slot-plazas">{{ getEstadoTexto(sesion) }}</span>
@@ -311,22 +162,21 @@
         <div class="no-sesiones">
           <span class="material-symbols-rounded">event_busy</span>
           <p>No hay sesiones de {{ getNombreModalidad(modalidad()) }} disponibles este mes.</p>
-          <p class="no-sesiones-hint">Es posible que aún no se hayan generado los horarios.</p>
         </div>
       }
 
       <!-- Mensajes -->
       @if (mensajeExito(); as msg) {
-        <div class="mensaje-exito">
+        <div class="mensaje-exito" role="status">
           <span class="material-symbols-rounded">check_circle</span>
           {{ msg }}
         </div>
       }
 
-      @if (error() && mesAbierto()) {
-        <div class="mensaje-error">
+      @if (error(); as err) {
+        <div class="mensaje-error" role="alert">
           <span class="material-symbols-rounded">error</span>
-          {{ error() }}
+          {{ err }}
         </div>
       }
 
@@ -334,15 +184,15 @@
       <div class="leyenda">
         <div class="leyenda-item">
           <span class="leyenda-color leyenda-disponible"></span>
-          <span>Disponible</span>
+          <span>Con plazas</span>
         </div>
         <div class="leyenda-item">
           <span class="leyenda-color leyenda-completa"></span>
           <span>Completa</span>
         </div>
         <div class="leyenda-item">
-          <span class="leyenda-color leyenda-bloqueada"></span>
-          <span>Cerrada</span>
+          <span class="leyenda-color leyenda-lista-espera"></span>
+          <span>En lista de espera</span>
         </div>
         <div class="leyenda-item">
           <span class="leyenda-color leyenda-seleccionada"></span>
@@ -352,59 +202,69 @@
     }
   </section>
 
-  <!-- Panel de confirmación (solo clientes) -->
-  @if (!esAdmin() && sesionSeleccionada(); as sesion) {
+  <!-- Panel de confirmación -->
+  @if (sesionSeleccionada(); as sesion) {
     <div class="confirm-panel">
       <div class="confirm-info">
         <p class="confirm-title">Has seleccionado:</p>
         <p class="confirm-detail">
-          <strong>Grupo {{ getNombreModalidad(modalidad()) }}</strong>
-          · {{ obtenerNombreDia(sesion.dia_semana) }} {{ formatearFecha(sesion.fecha) }} a las
-          {{ sesion.hora }}
+          <strong>{{ getNombreModalidad(modalidad()) }}</strong>
+          · {{ obtenerNombreDia(sesion.fecha) | titlecase }} {{ formatearFecha(sesion.fecha) }} a las {{ sesion.hora }}
         </p>
-
-        @if (cuposModalidadActual().tieneRecuperacion && cuposModalidadActual().disponibles === 0) {
-          <label class="recuperacion-check">
-            <input type="checkbox" [checked]="usarRecuperacion()" (change)="toggleRecuperacion()" />
-            <span>Usar mi clase de recuperación</span>
-          </label>
-        }
+        <p class="confirm-estado">
+          @if (sesion.estado === 'disponible') {
+            <span class="estado-disponible">{{ sesion.plazas_disponibles }} plaza{{ sesion.plazas_disponibles !== 1 ? 's' : '' }} disponible{{ sesion.plazas_disponibles !== 1 ? 's' : '' }}</span>
+          } @else {
+            <span class="estado-completa">Sesión completa</span>
+          }
+        </p>
       </div>
 
       <div class="confirm-actions">
-        @if (
-          sesion.estado === 'disponible' &&
-          (cuposModalidadActual().disponibles > 0 || usarRecuperacion())
-        ) {
+        <!-- Si hay plazas y tiene recuperación -->
+        @if (sesion.estado === 'disponible' && tieneRecuperacion()) {
           <button
             type="button"
             class="btn-confirm"
             [disabled]="guardando()"
-            (click)="onConfirmar()"
+            (click)="usarRecuperacion()"
           >
-            {{ guardando() ? 'Reservando...' : 'Confirmar reserva' }}
+            @if (guardando()) {
+              <span class="spinner-small"></span>
+              Procesando...
+            } @else {
+              <span class="material-symbols-rounded">replay</span>
+              Usar recuperación
+            }
           </button>
         }
 
-        @if (
-          sesion.estado === 'disponible' &&
-          cuposModalidadActual().disponibles === 0 &&
-          !usarRecuperacion() &&
-          cuposModalidadActual().tieneRecuperacion
-        ) {
-          <button type="button" class="btn-confirm btn-secondary" disabled>
-            Selecciona usar recuperación
+        <!-- Si hay plazas pero NO tiene recuperación -->
+        @if (sesion.estado === 'disponible' && !tieneRecuperacion()) {
+          <button type="button" class="btn-confirm btn-disabled" disabled>
+            <span class="material-symbols-rounded">block</span>
+            Sin recuperaciones
           </button>
         }
 
+        <!-- Si está completa, botón de lista de espera -->
         @if (sesion.estado === 'completa') {
           <button
             type="button"
-            class="btn-lista-espera"
+            [class]="sesion.en_lista_espera ? 'btn-quitar-espera' : 'btn-lista-espera'"
             [disabled]="guardando()"
-            (click)="onListaEspera()"
+            (click)="toggleListaEspera(sesion)"
           >
-            {{ guardando() ? 'Procesando...' : 'Añadirme a lista de espera' }}
+            @if (guardando()) {
+              <span class="spinner-small"></span>
+              Procesando...
+            } @else if (sesion.en_lista_espera) {
+              <span class="material-symbols-rounded">remove_circle</span>
+              Quitar de lista de espera
+            } @else {
+              <span class="material-symbols-rounded">notification_add</span>
+              Apuntarme a lista de espera
+            }
           </button>
         }
       </div>

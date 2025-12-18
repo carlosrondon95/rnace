@@ -1,275 +1,179 @@
-// src/app/dashboard/dashboard.component.scss
+// src/app/components/dashboard/dashboard.component.scss
 
-$color-bg: #494b46;
-$color-primary: #b8b29e;
-$color-secondary: #ebe9e3;
-$color-surface: #3a3b37;
-$color-border-soft: rgba(232, 233, 227, 0.12);
-$color-text-muted: rgba(235, 233, 227, 0.8);
-$color-error: #f87171;
+// Variables
+$bg-page: radial-gradient(circle at top, #55574f 0, #494b46 45%, #32332f 100%);
+$bg-card: #3a3b37;
+$bg-card-hover: #424340;
+$bg-dark: #32332f;
+$text-primary: #ebe9e3;
+$text-secondary: rgba(235, 233, 227, 0.7);
+$text-muted: rgba(235, 233, 227, 0.5);
+$accent: #b8b29e;
+$border-color: rgba(232, 233, 227, 0.1);
+$border-hover: rgba(184, 178, 158, 0.3);
 
-// ====== DEBUG BOX ======
-.debug-box {
-  max-width: 780px;
-  width: 100%;
-  background: rgba(251, 191, 36, 0.15);
-  border: 2px solid rgba(251, 191, 36, 0.6);
+// Colores modalidad
+$color-focus: #60a5fa;
+$color-reducido: #a78bfa;
+$color-hibrido: #4ade80;
+$color-especial: #fbbf24;
+$color-admin: #4ade80;
+$color-profesor: #a78bfa;
+
+// Mixins
+@mixin card-base {
+  background: $bg-card;
+  border: 1px solid $border-color;
   border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  font-family: monospace;
-  font-size: 0.75rem;
-  color: #fbbf24;
-
-  pre {
-    margin: 0.5rem 0;
-    white-space: pre-wrap;
-    word-break: break-all;
-    background: rgba(0, 0, 0, 0.3);
-    padding: 0.75rem;
-    border-radius: 6px;
-  }
-
-  .debug-role {
-    margin-top: 0.5rem;
-    padding: 0.5rem;
-    background: rgba(74, 222, 128, 0.2);
-    border-radius: 6px;
-    color: #4ade80;
-
-    strong {
-      font-size: 1rem;
-    }
-  }
 }
 
-.role-badge {
-  display: inline-block;
-  background: rgba(184, 178, 158, 0.2);
-  border: 1px solid $color-primary;
-  border-radius: 20px;
-  padding: 0.3rem 0.8rem;
-  font-size: 0.8rem;
-  margin-bottom: 1rem;
-
-  strong {
-    color: $color-primary;
-    text-transform: uppercase;
-  }
+@mixin button-reset {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
 }
 
-// ====== LAYOUT GENERAL ======
 .dashboard-page {
   min-height: 100vh;
-  padding: 5rem 1.5rem 2rem;
-  background: radial-gradient(circle at top, #55574f 0, $color-bg 45%, #32332f 100%);
+  padding: 72px 1.5rem 2rem;
+  background: $bg-page;
+}
+
+.dashboard-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+// Welcome section
+.welcome-section {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding-top: 1rem;
 }
 
-.dashboard-card {
-  width: 100%;
-  max-width: 780px;
-  background: $color-surface;
-  border-radius: 18px;
-  padding: 2.5rem 2.25rem;
-  border: 1px solid $color-border-soft;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-  color: $color-secondary;
-}
+.welcome-content {
+  h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: $text-primary;
+  }
 
-.dashboard-card h1 {
-  margin: 0 0 0.75rem;
-  font-size: 1.7rem;
-  font-weight: 600;
-}
-
-.dashboard-card .lead {
-  margin: 0 0 2rem;
-  font-size: 0.95rem;
-  color: $color-text-muted;
-
-  &.error {
-    color: $color-error;
+  .welcome-subtitle {
+    margin: 0;
+    font-size: 0.95rem;
+    color: $text-secondary;
   }
 }
 
-// ====== BOTONES PRINCIPALES ======
-.dashboard-actions {
+.btn-notificaciones {
+  @include button-reset;
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.9rem;
-}
-
-.btn-primary {
-  border-radius: 999px;
-  padding: 0.75rem 1.4rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid transparent;
-  background: $color-primary;
-  color: #252521;
-  display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  transition:
-    transform 0.1s ease,
-    box-shadow 0.1s ease;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: $bg-card;
+  border: 1px solid $border-color;
+  color: $text-secondary;
+  transition: all 0.15s ease;
 
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4);
+    background: $bg-card-hover;
+    border-color: $border-hover;
+    color: $text-primary;
   }
 
-  &:active {
-    transform: translateY(0);
-    box-shadow: none;
+  .material-symbols-rounded {
+    font-size: 1.5rem;
   }
 }
 
-.btn-with-icon {
-  .btn-icon {
-    font-size: 20px;
-    line-height: 1;
-  }
-  .btn-label {
-    white-space: nowrap;
+.notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: #ef4444;
+  color: white;
+  border-radius: 9px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Sections
+.section {
+  margin-bottom: 1.5rem;
+
+  &--highlight {
+    @include card-base;
+    padding: 1rem;
+    background: rgba($accent, 0.05);
+    border-color: rgba($accent, 0.2);
   }
 }
 
-// ====== NAVBAR SUPERIOR ======
-.top-nav {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  min-height: 60px;
-  padding: 0.6rem 1.5rem;
+.section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(41, 41, 38, 0.96);
-  border-bottom: 1px solid rgba(232, 233, 227, 0.14);
-  backdrop-filter: blur(8px);
-  z-index: 20;
-}
+  margin-bottom: 0.875rem;
 
-.nav-left {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-}
+  h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: $text-primary;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 
-.nav-logo {
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  font-size: 0.95rem;
-  color: $color-primary;
-  text-transform: uppercase;
-}
-
-.nav-tagline {
-  font-size: 0.75rem;
-  color: $color-text-muted;
-}
-
-.nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.nav-btn {
-  border-radius: 999px;
-  padding: 0.4rem 0.85rem;
-  border: 1px solid rgba(232, 233, 227, 0.25);
-  background: transparent;
-  color: $color-secondary;
-  font-size: 0.8rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-
-  &:hover {
-    background: rgba(232, 233, 227, 0.08);
-    border-color: $color-primary;
-  }
-
-  &.nav-btn--logout {
-    border-color: rgba(248, 113, 113, 0.4);
-    color: rgba(248, 113, 113, 0.9);
-
-    &:hover {
-      background: rgba(248, 113, 113, 0.1);
-      border-color: rgba(248, 113, 113, 0.7);
+    .material-symbols-rounded {
+      font-size: 1.25rem;
+      color: $accent;
     }
   }
 }
 
-.nav-icon {
-  font-size: 18px;
-  line-height: 1;
-}
+.link-ver-mas {
+  font-size: 0.8rem;
+  color: $accent;
+  text-decoration: none;
+  transition: opacity 0.15s;
 
-// ====== SPLASH ======
-.login-splash {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at top, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.95));
-}
-
-.splash-card {
-  background: #2e2f2b;
-  border-radius: 16px;
-  padding: 1.7rem 2rem 1.6rem;
-  border: 1px solid $color-border-soft;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.65);
-  text-align: center;
-  min-width: 260px;
-  max-width: 320px;
-  color: $color-secondary;
-}
-
-.splash-logo {
-  margin: 0 auto 0.9rem;
-  width: 110px;
-  height: 110px;
-  border-radius: 18px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: $color-secondary;
-  border: 1px solid rgba(0, 0, 0, 0.3);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
-
-  img {
-    max-width: 80%;
-    max-height: 80%;
-    object-fit: contain;
+  &:hover {
+    opacity: 0.8;
   }
 }
 
-.splash-text {
-  margin: 0 0 1rem;
+// Loading
+.loading-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  color: $text-secondary;
   font-size: 0.9rem;
 }
 
-.splash-spinner {
-  margin: 0 auto;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  border: 3px solid rgba(235, 233, 227, 0.25);
-  border-top-color: $color-primary;
+.spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid $border-color;
+  border-top-color: $accent;
+  border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
@@ -279,44 +183,443 @@ $color-error: #f87171;
   }
 }
 
-// ====== RESPONSIVE ======
-@media (max-width: 768px) {
-  .top-nav {
-    padding: 0.5rem 1rem;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.4rem;
+// Empty card
+.empty-card {
+  @include card-base;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  text-align: center;
+
+  .material-symbols-rounded {
+    font-size: 2.5rem;
+    color: $text-muted;
+    margin-bottom: 0.5rem;
   }
 
-  .nav-actions {
-    width: 100%;
-    justify-content: flex-start;
+  p {
+    margin: 0;
+    color: $text-secondary;
+    font-size: 0.9rem;
+  }
+}
+
+// Clases lista (cliente)
+.clases-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.clase-card {
+  @include card-base;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+
+  &--recuperacion {
+    border-left: 3px solid $accent;
+  }
+}
+
+.clase-fecha {
+  display: flex;
+  flex-direction: column;
+  min-width: 70px;
+
+  .clase-dia {
+    font-size: 0.7rem;
+    color: $text-muted;
+    text-transform: capitalize;
   }
 
-  .nav-btn {
-    flex: 1 1 auto;
-    justify-content: center;
+  .clase-fecha-num {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.clase-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.clase-hora {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.clase-modalidad {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.modalidad {
+  &--focus {
+    background: rgba($color-focus, 0.15);
+    color: $color-focus;
   }
 
+  &--reducido {
+    background: rgba($color-reducido, 0.15);
+    color: $color-reducido;
+  }
+}
+
+.tag-recuperacion {
+  padding: 0.2rem 0.5rem;
+  background: rgba($accent, 0.15);
+  color: $accent;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+// Recuperaciones
+.recuperaciones-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recuperacion-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.recuperacion-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.recuperacion-modalidad {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  width: fit-content;
+}
+
+.recuperacion-expira {
+  font-size: 0.75rem;
+  color: $text-muted;
+}
+
+.btn-usar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  background: $accent;
+  color: #32332f;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s;
+
+  &:hover {
+    opacity: 0.9;
+    transform: translateX(2px);
+  }
+
+  .material-symbols-rounded {
+    font-size: 1rem;
+  }
+}
+
+// Stats grid (admin)
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.stat-card {
+  @include card-base;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0.5rem;
+  text-align: center;
+
+  &--warning .stat-value {
+    color: $color-especial;
+  }
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: $text-primary;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: $text-muted;
+  margin-top: 0.25rem;
+}
+
+// Clases admin
+.clases-admin-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.clase-admin-card {
+  @include card-base;
+  padding: 1rem;
+}
+
+.clase-admin-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.clase-admin-hora {
+  font-size: 1rem;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.clase-admin-modalidad {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.clase-admin-ocupacion {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: $text-secondary;
+}
+
+.clase-admin-alumnos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.alumno-tag {
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: $text-secondary;
+}
+
+.clase-admin-vacia {
+  margin: 0;
+  font-size: 0.8rem;
+  color: $text-muted;
+  font-style: italic;
+}
+
+// Actions grid
+.actions-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+
+  &--admin {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.action-card {
+  @include card-base;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.125rem 1.25rem;
+  text-decoration: none;
+  color: $text-primary;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: $border-hover;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  &--primary {
+    background: linear-gradient(135deg, rgba($accent, 0.15), rgba($accent, 0.05));
+    border-color: rgba($accent, 0.3);
+
+    .action-icon {
+      color: $accent;
+    }
+
+    &:hover {
+      border-color: $accent;
+    }
+  }
+}
+
+.action-icon {
+  font-size: 1.75rem;
+  color: $text-muted;
+}
+
+.action-content {
+  flex: 1;
+
+  h3 {
+    margin: 0 0 0.2rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: $text-secondary;
+  }
+}
+
+.action-arrow {
+  font-size: 1.25rem;
+  color: $text-muted;
+  transition: all 0.15s ease;
+
+  .action-card:hover & {
+    transform: translateX(4px);
+    color: $accent;
+  }
+}
+
+// User info
+.user-info {
+  margin-top: 1rem;
+}
+
+.user-info-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: $bg-dark;
+  border-radius: 12px;
+  border: 1px solid $border-color;
+}
+
+.user-info-icon {
+  font-size: 1.5rem;
+  color: $text-muted;
+}
+
+.user-info-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.user-info-label {
+  font-size: 0.65rem;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.user-info-value {
+  font-size: 0.9rem;
+  color: $text-primary;
+}
+
+// Badges
+.badge {
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+
+  &--focus {
+    background: rgba($color-focus, 0.15);
+    color: $color-focus;
+  }
+
+  &--reducido {
+    background: rgba($color-reducido, 0.15);
+    color: $color-reducido;
+  }
+
+  &--hibrido {
+    background: rgba($color-hibrido, 0.15);
+    color: $color-hibrido;
+  }
+
+  &--especial {
+    background: rgba($color-especial, 0.15);
+    color: $color-especial;
+  }
+
+  &--profesor {
+    background: rgba($color-profesor, 0.15);
+    color: $color-profesor;
+  }
+
+  &--admin {
+    background: rgba($color-admin, 0.15);
+    color: $color-admin;
+  }
+}
+
+// Responsive
+@media (max-width: 600px) {
   .dashboard-page {
-    padding-top: 6rem;
-    padding-inline: 1rem;
+    padding: 68px 1rem 1.5rem;
   }
 
-  .dashboard-card {
-    padding: 1.8rem 1.5rem;
+  .welcome-content h1 {
+    font-size: 1.35rem;
   }
 
-  .dashboard-actions {
-    flex-direction: column;
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .btn-primary {
-    width: 100%;
-    justify-content: center;
+  .stat-card {
+    padding: 0.875rem 0.5rem;
   }
 
-  .debug-box {
-    font-size: 0.65rem;
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .actions-grid--admin {
+    grid-template-columns: 1fr;
+  }
+
+  .action-card {
+    padding: 1rem;
+  }
+
+  .action-icon {
+    font-size: 1.5rem;
   }
 }

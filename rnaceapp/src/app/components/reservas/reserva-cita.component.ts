@@ -1,4 +1,7 @@
 // src/app/components/reservas/reserva-cita.component.ts
+// NUEVO SISTEMA: Este componente ahora es para RECUPERAR CLASES
+// Los alumnos tienen clases fijas asignadas, este es para usar recuperaciones
+
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
@@ -11,22 +14,23 @@ type Modalidad = 'focus' | 'reducido';
 interface Sesion {
   id: number;
   fecha: string;
-  fecha_inicio: string;
   hora: string;
-  dia_semana: number;
   modalidad: Modalidad;
   capacidad: number;
-  reservas_activas: number;
+  plazas_ocupadas: number;
   plazas_disponibles: number;
-  estado: 'disponible' | 'completa' | 'pasada' | 'bloqueada';
+  estado: 'disponible' | 'completa' | 'pasada';
+  en_lista_espera: boolean;
 }
 
-interface SemanaAgrupada {
-  numeroSemana: number;
-  fechaInicio: string;
-  fechaFin: string;
-  tituloSemana: string; // NUEVO: "Semana del 15 al 19"
-  dias: DiaAgrupado[];
+interface Recuperacion {
+  id: number;
+  modalidad: Modalidad;
+  mes_origen: number;
+  anio_origen: number;
+  mes_limite: number;
+  anio_limite: number;
+  motivo: string;
 }
 
 interface DiaAgrupado {
@@ -34,27 +38,12 @@ interface DiaAgrupado {
   diaNombre: string;
   fechaFormateada: string;
   sesiones: Sesion[];
-  esFestivo: boolean;
-  esFinSemana: boolean;
 }
 
-interface CuposInfo {
-  tipo: 'focus' | 'reducido' | 'hibrido' | 'especial';
-  titulo?: string;
-  total?: number;
-  usadas?: number;
-  disponibles?: number;
-  recuperacion?: boolean;
-  focus?: { total: number; usadas: number; disponibles: number; recuperacion: boolean };
-  reducido?: { total: number; usadas: number; disponibles: number; recuperacion: boolean };
-}
-
-interface PlanUsuario {
-  tipo_grupo: string;
-  clases_focus_semana: number;
-  clases_reducido_semana: number;
-  sesiones_fijas_mes_focus: number | null;
-  sesiones_fijas_mes_reducido: number | null;
+interface SemanaAgrupada {
+  numeroSemana: number;
+  tituloSemana: string;
+  dias: DiaAgrupado[];
 }
 
 @Component({
@@ -75,25 +64,14 @@ export class ReservaCitaComponent implements OnInit {
 
   // Navegación de meses
   mesActual = signal({ anio: new Date().getFullYear(), mes: new Date().getMonth() + 1 });
-  mesAbierto = signal(true);
+  mesAbierto = signal(false);
 
+  // Datos
   sesiones = signal<Sesion[]>([]);
-  festivosMes = signal<Set<string>>(new Set());
+  recuperaciones = signal<Recuperacion[]>([]);
   sesionSeleccionada = signal<Sesion | null>(null);
   modalidad = signal<Modalidad>('focus');
-  usarRecuperacion = signal(false);
-
-  // Datos del usuario
-  planUsuario = signal<PlanUsuario | null>(null);
-  cuposData = signal<{
-    sesiones_focus_mes: number;
-    sesiones_reducido_mes: number;
-    usadas_focus_mes: number;
-    usadas_reducido_mes: number;
-    tiene_recuperacion_focus: boolean;
-    tiene_recuperacion_reducido: boolean;
-    tipo_grupo: string;
-  } | null>(null);
+  tipoGrupo = signal<string>('focus');
 
   esAdmin = computed(() => this.auth.getRol() === 'admin');
 
@@ -104,102 +82,36 @@ export class ReservaCitaComponent implements OnInit {
     return `${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)} ${anio}`;
   });
 
-  infoCupos = computed((): CuposInfo | null => {
-    if (this.esAdmin()) return null;
-
-    const cupos = this.cuposData();
-    const plan = this.planUsuario();
-    if (!cupos) return null;
-
-    const tipo = cupos.tipo_grupo as CuposInfo['tipo'];
-
-    if (tipo === 'focus') {
-      return {
-        tipo: 'focus',
-        titulo: 'Clases Focus',
-        total: cupos.sesiones_focus_mes,
-        usadas: cupos.usadas_focus_mes,
-        disponibles: Math.max(0, cupos.sesiones_focus_mes - cupos.usadas_focus_mes),
-        recuperacion: cupos.tiene_recuperacion_focus,
-      };
-    }
-
-    if (tipo === 'reducido') {
-      return {
-        tipo: 'reducido',
-        titulo: 'Clases Reducido',
-        total: cupos.sesiones_reducido_mes,
-        usadas: cupos.usadas_reducido_mes,
-        disponibles: Math.max(0, cupos.sesiones_reducido_mes - cupos.usadas_reducido_mes),
-        recuperacion: cupos.tiene_recuperacion_reducido,
-      };
-    }
-
-    if (tipo === 'hibrido') {
-      return {
-        tipo: 'hibrido',
-        focus: {
-          total: cupos.sesiones_focus_mes,
-          usadas: cupos.usadas_focus_mes,
-          disponibles: Math.max(0, cupos.sesiones_focus_mes - cupos.usadas_focus_mes),
-          recuperacion: cupos.tiene_recuperacion_focus,
-        },
-        reducido: {
-          total: cupos.sesiones_reducido_mes,
-          usadas: cupos.usadas_reducido_mes,
-          disponibles: Math.max(0, cupos.sesiones_reducido_mes - cupos.usadas_reducido_mes),
-          recuperacion: cupos.tiene_recuperacion_reducido,
-        },
-      };
-    }
-
-    if (tipo === 'especial' && plan) {
-      const focusTotal = plan.sesiones_fijas_mes_focus || 0;
-      const reducidoTotal = plan.sesiones_fijas_mes_reducido || 0;
-
-      return {
-        tipo: 'especial',
-        focus: {
-          total: focusTotal,
-          usadas: cupos.usadas_focus_mes,
-          disponibles: Math.max(0, focusTotal - cupos.usadas_focus_mes),
-          recuperacion: cupos.tiene_recuperacion_focus,
-        },
-        reducido: {
-          total: reducidoTotal,
-          usadas: cupos.usadas_reducido_mes,
-          disponibles: Math.max(0, reducidoTotal - cupos.usadas_reducido_mes),
-          recuperacion: cupos.tiene_recuperacion_reducido,
-        },
-      };
-    }
-
-    return null;
+  // Recuperaciones filtradas por modalidad actual
+  recuperacionesModalidad = computed(() => {
+    const mod = this.modalidad();
+    return this.recuperaciones().filter(r => r.modalidad === mod);
   });
 
-  modalidadesDisponibles = computed((): Modalidad[] => {
-    const cupos = this.cuposData();
-    if (!cupos) return ['focus'];
+  tieneRecuperacion = computed(() => {
+    return this.recuperacionesModalidad().length > 0;
+  });
 
-    const tipo = cupos.tipo_grupo;
+  // Modalidades disponibles según tipo de grupo
+  modalidadesDisponibles = computed((): Modalidad[] => {
+    const tipo = this.tipoGrupo();
     if (tipo === 'focus') return ['focus'];
     if (tipo === 'reducido') return ['reducido'];
-    return ['focus', 'reducido'];
+    return ['focus', 'reducido']; // hibrido o especial
   });
 
-  // CAMBIO: agrupar por semanas (SOLO LUNES A VIERNES)
+  // Sesiones agrupadas por semanas
   semanasAgrupadas = computed((): SemanaAgrupada[] => {
     const mod = this.modalidad();
-    const festivos = this.festivosMes();
     const sesionesFiltradas = this.sesiones().filter(
-      (s) => s.modalidad === mod && s.estado !== 'pasada',
+      s => s.modalidad === mod && s.estado !== 'pasada'
     );
 
     if (sesionesFiltradas.length === 0) return [];
 
     // Agrupar sesiones por fecha
     const sesionesPorFecha = new Map<string, Sesion[]>();
-    sesionesFiltradas.forEach((sesion) => {
+    sesionesFiltradas.forEach(sesion => {
       const fecha = sesion.fecha;
       if (!sesionesPorFecha.has(fecha)) {
         sesionesPorFecha.set(fecha, []);
@@ -207,16 +119,12 @@ export class ReservaCitaComponent implements OnInit {
       sesionesPorFecha.get(fecha)!.push(sesion);
     });
 
-    // Obtener todas las fechas con sesiones
     const fechasConSesiones = Array.from(sesionesPorFecha.keys()).sort();
-
     if (fechasConSesiones.length === 0) return [];
 
-    // Agrupar por semanas
     const semanas: SemanaAgrupada[] = [];
     let numeroSemana = 1;
 
-    // Función para obtener el lunes de una fecha
     const getLunes = (fecha: string): Date => {
       const d = new Date(fecha + 'T12:00:00');
       const day = d.getDay();
@@ -224,100 +132,59 @@ export class ReservaCitaComponent implements OnInit {
       return new Date(d.setDate(diff));
     };
 
-    // Obtener el lunes de la primera fecha con sesiones
     const primerLunes = getLunes(fechasConSesiones[0]);
-    const ultimaFechaConSesion = new Date(
-      fechasConSesiones[fechasConSesiones.length - 1] + 'T12:00:00',
-    );
-
+    const ultimaFechaConSesion = new Date(fechasConSesiones[fechasConSesiones.length - 1] + 'T12:00:00');
     const currentLunes = new Date(primerLunes);
 
-    // Iterar semana por semana desde el primer lunes
     while (currentLunes <= ultimaFechaConSesion) {
       const currentViernes = new Date(currentLunes);
-      currentViernes.setDate(currentViernes.getDate() + 4); // Lunes + 4 días = Viernes
-
-      const fechaInicioSemana = currentLunes.toISOString().split('T')[0];
-      const fechaFinSemana = currentViernes.toISOString().split('T')[0];
+      currentViernes.setDate(currentViernes.getDate() + 4);
 
       const semanaActual: DiaAgrupado[] = [];
 
-      // Crear solo los 5 días laborables (Lunes a Viernes)
       for (let i = 0; i < 5; i++) {
         const diaFecha = new Date(currentLunes);
         diaFecha.setDate(diaFecha.getDate() + i);
         const fechaStr = diaFecha.toISOString().split('T')[0];
-        const esFestivo = festivos.has(fechaStr);
 
         const dia: DiaAgrupado = {
           fecha: fechaStr,
           diaNombre: diaFecha.toLocaleDateString('es-ES', { weekday: 'short' }),
           fechaFormateada: diaFecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
           sesiones: sesionesPorFecha.get(fechaStr) || [],
-          esFestivo,
-          esFinSemana: false, // Nunca es fin de semana ya que solo mostramos L-V
         };
 
         semanaActual.push(dia);
       }
 
-      // Crear título dinámico de la semana: "Semana del 15 al 19"
-      const diaInicio = currentLunes.getDate();
-      const diaFin = currentViernes.getDate();
-      const tituloSemana = `Semana del ${diaInicio} al ${diaFin}`;
+      const tieneSesiones = semanaActual.some(d => d.sesiones.length > 0);
 
-      semanas.push({
-        numeroSemana,
-        fechaInicio: fechaInicioSemana,
-        fechaFin: fechaFinSemana,
-        tituloSemana,
-        dias: semanaActual,
-      });
+      if (tieneSesiones) {
+        const primerDia = currentLunes.getDate();
+        const ultimoDia = currentViernes.getDate();
+        const mes = currentLunes.toLocaleDateString('es-ES', { month: 'short' });
 
-      numeroSemana++;
+        semanas.push({
+          numeroSemana,
+          tituloSemana: `Semana del ${primerDia} al ${ultimoDia} ${mes}`,
+          dias: semanaActual,
+        });
+
+        numeroSemana++;
+      }
+
       currentLunes.setDate(currentLunes.getDate() + 7);
     }
 
     return semanas;
   });
 
-  cuposModalidadActual = computed(() => {
-    const cupos = this.cuposData();
-    if (!cupos) {
-      return { disponibles: 0, tieneRecuperacion: false };
+  ngOnInit() {
+    if (this.esAdmin()) {
+      this.router.navigateByUrl('/dashboard');
+      return;
     }
-
-    const mod = this.modalidad();
-    const info = this.infoCupos();
-
-    if (!info) return { disponibles: 0, tieneRecuperacion: false };
-
-    if (info.tipo === 'focus' || info.tipo === 'reducido') {
-      return {
-        disponibles: info.disponibles || 0,
-        tieneRecuperacion: info.recuperacion || false,
-      };
-    }
-
-    if (info.tipo === 'hibrido' || info.tipo === 'especial') {
-      if (mod === 'focus') {
-        return {
-          disponibles: info.focus?.disponibles || 0,
-          tieneRecuperacion: info.focus?.recuperacion || false,
-        };
-      } else {
-        return {
-          disponibles: info.reducido?.disponibles || 0,
-          tieneRecuperacion: info.reducido?.recuperacion || false,
-        };
-      }
-    }
-
-    return { disponibles: 0, tieneRecuperacion: false };
-  });
-
-  async ngOnInit() {
-    await this.cargarDatos();
+    this.cargarDatos();
   }
 
   async cargarDatos() {
@@ -325,106 +192,124 @@ export class ReservaCitaComponent implements OnInit {
     this.error.set(null);
 
     try {
-      const { anio, mes } = this.mesActual();
-
-      // Verificar que el mes está abierto
-      const { data: agendaData } = await supabase()
-        .from('agenda_mes')
-        .select('abierto')
-        .eq('anio', anio)
-        .eq('mes', mes)
-        .maybeSingle();
-
-      const abierto = agendaData?.abierto ?? false;
-      this.mesAbierto.set(abierto);
-
-      if (!abierto && !this.esAdmin()) {
-        this.error.set('Este mes aún no está disponible para reservas.');
-        this.sesiones.set([]);
-        this.cargando.set(false);
-        return;
-      }
-
-      // Cargar festivos
-      await this.cargarFestivos();
-
-      // Cargar sesiones
-      await this.cargarSesiones();
-
-      // Cargar cupos si es cliente
-      if (!this.esAdmin()) {
-        await this.cargarCuposUsuario();
+      await this.verificarMesAbierto();
+      
+      if (this.mesAbierto()) {
+        await Promise.all([
+          this.cargarTipoGrupo(),
+          this.cargarRecuperaciones(),
+          this.cargarSesionesDisponibles(),
+        ]);
       }
     } catch (err) {
       console.error('Error:', err);
-      this.error.set('Error al cargar los datos.');
+      this.error.set('Error al cargar datos.');
     } finally {
       this.cargando.set(false);
     }
   }
 
-  async cargarFestivos() {
+  async verificarMesAbierto() {
     const { anio, mes } = this.mesActual();
-    const primerDia = `${anio}-${mes.toString().padStart(2, '0')}-01`;
-    const ultimoDia = new Date(anio, mes, 0).toISOString().split('T')[0];
 
     const { data } = await supabase()
-      .from('festivos')
-      .select('fecha')
-      .gte('fecha', primerDia)
-      .lte('fecha', ultimoDia);
+      .from('agenda_mes')
+      .select('abierto')
+      .eq('anio', anio)
+      .eq('mes', mes)
+      .single();
 
-    const festivos = new Set<string>();
-    (data || []).forEach((f) => festivos.add(f.fecha));
-    this.festivosMes.set(festivos);
+    this.mesAbierto.set(data?.abierto ?? false);
   }
 
-  async cargarSesiones() {
-    const { anio, mes } = this.mesActual();
-    const festivos = this.festivosMes();
+  async cargarTipoGrupo() {
+    const userId = this.auth.userId();
+    if (!userId) return;
 
-    const primerDia = `${anio}-${mes.toString().padStart(2, '0')}-01`;
-    const ultimoDia = new Date(anio, mes, 0).toISOString().split('T')[0];
+    const { data } = await supabase()
+      .from('plan_usuario')
+      .select('tipo_grupo')
+      .eq('usuario_id', userId)
+      .single();
+
+    if (data?.tipo_grupo) {
+      this.tipoGrupo.set(data.tipo_grupo);
+      
+      // Establecer modalidad inicial
+      if (data.tipo_grupo === 'reducido') {
+        this.modalidad.set('reducido');
+      } else {
+        this.modalidad.set('focus');
+      }
+    }
+  }
+
+  async cargarRecuperaciones() {
+    const userId = this.auth.userId();
+    if (!userId) return;
 
     const { data, error } = await supabase()
+      .rpc('obtener_recuperaciones_usuario', { p_usuario_id: userId });
+
+    if (error) {
+      console.error('Error cargando recuperaciones:', error);
+      return;
+    }
+
+    this.recuperaciones.set(data || []);
+  }
+
+  async cargarSesionesDisponibles() {
+    const userId = this.auth.userId();
+    if (!userId) return;
+
+    const { anio, mes } = this.mesActual();
+
+    // Obtener sesiones con disponibilidad
+    const { data: sesionesData, error } = await supabase()
       .from('vista_sesiones_disponibilidad')
       .select('*')
-      .gte('fecha', primerDia)
-      .lte('fecha', ultimoDia)
-      .order('fecha_inicio', { ascending: true });
+      .gte('fecha', `${anio}-${mes.toString().padStart(2, '0')}-01`)
+      .lt('fecha', mes === 12 ? `${anio + 1}-01-01` : `${anio}-${(mes + 1).toString().padStart(2, '0')}-01`)
+      .eq('cancelada', false)
+      .order('fecha')
+      .order('hora');
 
     if (error) {
       console.error('Error cargando sesiones:', error);
-      this.sesiones.set([]);
       return;
     }
+
+    // Obtener en qué sesiones está en lista de espera
+    const { data: listaEsperaData } = await supabase()
+      .from('lista_espera')
+      .select('sesion_id')
+      .eq('usuario_id', userId);
+
+    const enListaEspera = new Set((listaEsperaData || []).map(l => l.sesion_id));
+
+    // Obtener sesiones donde ya tiene reserva activa
+    const { data: reservasData } = await supabase()
+      .from('reservas')
+      .select('sesion_id')
+      .eq('usuario_id', userId)
+      .eq('estado', 'activa');
+
+    const tieneReserva = new Set((reservasData || []).map(r => r.sesion_id));
 
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    const sesiones: Sesion[] = (data || []).map(
-      (s: {
-        sesion_id: number;
-        fecha: string;
-        fecha_inicio: string;
-        hora: string;
-        dia_semana: number;
-        modalidad: string;
-        capacidad: number;
-        reservas_activas: number;
-        plazas_disponibles: number;
-        estado: string;
-      }) => {
-        const fechaSesion = new Date(s.fecha_inicio);
+    const sesiones: Sesion[] = (sesionesData || [])
+      .filter(s => !tieneReserva.has(s.sesion_id)) // Excluir donde ya tiene reserva
+      .map(s => {
+        const fechaSesion = new Date(s.fecha + 'T' + s.hora);
         const esPasada = fechaSesion < hoy;
-        const esFestivo = festivos.has(s.fecha);
 
         let estado: Sesion['estado'];
         if (esPasada) {
           estado = 'pasada';
-        } else if (esFestivo) {
-          estado = 'bloqueada';
-        } else if (s.plazas_disponibles === 0) {
+        } else if (s.plazas_disponibles <= 0) {
           estado = 'completa';
         } else {
           estado = 'disponible';
@@ -433,57 +318,17 @@ export class ReservaCitaComponent implements OnInit {
         return {
           id: s.sesion_id,
           fecha: s.fecha,
-          fecha_inicio: s.fecha_inicio,
-          hora: s.hora,
-          dia_semana: s.dia_semana,
+          hora: s.hora.slice(0, 5),
           modalidad: s.modalidad as Modalidad,
           capacidad: s.capacidad,
-          reservas_activas: s.reservas_activas,
+          plazas_ocupadas: s.plazas_ocupadas,
           plazas_disponibles: s.plazas_disponibles,
           estado,
+          en_lista_espera: enListaEspera.has(s.sesion_id),
         };
-      },
-    );
+      });
 
     this.sesiones.set(sesiones);
-  }
-
-  async cargarCuposUsuario() {
-    const userId = this.auth.userId();
-    if (!userId) return;
-
-    const { anio, mes } = this.mesActual();
-
-    // Cargar plan del usuario
-    const { data: planData } = await supabase()
-      .from('plan_usuario')
-      .select(
-        'tipo_grupo, clases_focus_semana, clases_reducido_semana, sesiones_fijas_mes_focus, sesiones_fijas_mes_reducido',
-      )
-      .eq('usuario_id', userId)
-      .single();
-
-    if (planData) {
-      this.planUsuario.set(planData as PlanUsuario);
-
-      // Establecer modalidad inicial
-      if (planData.tipo_grupo === 'reducido') {
-        this.modalidad.set('reducido');
-      } else {
-        this.modalidad.set('focus');
-      }
-    }
-
-    // Cargar cupos
-    const { data: cuposData } = await supabase().rpc('obtener_cupos_usuario', {
-      p_usuario_id: userId,
-      p_anio: anio,
-      p_mes: mes,
-    });
-
-    if (cuposData && cuposData.length > 0) {
-      this.cuposData.set(cuposData[0]);
-    }
   }
 
   // Navegación de meses
@@ -512,38 +357,26 @@ export class ReservaCitaComponent implements OnInit {
   selectModalidad(mod: Modalidad) {
     this.modalidad.set(mod);
     this.sesionSeleccionada.set(null);
-    this.usarRecuperacion.set(false);
   }
 
   selectSesion(sesion: Sesion) {
-    if (this.esAdmin()) return;
-    if (sesion.estado === 'pasada' || sesion.estado === 'bloqueada') return;
+    if (sesion.estado === 'pasada') return;
 
     if (this.sesionSeleccionada()?.id === sesion.id) {
       this.sesionSeleccionada.set(null);
     } else {
       this.sesionSeleccionada.set(sesion);
-      this.usarRecuperacion.set(false);
     }
-  }
-
-  toggleRecuperacion() {
-    this.usarRecuperacion.update((v) => !v);
   }
 
   puedeToggleModalidad(): boolean {
     return this.modalidadesDisponibles().length > 1;
   }
 
-  puedeReservar(): boolean {
-    if (this.esAdmin()) return false;
-    const cupos = this.cuposModalidadActual();
-    return cupos.disponibles > 0 || cupos.tieneRecuperacion;
-  }
-
-  async onConfirmar() {
+  // Usar recuperación para tomar un hueco
+  async usarRecuperacion() {
     const sesion = this.sesionSeleccionada();
-    if (!sesion || this.esAdmin()) return;
+    if (!sesion) return;
 
     const userId = this.auth.userId();
     if (!userId) return;
@@ -553,10 +386,9 @@ export class ReservaCitaComponent implements OnInit {
     this.mensajeExito.set(null);
 
     try {
-      const { data, error } = await supabase().rpc('crear_reserva', {
+      const { data, error } = await supabase().rpc('usar_recuperacion', {
         p_usuario_id: userId,
         p_sesion_id: sesion.id,
-        p_es_recuperacion: this.usarRecuperacion(),
       });
 
       if (error) {
@@ -567,7 +399,7 @@ export class ReservaCitaComponent implements OnInit {
       if (data && data.length > 0) {
         const resultado = data[0];
         if (resultado.ok) {
-          this.mensajeExito.set('¡Reserva confirmada!');
+          this.mensajeExito.set('¡Clase recuperada correctamente!');
           this.sesionSeleccionada.set(null);
           await this.cargarDatos();
         } else {
@@ -576,16 +408,14 @@ export class ReservaCitaComponent implements OnInit {
       }
     } catch (err) {
       console.error('Error:', err);
-      this.error.set('Error al procesar la reserva.');
+      this.error.set('Error al procesar la recuperación.');
     } finally {
       this.guardando.set(false);
     }
   }
 
-  async onListaEspera() {
-    const sesion = this.sesionSeleccionada();
-    if (!sesion || this.esAdmin()) return;
-
+  // Lista de espera
+  async toggleListaEspera(sesion: Sesion) {
     const userId = this.auth.userId();
     if (!userId) return;
 
@@ -593,28 +423,46 @@ export class ReservaCitaComponent implements OnInit {
     this.error.set(null);
 
     try {
-      const { data, error } = await supabase().rpc('agregar_lista_espera', {
-        p_usuario_id: userId,
-        p_sesion_id: sesion.id,
-      });
+      if (sesion.en_lista_espera) {
+        // Quitar de lista de espera
+        const { data, error } = await supabase().rpc('quitar_lista_espera', {
+          p_usuario_id: userId,
+          p_sesion_id: sesion.id,
+        });
 
-      if (error) {
-        this.error.set(error.message);
-        return;
-      }
+        if (error) {
+          this.error.set(error.message);
+          return;
+        }
 
-      if (data && data.length > 0) {
-        const resultado = data[0];
-        if (resultado.ok) {
-          this.mensajeExito.set('Te has añadido a la lista de espera.');
-          this.sesionSeleccionada.set(null);
+        if (data?.[0]?.ok) {
+          this.mensajeExito.set('Eliminado de la lista de espera.');
+          await this.cargarSesionesDisponibles();
         } else {
-          this.error.set(resultado.mensaje);
+          this.error.set(data?.[0]?.mensaje || 'Error al quitar de lista de espera.');
+        }
+      } else {
+        // Añadir a lista de espera
+        const { data, error } = await supabase().rpc('apuntarse_lista_espera', {
+          p_usuario_id: userId,
+          p_sesion_id: sesion.id,
+        });
+
+        if (error) {
+          this.error.set(error.message);
+          return;
+        }
+
+        if (data?.[0]?.ok) {
+          this.mensajeExito.set('Añadido a la lista de espera. Te notificaremos si hay hueco.');
+          await this.cargarSesionesDisponibles();
+        } else {
+          this.error.set(data?.[0]?.mensaje || 'Error al añadir a lista de espera.');
         }
       }
     } catch (err) {
       console.error('Error:', err);
-      this.error.set('Error al añadir a lista de espera.');
+      this.error.set('Error al procesar lista de espera.');
     } finally {
       this.guardando.set(false);
     }
@@ -624,25 +472,30 @@ export class ReservaCitaComponent implements OnInit {
     const seleccionada = this.sesionSeleccionada()?.id === sesion.id;
     if (seleccionada) return 'slot-btn--selected';
     if (sesion.estado === 'pasada') return 'slot-btn--pasada';
-    if (sesion.estado === 'bloqueada') return 'slot-btn--bloqueada';
+    if (sesion.en_lista_espera) return 'slot-btn--lista-espera';
     if (sesion.estado === 'completa') return 'slot-btn--completa';
     return 'slot-btn--disponible';
   }
 
   getEstadoTexto(sesion: Sesion): string {
     if (sesion.estado === 'pasada') return 'Pasada';
-    if (sesion.estado === 'bloqueada') return 'Cerrada';
+    if (sesion.en_lista_espera) return 'En espera';
     if (sesion.estado === 'completa') return 'Completa';
-    return `${sesion.plazas_disponibles} plazas`;
+    return `${sesion.plazas_disponibles} plaza${sesion.plazas_disponibles !== 1 ? 's' : ''}`;
   }
 
   getNombreModalidad(mod: Modalidad): string {
     return mod === 'focus' ? 'Focus' : 'Reducido';
   }
 
-  obtenerNombreDia(dia: number): string {
-    const dias = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    return dias[dia] || '';
+  formatearMesRecuperacion(mes: number, anio: number): string {
+    const fecha = new Date(anio, mes - 1, 1);
+    return fecha.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+  }
+
+  obtenerNombreDia(fecha: string): string {
+    const d = new Date(fecha + 'T12:00:00');
+    return d.toLocaleDateString('es-ES', { weekday: 'long' });
   }
 
   formatearFecha(fecha: string): string {

@@ -1,0 +1,125 @@
+<!-- src/app/components/notificaciones/notificaciones.component.html -->
+<main class="notificaciones-page">
+  <div class="notificaciones-container">
+    <!-- Header -->
+    <header class="page-header">
+      <button
+        type="button"
+        class="btn-volver"
+        (click)="volver()"
+        aria-label="Volver al dashboard"
+      >
+        <span class="material-symbols-rounded">arrow_back</span>
+      </button>
+      <div class="header-content">
+        <h1>Notificaciones</h1>
+        @if (noLeidas() > 0) {
+          <span class="badge-no-leidas">{{ noLeidas() }} sin leer</span>
+        }
+      </div>
+      <div class="header-actions">
+        @if (notificaciones().length > 0) {
+          <button
+            type="button"
+            class="btn-icon"
+            (click)="marcarTodasLeidas()"
+            [disabled]="noLeidas() === 0"
+            aria-label="Marcar todas como leídas"
+            title="Marcar todas como leídas"
+          >
+            <span class="material-symbols-rounded">done_all</span>
+          </button>
+          <button
+            type="button"
+            class="btn-icon btn-icon--danger"
+            (click)="eliminarTodas()"
+            aria-label="Eliminar todas las notificaciones"
+            title="Eliminar todas"
+          >
+            <span class="material-symbols-rounded">delete_sweep</span>
+          </button>
+        }
+      </div>
+    </header>
+
+    <!-- Mensajes -->
+    @if (error()) {
+      <div class="mensaje mensaje--error">
+        <span class="material-symbols-rounded">error</span>
+        {{ error() }}
+      </div>
+    }
+
+    @if (mensajeExito()) {
+      <div class="mensaje mensaje--exito">
+        <span class="material-symbols-rounded">check_circle</span>
+        {{ mensajeExito() }}
+      </div>
+    }
+
+    <!-- Contenido -->
+    @if (cargando()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando notificaciones...</p>
+      </div>
+    } @else if (notificaciones().length === 0) {
+      <div class="empty-state">
+        <span class="material-symbols-rounded empty-icon">notifications_off</span>
+        <h3>Sin notificaciones</h3>
+        <p>Cuando tengas nuevas notificaciones aparecerán aquí</p>
+      </div>
+    } @else {
+      <div class="notificaciones-lista">
+        @for (grupo of notificacionesAgrupadas(); track trackByTitulo($index, grupo)) {
+          <div class="grupo">
+            <h2 class="grupo-titulo">{{ grupo.titulo }}</h2>
+            <div class="grupo-items">
+              @for (notif of grupo.items; track trackById($index, notif)) {
+                <article
+                  class="notificacion-item"
+                  [class.notificacion-item--no-leida]="!notif.leida"
+                  [class.notificacion-item--clickable]="notif.accion_url"
+                  (click)="onClickNotificacion(notif)"
+                  (keydown.enter)="onClickNotificacion(notif)"
+                  [attr.tabindex]="notif.accion_url ? 0 : null"
+                  [attr.role]="notif.accion_url ? 'button' : null"
+                  [attr.aria-label]="notif.titulo + '. ' + notif.mensaje"
+                >
+                  <div class="notificacion-icono" [ngClass]="getClaseTipo(notif.tipo)">
+                    <span class="material-symbols-rounded">{{ getIcono(notif.tipo) }}</span>
+                  </div>
+
+                  <div class="notificacion-contenido">
+                    <h3 class="notificacion-titulo">
+                      {{ notif.titulo }}
+                      @if (!notif.leida) {
+                        <span class="punto-nuevo"></span>
+                      }
+                    </h3>
+                    <p class="notificacion-mensaje">{{ notif.mensaje }}</p>
+                    <span class="notificacion-tiempo">{{ notif.tiempo_relativo }}</span>
+                  </div>
+
+                  <div class="notificacion-acciones">
+                    @if (notif.accion_url) {
+                      <span class="material-symbols-rounded accion-ir">arrow_forward</span>
+                    }
+                    <button
+                      type="button"
+                      class="btn-eliminar"
+                      (click)="eliminarNotificacion(notif, $event)"
+                      aria-label="Eliminar notificación"
+                    >
+                      <span class="material-symbols-rounded">close</span>
+                    </button>
+                  </div>
+                </article>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</main>
