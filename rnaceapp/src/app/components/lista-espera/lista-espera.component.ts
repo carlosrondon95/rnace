@@ -5,21 +5,6 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
 
-interface ItemListaEspera {
-  sesion_id: number;
-  usuario_id: string;
-  usuario_nombre: string;
-  usuario_telefono: string;
-  fecha: string;
-  hora: string;
-  modalidad: string;
-  capacidad: number;
-  plazas_ocupadas: number;
-  plazas_disponibles: number;
-  posicion: number;
-  creado_en: string;
-}
-
 interface SesionAgrupada {
   sesion_id: number;
   fecha: string;
@@ -142,14 +127,17 @@ export class ListaEsperaComponent implements OnInit {
       // Agrupar por sesión
       const sesionesMap = new Map<number, SesionAgrupada>();
 
-      listaData.forEach((item, index) => {
-        const sesion = item.sesiones as {
+      listaData.forEach((item) => {
+        const sesionData = item.sesiones as unknown;
+        const sesion = (Array.isArray(sesionData) ? sesionData[0] : sesionData) as {
           id: number;
           fecha: string;
           hora: string;
           modalidad: string;
           capacidad: number;
         };
+        if (!sesion) return;
+
         const fechaObj = new Date(sesion.fecha + 'T' + sesion.hora);
         const plazasOcupadas = reservasPorSesion.get(item.sesion_id) || 0;
 
@@ -250,14 +238,16 @@ export class ListaEsperaComponent implements OnInit {
       }
 
       // Crear notificación
-      await supabase().from('notificaciones').insert({
-        usuario_id: usuarioId,
-        tipo: 'plaza_asignada',
-        titulo: '¡Plaza asignada!',
-        mensaje: `Se te ha asignado plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}`,
-        sesion_id: sesion.sesion_id,
-        accion_url: '/calendario',
-      });
+      await supabase()
+        .from('notificaciones')
+        .insert({
+          usuario_id: usuarioId,
+          tipo: 'plaza_asignada',
+          titulo: '¡Plaza asignada!',
+          mensaje: `Se te ha asignado plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}`,
+          sesion_id: sesion.sesion_id,
+          accion_url: '/calendario',
+        });
 
       this.mensajeExito.set('Plaza asignada correctamente');
       await this.cargarListaEspera();
@@ -303,14 +293,16 @@ export class ListaEsperaComponent implements OnInit {
     this.procesando.set(true);
 
     try {
-      await supabase().from('notificaciones').insert({
-        usuario_id: usuarioId,
-        tipo: 'hueco_disponible',
-        titulo: '¡Hay una plaza disponible!',
-        mensaje: `Hay plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}. ¡Date prisa!`,
-        sesion_id: sesion.sesion_id,
-        accion_url: '/recuperar-clase',
-      });
+      await supabase()
+        .from('notificaciones')
+        .insert({
+          usuario_id: usuarioId,
+          tipo: 'hueco_disponible',
+          titulo: '¡Hay una plaza disponible!',
+          mensaje: `Hay plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}. ¡Date prisa!`,
+          sesion_id: sesion.sesion_id,
+          accion_url: '/recuperar-clase',
+        });
 
       this.mensajeExito.set(`Notificación enviada a ${nombre}`);
       setTimeout(() => this.mensajeExito.set(null), 3000);
@@ -330,10 +322,7 @@ export class ListaEsperaComponent implements OnInit {
     return sesion.sesion_id;
   }
 
-  trackByUsuarioId(
-    _index: number,
-    usuario: { usuario_id: string },
-  ): string {
+  trackByUsuarioId(_index: number, usuario: { usuario_id: string }): string {
     return usuario.usuario_id;
   }
 }

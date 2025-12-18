@@ -169,8 +169,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!uid) return;
 
     try {
-      const hoy = new Date().toISOString();
-
       const hoyDate = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase()
@@ -325,9 +323,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const userIds = new Set<string>();
       (sesionesData || []).forEach((s) => {
         const reservas = s.reservas as { usuario_id: string; estado: string }[];
-        reservas
-          .filter((r) => r.estado === 'activa')
-          .forEach((r) => userIds.add(r.usuario_id));
+        reservas.filter((r) => r.estado === 'activa').forEach((r) => userIds.add(r.usuario_id));
       });
 
       const usuariosMap = new Map<string, string>();

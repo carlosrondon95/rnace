@@ -1,480 +1,409 @@
 // src/app/components/calendario/calendario.component.scss
-
-$color-bg: #494b46;
-$color-primary: #b8b29e;
-$color-secondary: #ebe9e3;
-$color-surface: #3a3b37;
-$color-surface-light: #454641;
-$color-border-soft: rgba(232, 233, 227, 0.12);
+// ====== VARIABLES ======
+$color-background: #1a1a1a;
+$color-surface: #242422;
+$color-surface-hover: #2f302d;
+$color-border: #3a3b38;
+$color-border-soft: rgba(255, 255, 255, 0.08);
+$color-text: #ebe9e3;
 $color-text-muted: rgba(235, 233, 227, 0.7);
-$color-success: #4ade80;
-$color-error: #f87171;
+$color-text-soft: rgba(235, 233, 227, 0.5);
+$color-primary: #8b7355;
+$color-secondary: #a08968;
+$color-success: #22c55e;
+$color-danger: #ef4444;
 $color-warning: #fbbf24;
+$color-info: #60a5fa;
 $color-focus: #60a5fa;
 $color-reducido: #a78bfa;
-$color-bloqueado: #252623;
+$color-festivo: #f59e0b;
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+$shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
 
-// ====== LAYOUT ======
+// ====== BASE ======
 .calendario-page {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
-  padding: 72px 1.5rem 2rem; // 72px para el navbar fijo
-  background: radial-gradient(circle at top, #55574f 0, $color-bg 45%, #32332f 100%);
-  color: $color-secondary;
+  background: $color-background;
+  color: $color-text;
+  padding: 1rem;
 }
 
-// ====== ESTADOS ======
-.loading-state {
-  max-width: 1200px;
-  margin: 3rem auto;
-  text-align: center;
-  color: $color-text-muted;
+// ====== HEADER ======
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid $color-border-soft;
+}
 
-  .spinner {
-    width: 40px;
-    height: 40px;
-    margin: 0 auto 1rem;
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top-color: $color-primary;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+.btn-volver {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.8rem;
+  background: transparent;
+  border: 1px solid $color-border;
+  color: $color-text-muted;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  .material-symbols-rounded {
+    font-size: 1.1rem;
+  }
+
+  &:hover {
+    background: $color-surface-hover;
+    color: $color-text;
+    border-color: $color-border;
+  }
+}
+
+.page-header h1 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: $color-text;
+  margin: 0;
+}
+
+// ====== MIS CLASES (CLIENTE) ======
+.mis-clases-section {
+  background: $color-surface;
+  border: 1px solid $color-border-soft;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.mis-clases-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid $color-border-soft;
+
+  .material-symbols-rounded {
+    font-size: 1.3rem;
+    color: $color-primary;
+  }
+
+  h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: $color-text;
+    margin: 0;
+  }
+}
+
+.mis-clases-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mis-clases-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: $color-text-muted;
+  text-align: center;
+
+  .material-symbols-rounded {
+    font-size: 2.5rem;
+    color: $color-text-soft;
+    margin-bottom: 0.75rem;
   }
 
   p {
+    font-size: 0.9rem;
     margin: 0;
-    font-size: 0.95rem;
   }
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+// ====== CARD DE RESERVA (MIS CLASES - CLIENTE) ======
+.reserva-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: $color-surface-hover;
+  border: 1px solid $color-border-soft;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: $color-border;
+    box-shadow: $shadow-sm;
+  }
+
+  &.reserva-focus {
+    border-left: 3px solid $color-focus;
+  }
+
+  &.reserva-reducido {
+    border-left: 3px solid $color-reducido;
   }
 }
 
-// ====== CONTAINER ======
-.calendario-container {
-  max-width: 1200px;
-  margin: 0 auto;
+.reserva-icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex-shrink: 0;
+
+  .material-symbols-rounded {
+    font-size: 1.3rem;
+  }
+
+  .reserva-focus & {
+    background: rgba(96, 165, 250, 0.15);
+    color: $color-focus;
+  }
+
+  .reserva-reducido & {
+    background: rgba(167, 139, 250, 0.15);
+    color: $color-reducido;
+  }
 }
 
-// ====== NAVEGACIÓN MES ======
+.reserva-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0; // Permite que flex-shrink funcione
+}
+
+// CORREGIDO: Texto "Clase Focus" / "Clase Reducido" (para Mis Clases del cliente)
+// Renombrado de .reserva-modalidad a .reserva-modalidad-texto para evitar conflictos
+.reserva-modalidad {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: $color-text;
+  white-space: nowrap; // Evita que "Clase Focus" se rompa
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  // NO usar flex-wrap: wrap aquí - causa el problema de texto partido
+}
+
+.reserva-badge {
+  padding: 0.15rem 0.5rem;
+  background: rgba(251, 191, 36, 0.15);
+  color: $color-warning;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.reserva-fecha {
+  font-size: 0.9rem;
+  color: $color-text-muted;
+  text-transform: capitalize;
+}
+
+.reserva-hora {
+  font-size: 0.85rem;
+  color: $color-text-soft;
+}
+
+.reserva-acciones {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.btn-cancelar-reserva {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  color: $color-danger;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  .material-symbols-rounded {
+    font-size: 1.1rem;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.reserva-no-cancelable {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: $color-text-soft;
+
+  .material-symbols-rounded {
+    font-size: 1rem;
+  }
+}
+
+// ====== NAVEGACIÓN DE MESES ======
 .mes-navegacion {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 1rem;
   margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: $color-surface;
-  border-radius: 14px;
-  border: 1px solid $color-border-soft;
 }
 
-.btn-nav {
-  width: 40px;
-  height: 40px;
+.btn-mes {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: 1px solid $color-border-soft;
-  border-radius: 10px;
-  color: $color-text-muted;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  &:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: $color-primary;
-    color: $color-primary;
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .material-symbols-rounded {
-    font-size: 1.5rem;
-  }
-}
-
-.mes-info {
-  flex: 1;
-  text-align: center;
-
-  h2 {
-    margin: 0 0 0.25rem;
-    font-size: 1.3rem;
-    font-weight: 600;
-    color: $color-secondary;
-  }
-}
-
-.mes-estado {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 0.2rem 0.6rem;
-  border-radius: 6px;
-  background: rgba($color-error, 0.2);
-  color: $color-error;
-
-  &.mes-abierto {
-    background: rgba($color-success, 0.2);
-    color: $color-success;
-  }
-}
-
-// ====== PANEL ADMIN ======
-.panel-admin {
-  margin-bottom: 1.5rem;
-  padding: 1.25rem;
+  width: 40px;
+  height: 40px;
   background: $color-surface;
-  border-radius: 14px;
   border: 1px solid $color-border-soft;
-}
-
-.admin-actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-}
-
-.estadisticas {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.stat-card {
-  flex: 1;
-  min-width: 100px;
-  padding: 1rem;
-  background: #2f302d;
   border-radius: 10px;
-  border: 1px solid rgba(232, 233, 227, 0.1);
-  text-align: center;
-
-  .stat-label {
-    display: block;
-    font-size: 0.75rem;
-    color: $color-text-muted;
-    margin-bottom: 0.4rem;
-  }
-
-  .stat-value {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: $color-secondary;
-
-    &.stat-focus {
-      color: $color-focus;
-    }
-    &.stat-reducido {
-      color: $color-reducido;
-    }
-  }
-}
-
-.btn-admin {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-  border: none;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .material-symbols-rounded {
-    font-size: 1.2rem;
-  }
-
-  &--primary {
-    background: $color-primary;
-    color: #252521;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-    }
-  }
-
-  &--secondary {
-    background: transparent;
-    border: 1px solid $color-border-soft;
-    color: $color-text-muted;
-
-    &:hover:not(:disabled) {
-      border-color: $color-primary;
-      color: $color-primary;
-      background: rgba($color-primary, 0.05);
-    }
-  }
-
-  &--danger {
-    background: rgba($color-error, 0.15);
-    border: 1px solid rgba($color-error, 0.3);
-    color: $color-error;
-
-    &:hover:not(:disabled) {
-      background: rgba($color-error, 0.25);
-    }
-  }
-}
-
-// ====== MODO EDICIÓN ======
-.edicion-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.edicion-info {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: rgba($color-warning, 0.1);
-  border: 1px solid rgba($color-warning, 0.3);
-  border-radius: 10px;
-  color: $color-warning;
-
-  .material-symbols-rounded {
-    font-size: 1.3rem;
-    flex-shrink: 0;
-  }
-}
-
-.edicion-texto {
-  strong {
-    display: block;
-    margin-bottom: 0.25rem;
-    font-size: 0.9rem;
-  }
-  p {
-    margin: 0;
-    font-size: 0.8rem;
-    color: rgba($color-warning, 0.9);
-  }
-}
-
-.edicion-resumen {
-  text-align: center;
-  padding: 0.75rem;
-  background: #2f302d;
-  border-radius: 8px;
-
-  .festivos-count {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: $color-primary;
-  }
-}
-
-.edicion-actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-}
-
-.btn-edicion {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  .material-symbols-rounded {
-    font-size: 1.1rem;
-  }
-}
-
-.btn-cancelar {
-  background: transparent;
-  border: 1px solid $color-border-soft;
   color: $color-text-muted;
-
-  &:hover:not(:disabled) {
-    border-color: $color-secondary;
-    color: $color-secondary;
-  }
-}
-
-.btn-guardar {
-  background: $color-primary;
-  color: #252521;
-  border: none;
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-  }
-}
-
-.spinner-small {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(0, 0, 0, 0.2);
-  border-top-color: #252521;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-// ====== MENSAJES ======
-.mensaje-exito,
-.mensaje-error {
-  max-width: 1200px;
-  margin: 0 auto 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 1rem;
-  border-radius: 10px;
-  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
   .material-symbols-rounded {
     font-size: 1.3rem;
   }
+
+  &:hover {
+    background: $color-surface-hover;
+    color: $color-text;
+    border-color: $color-border;
+  }
 }
 
-.mensaje-exito {
-  background: rgba($color-success, 0.1);
-  border: 1px solid rgba($color-success, 0.3);
-  color: $color-success;
-}
-
-.mensaje-error {
-  background: rgba($color-error, 0.1);
-  border: 1px solid rgba($color-error, 0.3);
-  color: $color-error;
+.mes-nombre {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: $color-text;
+  min-width: 180px;
+  text-align: center;
+  text-transform: capitalize;
 }
 
 // ====== CALENDARIO GRID ======
-.calendario-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-  margin-bottom: 1.5rem;
+.calendario-container {
+  background: $color-surface;
+  border: 1px solid $color-border-soft;
+  border-radius: 12px;
+  padding: 1rem;
+  overflow: hidden;
 }
 
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  background: $color-border-soft;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+// Encabezados de días
 .dia-header {
   padding: 0.75rem 0.5rem;
+  background: $color-surface-hover;
   text-align: center;
   font-size: 0.75rem;
   font-weight: 600;
+  color: $color-text-muted;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: $color-text-muted;
-  background: $color-surface;
-  border-radius: 8px;
 
-  &:first-child,
-  &:last-child {
-    background: $color-bloqueado;
-    color: rgba(235, 233, 227, 0.4);
+  &.fin-semana {
+    color: $color-text-soft;
+    background: rgba(255, 255, 255, 0.03);
   }
 }
 
+// Celdas de días
 .dia-celda {
-  appearance: none;
-  font-family: inherit;
-  font-size: inherit;
-  text-align: left;
-
   min-height: 100px;
   padding: 0.5rem;
   background: $color-surface;
-  border: 1px solid $color-border-soft;
-  border-radius: 10px;
-  position: relative;
-  transition: all 0.15s;
-  color: $color-secondary;
-  cursor: default;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  cursor: default;
+  transition: all 0.2s ease;
 
-  &.clickable {
-    cursor: pointer;
+  &.fuera-mes {
+    background: rgba(255, 255, 255, 0.02);
 
-    &:hover:not(:disabled) {
-      border-color: $color-primary;
-      background: $color-surface-light;
-      transform: translateY(-1px);
-    }
-
-    &:focus {
-      outline: 2px solid $color-primary;
-      outline-offset: 2px;
-    }
-  }
-
-  &:disabled:not(.clickable) {
-    cursor: default;
-    opacity: 1;
-  }
-
-  &--otro-mes {
-    opacity: 0.3;
-    background: #2f302d;
     .dia-numero {
-      color: $color-text-muted;
+      color: $color-text-soft;
     }
   }
 
-  &--hoy {
-    border-color: $color-primary;
-    box-shadow: 0 0 0 2px rgba($color-primary, 0.2);
-
+  &.es-hoy {
     .dia-numero {
       background: $color-primary;
-      color: #252521;
-      font-weight: 700;
+      color: white;
     }
   }
 
-  &--bloqueado {
-    background: $color-bloqueado;
-    border-color: rgba(232, 233, 227, 0.05);
+  &.laborable:not(.fuera-mes):not(.bloqueado) {
+    cursor: pointer;
+
+    &:hover {
+      background: $color-surface-hover;
+    }
+  }
+
+  // NUEVO: Fines de semana y días bloqueados con mismo estilo visual
+  &.bloqueado,
+  &.fin-semana {
+    background: rgba(255, 255, 255, 0.02);
+    cursor: not-allowed;
+
     .dia-numero {
-      color: rgba(235, 233, 227, 0.35);
+      color: $color-text-soft;
     }
   }
 
-  &--festivo {
-    background: rgba($color-error, 0.08);
-    border-color: rgba($color-error, 0.3);
-  }
+  &.festivo {
+    background: rgba(245, 158, 11, 0.05);
+    border: 1px solid rgba(245, 158, 11, 0.2);
 
-  &--festivo-seleccionado {
-    background: rgba($color-warning, 0.12);
-    border-color: rgba($color-warning, 0.4);
-    border-width: 2px;
-  }
-
-  &--con-reservas {
-    border-color: rgba($color-primary, 0.4);
+    .dia-numero {
+      color: $color-festivo;
+    }
   }
 }
 
@@ -484,82 +413,55 @@ $color-bloqueado: #252623;
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: 50%;
   font-size: 0.85rem;
-  font-weight: 600;
-  color: $color-secondary;
-  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: $color-text;
+  margin-bottom: 0.4rem;
 }
 
-.festivo-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.3rem 0.5rem;
-  background: rgba($color-error, 0.15);
-  border: 1px solid rgba($color-error, 0.3);
-  border-radius: 6px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: $color-error;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin-bottom: 0.5rem;
-
-  .material-symbols-rounded {
-    font-size: 0.9rem;
-  }
-}
-
-// ====== RESERVAS ======
-.reservas-lista {
+// Reservas dentro del calendario (vista admin)
+.dia-reservas {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin-top: 0.25rem;
-  width: 100%;
+  gap: 2px;
+  overflow: hidden;
 }
 
+// Item de reserva pequeño (admin calendar view)
 .reserva-item {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   padding: 0.35rem 0.5rem;
-  background: #2f302d;
-  border: 1px solid rgba(232, 233, 227, 0.15);
-  border-radius: 6px;
+  background: $color-surface-hover;
+  border-radius: 4px;
   font-size: 0.7rem;
-  transition: all 0.15s;
+  overflow: hidden;
 
-  &:hover {
-    background: #34352f;
-    border-color: rgba(232, 233, 227, 0.25);
+  &.reserva-focus {
+    border-left: 2px solid $color-focus;
+  }
+
+  &.reserva-reducido {
+    border-left: 2px solid $color-reducido;
   }
 
   &.reserva-propia {
-    background: rgba($color-primary, 0.15);
-    border-color: rgba($color-primary, 0.4);
-    .reserva-label {
-      color: $color-primary;
-      font-weight: 600;
-    }
-  }
-
-  &.reserva-focus {
-    border-left: 3px solid $color-focus;
-  }
-  &.reserva-reducido {
-    border-left: 3px solid $color-reducido;
+    background: rgba(34, 197, 94, 0.1);
+    border-left: 2px solid $color-success;
   }
 }
 
-.reserva-hora {
+.reserva-hora-small {
   font-weight: 600;
   color: $color-secondary;
   white-space: nowrap;
 }
 
-.reserva-modalidad {
+// Badge de modalidad pequeño (admin) - SEPARADO del texto de modalidad
+.reserva-modalidad-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -570,6 +472,7 @@ $color-bloqueado: #252623;
   font-size: 0.65rem;
   font-weight: 700;
   color: $color-text-muted;
+  flex-shrink: 0;
 }
 
 .reserva-usuario {
@@ -586,6 +489,32 @@ $color-bloqueado: #252623;
   white-space: nowrap;
 }
 
+// Badges festivo/más
+.festivo-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.4rem;
+  background: rgba(245, 158, 11, 0.15);
+  color: $color-festivo;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+
+  .material-symbols-rounded {
+    font-size: 0.75rem;
+  }
+}
+
+.mas-reservas {
+  padding: 0.2rem 0.4rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 0.65rem;
+  color: $color-text-muted;
+  text-align: center;
+}
+
 // ====== LEYENDA ======
 .leyenda {
   display: flex;
@@ -597,76 +526,335 @@ $color-bloqueado: #252623;
   border-radius: 10px;
   border: 1px solid $color-border-soft;
   flex-wrap: wrap;
+  margin-top: 1rem;
 }
 
 .leyenda-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   font-size: 0.8rem;
   color: $color-text-muted;
 }
 
 .leyenda-color {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  border: 1px solid rgba(232, 233, 227, 0.2);
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
 
-  &.leyenda-hoy {
-    background: $color-primary;
-  }
-  &.leyenda-bloqueado {
-    background: $color-bloqueado;
-    border-color: rgba(232, 233, 227, 0.1);
-  }
-  &.leyenda-festivo {
-    background: rgba($color-error, 0.3);
-    border-color: $color-error;
-  }
-  &.leyenda-reserva-propia {
-    background: rgba($color-primary, 0.3);
-    border-color: $color-primary;
-  }
-  &.leyenda-focus {
+  &.focus {
     background: $color-focus;
   }
-  &.leyenda-reducido {
+
+  &.reducido {
     background: $color-reducido;
+  }
+
+  &.festivo {
+    background: $color-festivo;
+  }
+
+  &.propia {
+    background: $color-success;
   }
 }
 
+// ====== MODAL (Admin) ======
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: $shadow-lg;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  border-bottom: 1px solid $color-border-soft;
+
+  h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: $color-text;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .material-symbols-rounded {
+      font-size: 1.3rem;
+      color: $color-primary;
+    }
+  }
+}
+
+.btn-cerrar-modal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid $color-border-soft;
+  border-radius: 8px;
+  color: $color-text-muted;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $color-surface-hover;
+    color: $color-text;
+  }
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+// ====== ADMIN CONTROLS ======
+.admin-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: $color-surface;
+  border: 1px solid $color-border-soft;
+  border-radius: 12px;
+}
+
+.admin-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: $color-text-muted;
+}
+
+.btn-admin {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  background: $color-surface-hover;
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  color: $color-text;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  .material-symbols-rounded {
+    font-size: 1.1rem;
+  }
+
+  &:hover {
+    background: $color-border;
+  }
+
+  &.btn-primary {
+    background: $color-primary;
+    border-color: $color-primary;
+    color: white;
+
+    &:hover {
+      background: darken($color-primary, 10%);
+    }
+  }
+
+  &.btn-success {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: $color-success;
+
+    &:hover {
+      background: rgba(34, 197, 94, 0.25);
+    }
+  }
+
+  &.btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: $color-danger;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+  }
+}
+
+// ====== TOGGLE SWITCH ======
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.toggle-label {
+  font-size: 0.85rem;
+  color: $color-text-muted;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  background: $color-border;
+  border-radius: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &.active {
+    background: $color-success;
+
+    .toggle-thumb {
+      transform: translateX(22px);
+    }
+  }
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: $shadow-sm;
+  transition: transform 0.2s ease;
+}
+
+// ====== ESTADOS ======
+.loading-state,
+.error-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+  color: $color-text-muted;
+
+  .material-symbols-rounded {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: $color-text-soft;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: $color-text;
+    margin: 0 0 0.5rem;
+  }
+
+  p {
+    font-size: 0.9rem;
+    margin: 0;
+  }
+}
+
+.error-state .material-symbols-rounded {
+  color: $color-danger;
+}
+
+// ====== SPINNER ======
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid $color-border;
+  border-top-color: $color-primary;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ====== MENSAJES ======
+.mensaje-exito,
+.mensaje-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+
+  .material-symbols-rounded {
+    font-size: 1.2rem;
+  }
+}
+
+.mensaje-exito {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: $color-success;
+}
+
+.mensaje-error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: $color-danger;
+}
+
 // ====== RESPONSIVE ======
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .calendario-page {
-    padding: 68px 1rem 1.5rem;
+    padding: 0.75rem;
   }
 
-  .mes-navegacion {
-    flex-wrap: wrap;
-  }
-
-  .admin-actions {
-    flex-direction: column;
-    .btn-admin {
-      width: 100%;
-      justify-content: center;
-    }
-  }
-
-  .estadisticas {
-    flex-direction: column;
-    .stat-card {
-      min-width: 100%;
-    }
-  }
-
-  .calendario-grid {
-    gap: 4px;
+  .page-header h1 {
+    font-size: 1.1rem;
   }
 
   .dia-celda {
-    min-height: 80px;
+    min-height: 70px;
     padding: 0.3rem;
   }
 
@@ -683,288 +871,46 @@ $color-bloqueado: #252623;
 
   .festivo-badge {
     font-size: 0.6rem;
-    padding: 0.2rem 0.4rem;
-    .material-symbols-rounded {
-      font-size: 0.8rem;
-    }
+    padding: 0.15rem 0.3rem;
   }
 }
 
 @media (max-width: 600px) {
-  .dia-celda {
-    min-height: 60px;
-  }
-
-  .reserva-usuario,
-  .reserva-label {
-    display: none;
-  }
-
-  .leyenda {
-    gap: 1rem;
-  }
-
-  .leyenda-item {
-    font-size: 0.7rem;
-    span:not(.leyenda-color) {
-      display: none;
-    }
-  }
-
-  .edicion-actions {
-    flex-direction: column;
-    .btn-edicion {
-      width: 100%;
-      justify-content: center;
-    }
-  }
-}
-
-// === ESTILOS PARA VISTA DE LISTA DE RESERVAS (CLIENTES) ===
-.reservas-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 1rem;
-}
-
-.reservas-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.reserva-card {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  padding: 1.25rem;
-  background: #3a3b37;
-  border: 1px solid rgba(232, 233, 227, 0.1);
-  border-radius: 14px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: rgba(232, 233, 227, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  &.reserva-focus {
-    border-left: 3px solid #60a5fa;
-  }
-
-  &.reserva-reducido {
-    border-left: 3px solid #a78bfa;
-  }
-}
-
-.reserva-icono {
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(235, 233, 227, 0.1);
-  border-radius: 12px;
-
-  .material-symbols-rounded {
-    font-size: 1.5rem;
-    color: #b8b29e;
-  }
-
-  .reserva-focus & {
-    background: rgba(96, 165, 250, 0.15);
-    .material-symbols-rounded {
-      color: #60a5fa;
-    }
-  }
-
-  .reserva-reducido & {
-    background: rgba(167, 139, 250, 0.15);
-    .material-symbols-rounded {
-      color: #a78bfa;
-    }
-  }
-}
-
-.reserva-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.reserva-modalidad {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #ebe9e3;
-  white-space: nowrap;
-  flex-wrap: wrap;
-}
-
-.reserva-badge {
-  padding: 0.15rem 0.5rem;
-  background: rgba(251, 191, 36, 0.15);
-  color: #fbbf24;
-  border-radius: 6px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.reserva-fecha {
-  font-size: 0.9rem;
-  color: rgba(235, 233, 227, 0.8);
-  text-transform: capitalize;
-}
-
-.reserva-hora {
-  font-size: 0.85rem;
-  color: rgba(235, 233, 227, 0.6);
-}
-
-.reserva-acciones {
-  display: flex;
-  align-items: center;
-}
-
-.btn-cancelar-reserva {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 1rem;
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  .material-symbols-rounded {
-    font-size: 1.1rem;
-  }
-
-  &:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.3);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.reserva-no-cancelable {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.5rem 0.8rem;
-  background: rgba(235, 233, 227, 0.05);
-  border-radius: 8px;
-  font-size: 0.75rem;
-  color: rgba(235, 233, 227, 0.5);
-
-  .material-symbols-rounded {
-    font-size: 1rem;
-  }
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem 1.5rem;
-
-  .material-symbols-rounded {
-    font-size: 4rem;
-    color: rgba(235, 233, 227, 0.3);
-    margin-bottom: 1rem;
-  }
-
-  h3 {
-    margin: 0 0 0.5rem;
-    font-size: 1.3rem;
-    font-weight: 600;
-    color: #ebe9e3;
-  }
-
-  p {
-    margin: 0;
-    font-size: 0.95rem;
-    color: rgba(235, 233, 227, 0.6);
-  }
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding: 0 1rem;
-
-  .btn-volver {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.6rem 1rem;
-    background: #3a3b37;
-    border: 1px solid rgba(232, 233, 227, 0.1);
-    border-radius: 10px;
-    color: #ebe9e3;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    .material-symbols-rounded {
-      font-size: 1.2rem;
-    }
-
-    &:hover {
-      border-color: rgba(184, 178, 158, 0.3);
-      background: rgba(184, 178, 158, 0.05);
-    }
-  }
-
-  h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #ebe9e3;
-  }
-}
-
-.spinner-small {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(239, 68, 68, 0.3);
-  border-top-color: #ef4444;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-// Responsive
-@media (max-width: 600px) {
+  // Mis clases responsivo
   .reserva-card {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 0.75rem;
+    padding: 0.875rem;
+  }
+
+  .reserva-icono {
+    width: 36px;
+    height: 36px;
+
+    .material-symbols-rounded {
+      font-size: 1.1rem;
+    }
   }
 
   .reserva-info {
     width: 100%;
+  }
+
+  // En móvil permitimos que el badge de recuperación baje si es necesario
+  .reserva-modalidad {
+    font-size: 0.95rem;
+    white-space: normal; // Permitir wrap solo en móvil
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .reserva-fecha {
+    font-size: 0.85rem;
+  }
+
+  .reserva-hora {
+    font-size: 0.8rem;
   }
 
   .reserva-acciones {
@@ -979,6 +925,39 @@ $color-bloqueado: #252623;
   .btn-text {
     display: inline;
   }
+
+  // Calendario responsivo
+  .dia-header {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.65rem;
+  }
+
+  .dia-celda {
+    min-height: 55px;
+    padding: 0.2rem;
+  }
+
+  .dia-numero {
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .reserva-item {
+    font-size: 0.6rem;
+    padding: 0.2rem;
+    gap: 0.2rem;
+  }
+
+  .leyenda {
+    gap: 1rem;
+    padding: 0.75rem;
+  }
+
+  .leyenda-item {
+    font-size: 0.75rem;
+  }
 }
 
 @media (min-width: 601px) {
@@ -987,10 +966,30 @@ $color-bloqueado: #252623;
   }
 
   .reserva-card {
-    min-width: 0; // Para permitir flex shrink
+    min-width: 0;
   }
 
   .reserva-info {
-    min-width: 0; // Para permitir flex shrink y evitar overflow
+    min-width: 0;
+  }
+}
+
+// ====== SCROLLBAR PERSONALIZADO ======
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: $color-surface;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $color-border;
+  border-radius: 4px;
+
+  &:hover {
+    background: lighten($color-border, 10%);
   }
 }
