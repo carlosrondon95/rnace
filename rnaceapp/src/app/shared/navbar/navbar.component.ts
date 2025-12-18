@@ -21,44 +21,22 @@ import { supabase } from '../../core/supabase.client';
         @if (estaLogueado()) {
           <div class="navbar-links">
             @if (isCliente()) {
-              <a
-                routerLink="/calendario"
-                routerLinkActive="active"
-                class="nav-link"
-              >
+              <a routerLink="/calendario" routerLinkActive="active" class="nav-link">
                 Mis clases
               </a>
-              <a
-                routerLink="/recuperar-clase"
-                routerLinkActive="active"
-                class="nav-link"
-              >
+              <a routerLink="/recuperar-clase" routerLinkActive="active" class="nav-link">
                 Recuperar
               </a>
             }
 
             @if (isAdmin()) {
-              <a
-                routerLink="/calendario"
-                routerLinkActive="active"
-                class="nav-link"
-              >
+              <a routerLink="/calendario" routerLinkActive="active" class="nav-link">
                 Calendario
               </a>
-              <a
-                routerLink="/gestionar-perfiles"
-                routerLinkActive="active"
-                class="nav-link"
-              >
+              <a routerLink="/gestionar-perfiles" routerLinkActive="active" class="nav-link">
                 Perfiles
               </a>
-              <a
-                routerLink="/lista-espera"
-                routerLinkActive="active"
-                class="nav-link"
-              >
-                Espera
-              </a>
+              <a routerLink="/lista-espera" routerLinkActive="active" class="nav-link"> Espera </a>
             }
           </div>
         }
@@ -91,9 +69,7 @@ import { supabase } from '../../core/supabase.client';
                 <span class="user-avatar">
                   {{ iniciales() }}
                 </span>
-                <span class="material-symbols-rounded icon-chevron">
-                  expand_more
-                </span>
+                <span class="material-symbols-rounded icon-chevron"> expand_more </span>
               </button>
 
               @if (menuAbierto()) {
@@ -116,9 +92,7 @@ import { supabase } from '../../core/supabase.client';
               }
             </div>
           } @else {
-            <a routerLink="/login" class="btn-login">
-              Iniciar sesión
-            </a>
+            <a routerLink="/login" class="btn-login"> Iniciar sesión </a>
           }
         </div>
       </div>
@@ -147,10 +121,10 @@ import { supabase } from '../../core/supabase.client';
         border-bottom: 1px solid rgba(232, 233, 227, 0.08);
         z-index: 1000;
         transition: transform 0.3s ease;
+      }
 
-        &--hidden {
-          transform: translateY(-100%);
-        }
+      .navbar--hidden {
+        transform: translateY(-100%);
       }
 
       .navbar-container {

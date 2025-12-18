@@ -129,8 +129,13 @@ export class CalendarioComponent implements OnInit {
 
   mesEstaAbierto = computed(() => this.mesAgenda()?.abierto ?? false);
 
-  // Empezamos por Lunes (Lun, Mar, Mié, Jue, Vie, Sáb, Dom)
-  diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  // Solo mostrar lunes a viernes (diaSemana 0-4)
+  diasCalendarioLaborables = computed(() => {
+    return this.diasCalendario().filter((dia) => dia.diaSemana >= 0 && dia.diaSemana <= 4);
+  });
+
+  // Empezamos por Lunes (Lun, Mar, Mié, Jue, Vie)
+  diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 
   totalReservas = computed(() => {
     return this.diasCalendario().reduce((total, dia) => total + dia.reservas.length, 0);
@@ -338,7 +343,7 @@ export class CalendarioComponent implements OnInit {
     // Fecha de hoy para comparar
     const hoyDate = new Date();
     const hoy = `${hoyDate.getFullYear()}-${(hoyDate.getMonth() + 1).toString().padStart(2, '0')}-${hoyDate.getDate().toString().padStart(2, '0')}`;
-    
+
     const mesAbierto = this.mesAgenda()?.abierto ?? false;
     const userId = this.userId();
 
@@ -377,7 +382,7 @@ export class CalendarioComponent implements OnInit {
       for (let i = primerDiaSemana - 1; i >= 0; i--) {
         const dia = ultimoDiaMesAnterior - i;
         const fecha = `${anioAnterior}-${mesAnterior.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
-        
+
         // Calcular día de la semana usando Date con parámetros numéricos
         const fechaObj = new Date(anioAnterior, mesAnterior - 1, dia);
         let diaSemana = fechaObj.getDay();
@@ -400,13 +405,13 @@ export class CalendarioComponent implements OnInit {
     // Días del mes actual
     for (let dia = 1; dia <= ultimoDiaMes; dia++) {
       const fecha = `${anio}-${mes.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
-      
+
       // Usar Date con parámetros numéricos para evitar problemas de zona horaria
       const fechaObj = new Date(anio, mes - 1, dia);
       let diaSemana = fechaObj.getDay();
       // Convertir: Dom(0)->6, Lun(1)->0, Mar(2)->1, etc.
       diaSemana = diaSemana === 0 ? 6 : diaSemana - 1;
-      
+
       // Laborable: Lun(0) a Vie(4)
       const esLaborable = diaSemana >= 0 && diaSemana <= 4;
       const esFestivo = festivos.has(fecha);
@@ -434,7 +439,7 @@ export class CalendarioComponent implements OnInit {
 
       for (let dia = 1; dia <= diasFaltantes; dia++) {
         const fecha = `${anioSiguiente}-${mesSiguiente.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
-        
+
         const fechaObj = new Date(anioSiguiente, mesSiguiente - 1, dia);
         let diaSemana = fechaObj.getDay();
         diaSemana = diaSemana === 0 ? 6 : diaSemana - 1;

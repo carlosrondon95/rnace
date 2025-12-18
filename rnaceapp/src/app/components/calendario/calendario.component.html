@@ -55,12 +55,14 @@
                   </span>
                 </div>
                 <div class="reserva-info">
-                  <span class="reserva-modalidad">
-                    Clase {{ reserva.modalidad === 'focus' ? 'Focus' : 'Reducido' }}
+                  <div class="reserva-tipo">
+                    <span class="reserva-modalidad"
+                      >Clase {{ reserva.modalidad === 'focus' ? 'Focus' : 'Reducido' }}</span
+                    >
                     @if (reserva.es_recuperacion) {
                       <span class="reserva-badge">Recuperación</span>
                     }
-                  </span>
+                  </div>
                   <span class="reserva-fecha">{{ reserva.fecha }}</span>
                   <span class="reserva-hora">{{ reserva.hora }}</span>
                 </div>
@@ -82,7 +84,7 @@
                   } @else {
                     <span class="reserva-no-cancelable">
                       <span class="material-symbols-rounded">schedule</span>
-                      Muy próxima
+                      <span>Muy próxima</span>
                     </span>
                   }
                 </div>
@@ -254,8 +256,8 @@
             <div class="dia-header">{{ dia }}</div>
           }
 
-          <!-- Celdas de días -->
-          @for (dia of diasCalendario(); track dia.fecha) {
+          <!-- Celdas de días (solo L-V) -->
+          @for (dia of diasCalendarioLaborables(); track dia.fecha) {
             <button
               type="button"
               [class]="getDiaClases(dia)"
@@ -287,7 +289,7 @@
 
               <!-- Lista de reservas -->
               @if (dia.reservas.length > 0 && !modoEdicion()) {
-                <div class="reservas-lista">
+                <div class="reservas-dia-lista">
                   @for (reserva of dia.reservas; track reserva.id) {
                     <div
                       class="reserva-item"

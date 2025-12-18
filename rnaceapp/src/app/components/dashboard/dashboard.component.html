@@ -1,161 +1,267 @@
 <!-- src/app/components/dashboard/dashboard.component.html -->
-
-<!-- Overlay de "inicio de sesión exitoso" -->
-<div class="login-splash" *ngIf="showLoginSplash()">
-  <div class="splash-card">
-    <div class="splash-logo">
-      <img src="/assets/img/logo.png" alt="RNACE" />
-    </div>
-    <p class="splash-text">Inicio de sesión exitoso</p>
-    <div class="splash-spinner"></div>
-  </div>
-</div>
-
-<!-- Barra de navegación superior -->
-<header class="top-nav">
-  <div class="nav-left">
-    <div class="nav-logo">RNACE</div>
-    <span class="nav-tagline">Gestión de citas</span>
-  </div>
-
-  <nav class="nav-actions">
-    <!-- Cliente -->
-    <ng-container *ngIf="role() === 'cliente'">
-      <button class="nav-btn" (click)="onReservaCita()">
-        <span class="material-symbols-rounded nav-icon">event_available</span>
-        <span>Reserva tu cita</span>
-      </button>
-      <button class="nav-btn" (click)="onVerCalendario()">
-        <span class="material-symbols-rounded nav-icon">calendar_month</span>
-        <span>Ver calendario</span>
-      </button>
-      <button class="nav-btn" (click)="onPerfil()">
-        <span class="material-symbols-rounded nav-icon">account_circle</span>
-        <span>Mi perfil</span>
-      </button>
-    </ng-container>
-
-    <!-- Profesor -->
-    <ng-container *ngIf="role() === 'profesor'">
-      <button class="nav-btn" (click)="onReservaCita()">
-        <span class="material-symbols-rounded nav-icon">event_available</span>
-        <span>Mis citas</span>
-      </button>
-      <button class="nav-btn" (click)="onVerCalendario()">
-        <span class="material-symbols-rounded nav-icon">calendar_month</span>
-        <span>Ver calendario</span>
-      </button>
-      <button class="nav-btn" (click)="onMisGrupos()">
-        <span class="material-symbols-rounded nav-icon">groups</span>
-        <span>Mis grupos</span>
-      </button>
-      <button class="nav-btn" (click)="onPerfil()">
-        <span class="material-symbols-rounded nav-icon">account_circle</span>
-        <span>Mi perfil</span>
-      </button>
-    </ng-container>
-
-    <!-- Admin -->
-    <ng-container *ngIf="role() === 'admin'">
-      <button class="nav-btn" (click)="onVerCitas()">
-        <span class="material-symbols-rounded nav-icon">event_note</span>
-        <span>Ver citas</span>
-      </button>
-      <button class="nav-btn" (click)="onVerCalendario()">
-        <span class="material-symbols-rounded nav-icon">calendar_month</span>
-        <span>Ver calendario</span>
-      </button>
-      <button class="nav-btn" (click)="onVerGrupos()">
-        <span class="material-symbols-rounded nav-icon">groups</span>
-        <span>Ver grupos</span>
-      </button>
-      <button class="nav-btn" (click)="onGestionarPerfiles()">
-        <span class="material-symbols-rounded nav-icon">manage_accounts</span>
-        <span>Gestionar perfiles</span>
-      </button>
-      <button class="nav-btn" (click)="onPerfil()">
-        <span class="material-symbols-rounded nav-icon">account_circle</span>
-        <span>Mi perfil</span>
-      </button>
-    </ng-container>
-
-    <!-- Logout -->
-    <button class="nav-btn nav-btn--logout" (click)="onLogout()">
-      <span class="material-symbols-rounded nav-icon">logout</span>
-      <span>Salir</span>
-    </button>
-  </nav>
-</header>
-
-<!-- Contenido principal -->
 <main class="dashboard-page">
-  <section class="dashboard-card">
-    <h1>¡Bienvenid@ a RNACE!</h1>
+  <div class="dashboard-container">
+    <!-- Header -->
+    <header class="welcome-section">
+      <div class="welcome-content">
+        <h1>{{ saludo() }}, {{ nombreUsuario() }}</h1>
+        <p class="welcome-subtitle">
+          @if (isCliente()) {
+            Tu espacio de bienestar
+          } @else if (isProfesor()) {
+            Panel de profesor
+          } @else {
+            Panel de administración
+          }
+        </p>
+      </div>
 
-    <p class="lead" *ngIf="role() === 'cliente'">¿Qué quieres hacer hoy?</p>
+      <!-- Botón notificaciones -->
+      <button
+        type="button"
+        class="btn-notificaciones"
+        (click)="irANotificaciones()"
+        aria-label="Ver notificaciones"
+      >
+        <span class="material-symbols-rounded">notifications</span>
+        @if (notificacionesNoLeidas() > 0) {
+          <span class="notif-badge">{{ notificacionesNoLeidas() }}</span>
+        }
+      </button>
+    </header>
 
-    <p class="lead" *ngIf="role() === 'profesor'">¿Qué quieres hacer hoy?</p>
+    <!-- ==================== CLIENTE ==================== -->
+    @if (isCliente()) {
+      <!-- Próximas clases -->
+      <section class="section">
+        <div class="section-header">
+          <h2>
+            <span class="material-symbols-rounded">event</span>
+            Próximas clases
+          </h2>
+          <a routerLink="/calendario" class="link-ver-mas">Ver todas</a>
+        </div>
 
-    <p class="lead" *ngIf="role() === 'admin'">Panel de administración - ¿Qué quieres hacer hoy?</p>
+        @if (cargando()) {
+          <div class="loading-inline">
+            <div class="spinner-small"></div>
+            <span>Cargando...</span>
+          </div>
+        } @else if (proximasClases().length === 0) {
+          <div class="empty-card">
+            <span class="material-symbols-rounded">event_busy</span>
+            <p>No tienes clases programadas</p>
+          </div>
+        } @else {
+          <div class="clases-lista">
+            @for (clase of proximasClases(); track trackByClaseId($index, clase)) {
+              <div class="clase-card" [class.clase-card--recuperacion]="clase.es_recuperacion">
+                <div class="clase-fecha">
+                  <span class="clase-dia">{{ clase.dia_nombre }}</span>
+                  <span class="clase-fecha-num">{{ clase.fecha }}</span>
+                </div>
+                <div class="clase-info">
+                  <span class="clase-hora">{{ clase.hora }}</span>
+                  <span class="clase-modalidad" [class]="'modalidad--' + clase.modalidad">
+                    {{ clase.modalidad }}
+                  </span>
+                  @if (clase.es_recuperacion) {
+                    <span class="tag-recuperacion">Recuperación</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
 
-    <!-- Cliente -->
-    <div class="dashboard-actions" *ngIf="role() === 'cliente'">
-      <button class="btn-primary btn-with-icon" (click)="onReservaCita()">
-        <span class="material-symbols-rounded btn-icon">event_available</span>
-        <span class="btn-label">Reserva tu cita</span>
-      </button>
-      <button class="btn-primary btn-with-icon" (click)="onVerCalendario()">
-        <span class="material-symbols-rounded btn-icon">calendar_month</span>
-        <span class="btn-label">Ver calendario</span>
-      </button>
-      <button class="btn-primary btn-with-icon" (click)="onPerfil()">
-        <span class="material-symbols-rounded btn-icon">account_circle</span>
-        <span class="btn-label">Mi perfil</span>
-      </button>
-    </div>
+      <!-- Recuperaciones disponibles -->
+      @if (tieneRecuperaciones()) {
+        <section class="section section--highlight">
+          <div class="section-header">
+            <h2>
+              <span class="material-symbols-rounded">replay</span>
+              Recuperaciones disponibles
+            </h2>
+          </div>
 
-    <!-- Profesor -->
-    <div class="dashboard-actions" *ngIf="role() === 'profesor'">
-      <button class="btn-primary btn-with-icon" (click)="onReservaCita()">
-        <span class="material-symbols-rounded btn-icon">event_available</span>
-        <span class="btn-label">Mis citas</span>
-      </button>
-      <button class="btn-primary btn-with-icon" (click)="onVerCalendario()">
-        <span class="material-symbols-rounded btn-icon">calendar_month</span>
-        <span class="btn-label">Ver calendario</span>
-      </button>
-      <button class="btn-primary btn-with-icon" (click)="onMisGrupos()">
-        <span class="material-symbols-rounded btn-icon">groups</span>
-        <span class="btn-label">Mis grupos</span>
-      </button>
-      <button class="btn-primary btn-with-icon" (click)="onPerfil()">
-        <span class="material-symbols-rounded btn-icon">account_circle</span>
-        <span class="btn-label">Mi perfil</span>
-      </button>
-    </div>
+          <div class="recuperaciones-lista">
+            @for (recup of recuperaciones(); track trackByRecupId($index, recup)) {
+              <div class="recuperacion-card">
+                <div class="recuperacion-info">
+                  <span class="recuperacion-modalidad" [class]="'modalidad--' + recup.modalidad">
+                    {{ recup.modalidad }}
+                  </span>
+                  <span class="recuperacion-expira">
+                    Válida hasta {{ getNombreMes(recup.mes_limite) }} {{ recup.anio_limite }}
+                  </span>
+                </div>
+                <a routerLink="/recuperar-clase" class="btn-usar">
+                  Usar
+                  <span class="material-symbols-rounded">arrow_forward</span>
+                </a>
+              </div>
+            }
+          </div>
+        </section>
+      }
 
-    <!-- Admin -->
-    <div class="dashboard-actions" *ngIf="role() === 'admin'">
-      <button class="btn-primary btn-with-icon" (click)="onVerCitas()">
-        <span class="material-symbols-rounded btn-icon">event_note</span>
-        <span class="btn-label">Ver citas</span>
-      </button>
-      <button class="btn-primary btn-with-icon" (click)="onVerCalendario()">
-        <span class="material-symbols-rounded btn-icon">calendar_month</span>
-        <span class="btn-label">Ver calendario</span>
-      </button>
-      <button class="btn-primary btn-with-icon" (click)="onVerGrupos()">
-        <span class="material-symbols-rounded btn-icon">groups</span>
-        <span class="btn-label">Ver grupos</span>
-      </button>
-      <button class="btn-primary btn-with-icon" (click)="onGestionarPerfiles()">
-        <span class="material-symbols-rounded btn-icon">manage_accounts</span>
-        <span class="btn-label">Gestionar perfiles</span>
-      </button>
-      <button class="btn-primary btn-with-icon" (click)="onPerfil()">
-        <span class="material-symbols-rounded btn-icon">account_circle</span>
-        <span class="btn-label">Mi perfil</span>
-      </button>
-    </div>
-  </section>
+      <!-- Acciones rápidas cliente -->
+      <section class="actions-grid">
+        <a routerLink="/calendario" class="action-card action-card--primary">
+          <span class="action-icon material-symbols-rounded">calendar_month</span>
+          <div class="action-content">
+            <h3>Mis clases</h3>
+            <p>Ver mi calendario</p>
+          </div>
+          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+        </a>
+
+        <a routerLink="/recuperar-clase" class="action-card">
+          <span class="action-icon material-symbols-rounded">replay</span>
+          <div class="action-content">
+            <h3>Recuperar clase</h3>
+            <p>Usar recuperación</p>
+          </div>
+          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+        </a>
+      </section>
+    }
+
+    <!-- ==================== PROFESOR ==================== -->
+    @if (isProfesor()) {
+      <section class="actions-grid">
+        <a routerLink="/calendario" class="action-card action-card--primary">
+          <span class="action-icon material-symbols-rounded">calendar_month</span>
+          <div class="action-content">
+            <h3>Mi calendario</h3>
+            <p>Ver clases programadas</p>
+          </div>
+          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+        </a>
+      </section>
+    }
+
+    <!-- ==================== ADMIN ==================== -->
+    @if (isAdmin()) {
+      <!-- Estadísticas del día -->
+      <section class="section">
+        <div class="section-header">
+          <h2>
+            <span class="material-symbols-rounded">analytics</span>
+            Hoy
+          </h2>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-value">{{ estadisticas().clases_hoy }}</span>
+            <span class="stat-label">Clases</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ estadisticas().alumnos_hoy }}</span>
+            <span class="stat-label">Alumnos</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ estadisticas().plazas_disponibles }}</span>
+            <span class="stat-label">Plazas libres</span>
+          </div>
+          <div class="stat-card stat-card--warning">
+            <span class="stat-value">{{ estadisticas().en_lista_espera }}</span>
+            <span class="stat-label">En espera</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Clases de hoy -->
+      @if (clasesHoy().length > 0) {
+        <section class="section">
+          <div class="section-header">
+            <h2>
+              <span class="material-symbols-rounded">schedule</span>
+              Clases de hoy
+            </h2>
+          </div>
+
+          <div class="clases-admin-lista">
+            @for (clase of clasesHoy(); track trackByClaseId($index, clase)) {
+              <div class="clase-admin-card">
+                <div class="clase-admin-header">
+                  <span class="clase-admin-hora">{{ clase.hora }}</span>
+                  <span class="clase-admin-modalidad" [class]="'modalidad--' + clase.modalidad">
+                    {{ clase.modalidad }}
+                  </span>
+                  <span class="clase-admin-ocupacion">
+                    {{ clase.reservas_count }}/{{ clase.capacidad }}
+                  </span>
+                </div>
+                @if (clase.alumnos.length > 0) {
+                  <div class="clase-admin-alumnos">
+                    @for (alumno of clase.alumnos; track alumno) {
+                      <span class="alumno-tag">{{ alumno }}</span>
+                    }
+                  </div>
+                } @else {
+                  <p class="clase-admin-vacia">Sin reservas</p>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Acciones admin -->
+      <section class="actions-grid actions-grid--admin">
+        <a routerLink="/gestionar-perfiles" class="action-card action-card--primary">
+          <span class="action-icon material-symbols-rounded">manage_accounts</span>
+          <div class="action-content">
+            <h3>Gestionar perfiles</h3>
+            <p>Usuarios y horarios</p>
+          </div>
+          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+        </a>
+
+        <a routerLink="/calendario" class="action-card">
+          <span class="action-icon material-symbols-rounded">calendar_month</span>
+          <div class="action-content">
+            <h3>Calendario</h3>
+            <p>Meses y festivos</p>
+          </div>
+          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+        </a>
+
+        <a routerLink="/admin-reservas" class="action-card">
+          <span class="action-icon material-symbols-rounded">event_note</span>
+          <div class="action-content">
+            <h3>Reservas</h3>
+            <p>Ver todas las reservas</p>
+          </div>
+          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+        </a>
+
+        <a routerLink="/lista-espera" class="action-card">
+          <span class="action-icon material-symbols-rounded">hourglass_top</span>
+          <div class="action-content">
+            <h3>Lista de espera</h3>
+            <p>Gestionar cola</p>
+          </div>
+          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+        </a>
+      </section>
+    }
+
+    <!-- Info usuario -->
+    <section class="user-info">
+      <div class="user-info-card">
+        <span class="user-info-icon material-symbols-rounded">person</span>
+        <div class="user-info-content">
+          <span class="user-info-label">Tu cuenta</span>
+          <span class="user-info-value">{{ auth.usuario()?.telefono }}</span>
+        </div>
+        <span [ngClass]="getRoleBadgeClass()">
+          {{ getRoleLabel() }}
+        </span>
+      </div>
+    </section>
+  </div>
 </main>
