@@ -9,7 +9,7 @@ import { supabase } from '../../core/supabase.client';
 interface HorarioDisponible {
   id: number;
   modalidad: 'focus' | 'reducido';
-  dia_semana: number; // 1=Lunes, 5=Viernes
+  dia_semana: number;
   hora: string;
   capacidad_maxima: number;
 }
@@ -39,7 +39,7 @@ interface FormularioUsuario {
   activo: boolean;
   tipoGrupo: 'focus' | 'reducido' | 'hibrido' | 'especial';
   password: string;
-  horariosSeleccionados: number[]; // IDs de horarios_disponibles
+  horariosSeleccionados: number[];
 }
 
 interface Filtros {
@@ -69,8 +69,6 @@ export class GestionarPerfilesComponent implements OnInit {
   error = signal<string | null>(null);
   usuarios = signal<Usuario[]>([]);
   busqueda = signal('');
-
-  // Horarios disponibles del centro
   horariosDisponibles = signal<HorarioDisponible[]>([]);
 
   filtros = signal<Filtros>({
@@ -79,7 +77,6 @@ export class GestionarPerfilesComponent implements OnInit {
     tipoGrupo: 'todos',
   });
 
-  // Modal crear/editar
   mostrarModal = signal(false);
   modoEdicion = signal(false);
   usuarioEditandoId = signal<string | null>(null);
@@ -88,7 +85,6 @@ export class GestionarPerfilesComponent implements OnInit {
   exitoModal = signal<string | null>(null);
   passwordCopiada = signal(false);
 
-  // Modal eliminar
   mostrarModalEliminar = signal(false);
   usuarioAEliminar = signal<Usuario | null>(null);
   eliminando = signal(false);
@@ -104,8 +100,8 @@ export class GestionarPerfilesComponent implements OnInit {
     horariosSeleccionados: [],
   });
 
-  // Nombres de días
-  diasSemana: { [key: number]: string } = {
+  // Usando Record en lugar de index signature
+  readonly diasSemana: Record<number, string> = {
     1: 'Lunes',
     2: 'Martes',
     3: 'Miércoles',
@@ -113,7 +109,6 @@ export class GestionarPerfilesComponent implements OnInit {
     5: 'Viernes',
   };
 
-  // Horarios agrupados por día para el selector
   horariosFocusPorDia = computed((): HorarioPorDia[] => {
     const horarios = this.horariosDisponibles().filter(h => h.modalidad === 'focus');
     return this.agruparPorDia(horarios);
@@ -124,7 +119,6 @@ export class GestionarPerfilesComponent implements OnInit {
     return this.agruparPorDia(horarios);
   });
 
-  // Horarios filtrados según tipo de grupo seleccionado
   horariosParaMostrar = computed((): HorarioPorDia[] => {
     const tipo = this.formulario().tipoGrupo;
     if (tipo === 'focus') {
@@ -132,10 +126,8 @@ export class GestionarPerfilesComponent implements OnInit {
     } else if (tipo === 'reducido') {
       return this.horariosReducidoPorDia();
     } else {
-      // Híbrido o especial: mostrar ambos
       const focus = this.horariosFocusPorDia();
       const reducido = this.horariosReducidoPorDia();
-      // Combinar y ordenar
       const todos: HorarioPorDia[] = [];
       for (let dia = 1; dia <= 5; dia++) {
         const horariosDia: HorarioDisponible[] = [
@@ -266,7 +258,6 @@ export class GestionarPerfilesComponent implements OnInit {
   async cargarUsuarios() {
     const client = supabase();
 
-    // Cargar usuarios
     const { data: usuariosData, error: usuariosError } = await client
       .from('usuarios')
       .select('id, telefono, nombre, rol, activo, creado_en')
@@ -277,7 +268,6 @@ export class GestionarPerfilesComponent implements OnInit {
       return;
     }
 
-    // Cargar planes
     const { data: planesData } = await client
       .from('plan_usuario')
       .select('usuario_id, tipo_grupo');
@@ -289,7 +279,6 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
-    // Cargar horarios fijos de usuarios
     const { data: horariosFijosData } = await client
       .from('horario_fijo_usuario')
       .select(`
@@ -373,7 +362,6 @@ export class GestionarPerfilesComponent implements OnInit {
     const nombre = partes[0] || '';
     const apellidos = partes.slice(1).join(' ') || '';
 
-    // Obtener IDs de horarios seleccionados
     const horariosSeleccionados = (usuario.horarios_fijos || []).map(h => h.horario_disponible_id);
 
     this.formulario.set({
@@ -397,7 +385,6 @@ export class GestionarPerfilesComponent implements OnInit {
     this.usuarioEditandoId.set(null);
   }
 
-  // Modal eliminar
   abrirModalEliminar(usuario: Usuario) {
     this.usuarioAEliminar.set(usuario);
     this.mostrarModalEliminar.set(true);
@@ -436,13 +423,11 @@ export class GestionarPerfilesComponent implements OnInit {
   actualizarCampo(campo: keyof FormularioUsuario, valor: string | number | boolean) {
     this.formulario.update((f) => ({ ...f, [campo]: valor }));
 
-    // Si cambia el tipo de grupo, limpiar horarios seleccionados
     if (campo === 'tipoGrupo') {
       this.formulario.update((f) => ({ ...f, horariosSeleccionados: [] }));
     }
   }
 
-  // Toggle horario seleccionado
   toggleHorario(horarioId: number) {
     this.formulario.update((f) => {
       const seleccionados = [...f.horariosSeleccionados];
@@ -458,11 +443,17 @@ export class GestionarPerfilesComponent implements OnInit {
     });
   }
 
+  onHorarioKeydown(event: KeyboardEvent, horarioId: number) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.toggleHorario(horarioId);
+    }
+  }
+
   isHorarioSeleccionado(horarioId: number): boolean {
     return this.formulario().horariosSeleccionados.includes(horarioId);
   }
 
-  // Obtener resumen de horarios seleccionados
   getResumenHorarios(): string {
     const ids = this.formulario().horariosSeleccionados;
     if (ids.length === 0) return 'Ningún horario seleccionado';
@@ -513,7 +504,6 @@ export class GestionarPerfilesComponent implements OnInit {
     const tieneNombre = f.nombre.trim().length > 0;
     const tieneTelefono = f.telefono.trim().length >= 9;
     
-    // Solo clientes necesitan horarios
     const necesitaHorarios = f.rol === 'cliente';
     const tieneHorarios = !necesitaHorarios || f.horariosSeleccionados.length > 0;
 
@@ -561,7 +551,6 @@ export class GestionarPerfilesComponent implements OnInit {
   private async crearNuevoUsuario(nombre: string, telefono: string, f: FormularioUsuario) {
     const client = supabase();
 
-    // 1. Crear usuario usando AuthService
     const resultado = await this.authService.crearUsuario({
       telefono: telefono,
       password: f.password,
@@ -576,7 +565,6 @@ export class GestionarPerfilesComponent implements OnInit {
 
     const userId = resultado.userId;
 
-    // 2. Crear plan_usuario (solo tipo_grupo)
     if (f.rol === 'cliente') {
       await client.from('plan_usuario').insert({
         usuario_id: userId,
@@ -584,7 +572,6 @@ export class GestionarPerfilesComponent implements OnInit {
         activo: true,
       });
 
-      // 3. Crear horarios fijos
       if (f.horariosSeleccionados.length > 0) {
         const horariosInsert = f.horariosSeleccionados.map(horarioId => ({
           usuario_id: userId,
@@ -612,7 +599,6 @@ export class GestionarPerfilesComponent implements OnInit {
 
     const client = supabase();
 
-    // 1. Actualizar usuario
     const { error: userError } = await client
       .from('usuarios')
       .update({
@@ -629,7 +615,6 @@ export class GestionarPerfilesComponent implements OnInit {
       return;
     }
 
-    // 2. Actualizar plan
     if (f.rol === 'cliente') {
       const { data: planExistente } = await client
         .from('plan_usuario')
@@ -650,14 +635,11 @@ export class GestionarPerfilesComponent implements OnInit {
         });
       }
 
-      // 3. Actualizar horarios fijos
-      // Eliminar los actuales
       await client
         .from('horario_fijo_usuario')
         .delete()
         .eq('usuario_id', userId);
 
-      // Insertar los nuevos
       if (f.horariosSeleccionados.length > 0) {
         const horariosInsert = f.horariosSeleccionados.map(horarioId => ({
           usuario_id: userId,
@@ -669,7 +651,6 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
-    // 4. Cambiar contraseña si se indicó
     if (f.password && f.password.length >= 6) {
       const passResult = await this.authService.cambiarPassword(userId, f.password);
       if (!passResult.success) {

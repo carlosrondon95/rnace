@@ -1,4 +1,5 @@
 // src/app/components/calendario/calendario.component.ts
+// ACTUALIZADO: Usa nuevas funciones del sistema de horarios fijos
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
@@ -41,7 +42,8 @@ interface ReservaDB {
   estado: string;
   sesiones:
     | {
-        fecha_inicio: string;
+        fecha: string;
+        hora: string;
         modalidad: string;
       }[]
     | null;
@@ -61,11 +63,13 @@ interface ReservaDBLista {
   es_recuperacion: boolean;
   sesiones:
     | {
-        fecha_inicio: string;
+        fecha: string;
+        hora: string;
         modalidad: string;
       }
     | {
-        fecha_inicio: string;
+        fecha: string;
+        hora: string;
         modalidad: string;
       }[];
 }
@@ -125,7 +129,8 @@ export class CalendarioComponent implements OnInit {
 
   mesEstaAbierto = computed(() => this.mesAgenda()?.abierto ?? false);
 
-  diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  // Empezamos por Lunes (Lun, Mar, Mié, Jue, Vie, Sáb, Dom)
+  diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
   totalReservas = computed(() => {
     return this.diasCalendario().reduce((total, dia) => total + dia.reservas.length, 0);
@@ -173,7 +178,6 @@ export class CalendarioComponent implements OnInit {
           .maybeSingle();
 
         if (agendaError && agendaError.code !== 'PGRST116') {
-          // PGRST116 es "no hay resultados", eso está bien
           console.error('Error cargando agenda:', agendaError);
         }
 
@@ -183,8 +187,11 @@ export class CalendarioComponent implements OnInit {
         this.mesAgenda.set({ anio, mes, abierto: false });
       }
 
+      // Calcular fechas del mes correctamente
       const primerDia = `${anio}-${mes.toString().padStart(2, '0')}-01`;
-      const ultimoDia = new Date(anio, mes, 0).toISOString().split('T')[0];
+      // Último día del mes: creamos fecha del siguiente mes día 0
+      const ultimoDiaMes = new Date(anio, mes, 0).getDate();
+      const ultimoDia = `${anio}-${mes.toString().padStart(2, '0')}-${ultimoDiaMes.toString().padStart(2, '0')}`;
 
       // Cargar festivos
       const festivosSet = new Set<string>();
@@ -219,13 +226,14 @@ export class CalendarioComponent implements OnInit {
               usuario_id,
               estado,
               sesiones!inner (
-                fecha_inicio,
+                fecha,
+                hora,
                 modalidad
               )
             `,
             )
-            .gte('sesiones.fecha_inicio', primerDia)
-            .lte('sesiones.fecha_inicio', ultimoDia + 'T23:59:59')
+            .gte('sesiones.fecha', primerDia)
+            .lte('sesiones.fecha', ultimoDia)
             .eq('estado', 'activa');
 
           if (error) {
@@ -274,14 +282,15 @@ export class CalendarioComponent implements OnInit {
                 usuario_id,
                 estado,
                 sesiones!inner (
-                  fecha_inicio,
+                  fecha,
+                  hora,
                   modalidad
                 )
               `,
               )
               .eq('usuario_id', uid)
-              .gte('sesiones.fecha_inicio', primerDia)
-              .lte('sesiones.fecha_inicio', ultimoDia + 'T23:59:59')
+              .gte('sesiones.fecha', primerDia)
+              .lte('sesiones.fecha', ultimoDia)
               .eq('estado', 'activa');
 
             if (error) {
@@ -317,12 +326,19 @@ export class CalendarioComponent implements OnInit {
   ): DiaCalendario[] {
     const dias: DiaCalendario[] = [];
 
-    // Obtener información del mes
-    const primerDia = new Date(anio, mes - 1, 1); // Primer día del mes
-    const ultimoDiaMes = new Date(anio, mes, 0).getDate(); // Último día del mes (0 = último día del mes anterior)
-    const primerDiaSemana = primerDia.getDay(); // 0=Dom, 1=Lun, etc
+    // Obtener información del mes usando Date con parámetros numéricos (evita problemas de zona horaria)
+    const primerDiaDelMes = new Date(anio, mes - 1, 1);
+    const ultimoDiaMes = new Date(anio, mes, 0).getDate(); // Último día del mes
 
-    const hoy = new Date().toISOString().split('T')[0];
+    // getDay() devuelve 0=Dom, 1=Lun, etc. Convertimos a 0=Lun, 1=Mar, etc.
+    let primerDiaSemana = primerDiaDelMes.getDay();
+    // Convertir: Dom(0)->6, Lun(1)->0, Mar(2)->1, etc.
+    primerDiaSemana = primerDiaSemana === 0 ? 6 : primerDiaSemana - 1;
+
+    // Fecha de hoy para comparar
+    const hoyDate = new Date();
+    const hoy = `${hoyDate.getFullYear()}-${(hoyDate.getMonth() + 1).toString().padStart(2, '0')}-${hoyDate.getDate().toString().padStart(2, '0')}`;
+    
     const mesAbierto = this.mesAgenda()?.abierto ?? false;
     const userId = this.userId();
 
@@ -332,8 +348,8 @@ export class CalendarioComponent implements OnInit {
       if (!r.sesiones || r.sesiones.length === 0) return;
 
       const sesion = r.sesiones[0];
-      const fecha = sesion.fecha_inicio.split('T')[0];
-      const hora = sesion.fecha_inicio.split('T')[1].substring(0, 5);
+      const fecha = sesion.fecha;
+      const hora = sesion.hora.substring(0, 5);
 
       const reserva: ReservaCalendario = {
         id: r.id,
@@ -352,24 +368,25 @@ export class CalendarioComponent implements OnInit {
       reservasPorFecha.get(fecha)!.push(reserva);
     });
 
-    // Días del mes anterior para completar primera semana (si el mes no empieza en domingo)
+    // Días del mes anterior para completar primera semana
     if (primerDiaSemana > 0) {
       const mesAnterior = mes === 1 ? 12 : mes - 1;
       const anioAnterior = mes === 1 ? anio - 1 : anio;
       const ultimoDiaMesAnterior = new Date(anio, mes - 1, 0).getDate();
 
-      for (
-        let dia = ultimoDiaMesAnterior - primerDiaSemana + 1;
-        dia <= ultimoDiaMesAnterior;
-        dia++
-      ) {
+      for (let i = primerDiaSemana - 1; i >= 0; i--) {
+        const dia = ultimoDiaMesAnterior - i;
         const fecha = `${anioAnterior}-${mesAnterior.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
-        const fechaObj = new Date(fecha);
+        
+        // Calcular día de la semana usando Date con parámetros numéricos
+        const fechaObj = new Date(anioAnterior, mesAnterior - 1, dia);
+        let diaSemana = fechaObj.getDay();
+        diaSemana = diaSemana === 0 ? 6 : diaSemana - 1; // Convertir a formato Lun=0
 
         dias.push({
           fecha,
           dia,
-          diaSemana: fechaObj.getDay(),
+          diaSemana,
           esDelMes: false,
           esHoy: false,
           esLaborable: false,
@@ -383,9 +400,15 @@ export class CalendarioComponent implements OnInit {
     // Días del mes actual
     for (let dia = 1; dia <= ultimoDiaMes; dia++) {
       const fecha = `${anio}-${mes.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
-      const fechaObj = new Date(fecha);
-      const diaSemana = fechaObj.getDay(); // 0=Dom, 1=Lun, ..., 6=Sáb
-      const esLaborable = diaSemana >= 1 && diaSemana <= 5; // Lunes a Viernes
+      
+      // Usar Date con parámetros numéricos para evitar problemas de zona horaria
+      const fechaObj = new Date(anio, mes - 1, dia);
+      let diaSemana = fechaObj.getDay();
+      // Convertir: Dom(0)->6, Lun(1)->0, Mar(2)->1, etc.
+      diaSemana = diaSemana === 0 ? 6 : diaSemana - 1;
+      
+      // Laborable: Lun(0) a Vie(4)
+      const esLaborable = diaSemana >= 0 && diaSemana <= 4;
       const esFestivo = festivos.has(fecha);
 
       dias.push({
@@ -401,7 +424,7 @@ export class CalendarioComponent implements OnInit {
       });
     }
 
-    // Días del mes siguiente para completar última semana (hasta el sábado)
+    // Días del mes siguiente para completar última semana
     const totalDias = dias.length;
     const diasFaltantes = totalDias % 7 === 0 ? 0 : 7 - (totalDias % 7);
 
@@ -411,12 +434,15 @@ export class CalendarioComponent implements OnInit {
 
       for (let dia = 1; dia <= diasFaltantes; dia++) {
         const fecha = `${anioSiguiente}-${mesSiguiente.toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
-        const fechaObj = new Date(fecha);
+        
+        const fechaObj = new Date(anioSiguiente, mesSiguiente - 1, dia);
+        let diaSemana = fechaObj.getDay();
+        diaSemana = diaSemana === 0 ? 6 : diaSemana - 1;
 
         dias.push({
           fecha,
           dia,
-          diaSemana: fechaObj.getDay(),
+          diaSemana,
           esDelMes: false,
           esHoy: false,
           esLaborable: false,
@@ -507,7 +533,8 @@ export class CalendarioComponent implements OnInit {
       const client = supabase();
 
       const primerDia = `${anio}-${mes.toString().padStart(2, '0')}-01`;
-      const ultimoDia = new Date(anio, mes, 0).toISOString().split('T')[0];
+      const ultimoDiaMes = new Date(anio, mes, 0).getDate();
+      const ultimoDia = `${anio}-${mes.toString().padStart(2, '0')}-${ultimoDiaMes.toString().padStart(2, '0')}`;
 
       const { error: deleteError } = await client
         .from('festivos')
@@ -652,7 +679,7 @@ export class CalendarioComponent implements OnInit {
     if (!dia.esDelMes) clases.push('dia-celda--otro-mes');
     if (dia.esHoy) clases.push('dia-celda--hoy');
 
-    // Fin de semana o festivo = bloqueado
+    // Fin de semana (Sáb=5, Dom=6) o festivo = bloqueado
     if (!dia.esLaborable && dia.esDelMes) clases.push('dia-celda--bloqueado');
 
     if (dia.esDelMes && dia.esLaborable) {
@@ -661,7 +688,6 @@ export class CalendarioComponent implements OnInit {
           clases.push('dia-celda--festivo-seleccionado');
         }
       } else {
-        // MOSTRAR FESTIVOS COMO BLOQUEADOS PARA CLIENTES TAMBIÉN
         if (dia.esFestivo) clases.push('dia-celda--festivo');
       }
     }
@@ -688,7 +714,7 @@ export class CalendarioComponent implements OnInit {
 
     try {
       const client = supabase();
-      const hoy = new Date().toISOString();
+      const hoy = new Date().toISOString().split('T')[0];
 
       // Cargar reservas futuras del usuario
       const { data, error } = await client
@@ -699,15 +725,16 @@ export class CalendarioComponent implements OnInit {
           sesion_id,
           es_recuperacion,
           sesiones!inner (
-            fecha_inicio,
+            fecha,
+            hora,
             modalidad
           )
         `,
         )
         .eq('usuario_id', uid)
         .eq('estado', 'activa')
-        .gte('sesiones.fecha_inicio', hoy)
-        .order('sesiones(fecha_inicio)', { ascending: true });
+        .gte('sesiones.fecha', hoy)
+        .order('sesiones(fecha)', { ascending: true });
 
       if (error) {
         console.error('Error cargando reservas:', error);
@@ -718,27 +745,24 @@ export class CalendarioComponent implements OnInit {
 
       const reservas: ReservaLista[] = (data || []).map((r: ReservaDBLista) => {
         const sesion = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
-        const fechaInicio = new Date(sesion.fecha_inicio);
+        const fechaObj = new Date(sesion.fecha + 'T' + sesion.hora);
         const ahora = new Date();
-        const horasHastaClase = (fechaInicio.getTime() - ahora.getTime()) / (1000 * 60 * 60);
+        const horasHastaClase = (fechaObj.getTime() - ahora.getTime()) / (1000 * 60 * 60);
 
         return {
           id: r.id,
           sesion_id: r.sesion_id,
-          fecha: fechaInicio.toLocaleDateString('es-ES', {
+          fecha: fechaObj.toLocaleDateString('es-ES', {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
             year: 'numeric',
           }),
-          hora: fechaInicio.toLocaleTimeString('es-ES', {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
+          hora: sesion.hora.substring(0, 5),
           modalidad: sesion.modalidad as 'focus' | 'reducido',
-          dia_nombre: fechaInicio.toLocaleDateString('es-ES', { weekday: 'long' }),
+          dia_nombre: fechaObj.toLocaleDateString('es-ES', { weekday: 'long' }),
           es_recuperacion: r.es_recuperacion || false,
-          puede_cancelar: horasHastaClase >= 1, // Puede cancelar si faltan más de 1 hora
+          puede_cancelar: horasHastaClase >= 1,
         };
       });
 
@@ -778,7 +802,6 @@ export class CalendarioComponent implements OnInit {
         const resultado = data[0];
         if (resultado.ok) {
           this.mensajeExito.set(resultado.mensaje);
-          // Recargar lista
           await this.cargarReservasLista();
         } else {
           this.error.set(resultado.mensaje);
@@ -791,6 +814,7 @@ export class CalendarioComponent implements OnInit {
       this.guardando.set(false);
     }
   }
+
   volver() {
     this.router.navigateByUrl('/dashboard');
   }

@@ -113,6 +113,7 @@ export class AuthService {
     this.usuarioActual.set(null);
   }
 
+  // Crear usuario básico (solo datos de autenticación)
   async crearUsuario(datos: {
     telefono: string;
     password: string;
@@ -160,63 +161,6 @@ export class AuthService {
     } catch (error) {
       console.error('Error:', error);
       return { success: false, error: 'Error inesperado al crear usuario' };
-    }
-  }
-
-  // Crear usuario con plan - SOPORTA PLAN ESPECIAL
-  async crearUsuarioConPlan(datos: {
-    telefono: string;
-    password: string;
-    nombre: string;
-    rol?: string;
-    tipoGrupo: string;
-    clasesFocus: number;
-    clasesReducido: number;
-    tipoCuota: string;
-    sesionesFijasFocus?: number;
-    sesionesFijasReducido?: number;
-  }): Promise<{ success: boolean; error?: string; userId?: string }> {
-    try {
-      const resultado = await this.crearUsuario({
-        telefono: datos.telefono,
-        password: datos.password,
-        nombre: datos.nombre,
-        rol: datos.rol,
-      });
-
-      if (!resultado.success || !resultado.userId) {
-        return resultado;
-      }
-
-      const planData: Record<string, unknown> = {
-        usuario_id: resultado.userId,
-        tipo_grupo: datos.tipoGrupo,
-        tipo_cuota: datos.tipoCuota,
-        activo: true,
-      };
-
-      if (datos.tipoGrupo === 'especial') {
-        planData['clases_focus_semana'] = 0;
-        planData['clases_reducido_semana'] = 0;
-        planData['sesiones_fijas_mes_focus'] = datos.sesionesFijasFocus || 0;
-        planData['sesiones_fijas_mes_reducido'] = datos.sesionesFijasReducido || 0;
-      } else {
-        planData['clases_focus_semana'] = datos.clasesFocus;
-        planData['clases_reducido_semana'] = datos.clasesReducido;
-        planData['sesiones_fijas_mes_focus'] = null;
-        planData['sesiones_fijas_mes_reducido'] = null;
-      }
-
-      const { error: planError } = await supabase().from('plan_usuario').insert(planData);
-
-      if (planError) {
-        console.error('Error creando plan:', planError);
-      }
-
-      return { success: true, userId: resultado.userId };
-    } catch (error) {
-      console.error('Error:', error);
-      return { success: false, error: 'Error inesperado' };
     }
   }
 

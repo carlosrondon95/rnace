@@ -12,7 +12,7 @@
 
   <!-- Error global -->
   @if (error()) {
-    <div class="mensaje-error">
+    <div class="mensaje-error" role="alert">
       <span class="material-symbols-rounded">error</span>
       {{ error() }}
     </div>
@@ -33,6 +33,7 @@
         <span class="material-symbols-rounded search-icon">search</span>
         <input
           type="text"
+          id="busqueda-usuarios"
           class="input-busqueda"
           placeholder="Buscar por nombre o teléfono..."
           [value]="busqueda()"
@@ -49,8 +50,9 @@
     <!-- Filtros -->
     <div class="filtros-bar">
       <div class="filtro-group">
-        <label class="filtro-label">Grupo:</label>
+        <label class="filtro-label" for="filtro-grupo">Grupo:</label>
         <select
+          id="filtro-grupo"
           class="filtro-select"
           [value]="filtros().tipoGrupo"
           (change)="actualizarFiltro('tipoGrupo', $any($event.target).value)"
@@ -64,8 +66,9 @@
       </div>
 
       <div class="filtro-group">
-        <label class="filtro-label">Rol:</label>
+        <label class="filtro-label" for="filtro-rol">Rol:</label>
         <select
+          id="filtro-rol"
           class="filtro-select"
           [value]="filtros().rol"
           (change)="actualizarFiltro('rol', $any($event.target).value)"
@@ -78,8 +81,9 @@
       </div>
 
       <div class="filtro-group">
-        <label class="filtro-label">Estado:</label>
+        <label class="filtro-label" for="filtro-estado">Estado:</label>
         <select
+          id="filtro-estado"
           class="filtro-select"
           [value]="filtros().activo"
           (change)="actualizarFiltro('activo', $any($event.target).value)"
@@ -138,17 +142,17 @@
           </div>
 
           <div class="usuario-acciones">
-            <button
-              class="btn-accion btn-editar"
-              (click)="abrirModalEditar(usuario)"
-              title="Editar"
+            <button 
+              class="btn-accion btn-editar" 
+              (click)="abrirModalEditar(usuario)" 
+              [attr.aria-label]="'Editar usuario ' + usuario.nombre"
             >
               <span class="material-symbols-rounded">edit</span>
             </button>
             <button
               class="btn-accion btn-eliminar"
               (click)="abrirModalEliminar(usuario)"
-              title="Eliminar"
+              [attr.aria-label]="'Eliminar usuario ' + usuario.nombre"
             >
               <span class="material-symbols-rounded">delete</span>
             </button>
@@ -166,13 +170,13 @@
 
 <!-- Modal Crear/Editar Usuario -->
 @if (mostrarModal()) {
-  <div class="modal-overlay" role="dialog" aria-modal="true">
-    <div class="modal-backdrop" (click)="cerrarModal()"></div>
+  <div class="modal-overlay" role="dialog" aria-modal="true" [attr.aria-label]="modoEdicion() ? 'Editar usuario' : 'Nuevo usuario'">
+    <div class="modal-backdrop" (click)="cerrarModal()" (keydown.enter)="cerrarModal()" tabindex="0" role="button" aria-label="Cerrar modal"></div>
 
     <div class="modal-content modal-grande">
       <div class="modal-header">
         <h2>{{ modoEdicion() ? 'Editar Usuario' : 'Nuevo Usuario' }}</h2>
-        <button class="btn-cerrar" (click)="cerrarModal()">
+        <button class="btn-cerrar" (click)="cerrarModal()" aria-label="Cerrar">
           <span class="material-symbols-rounded">close</span>
         </button>
       </div>
@@ -180,14 +184,14 @@
       <div class="modal-body">
         <!-- Mensajes -->
         @if (errorModal()) {
-          <div class="mensaje-error-modal">
+          <div class="mensaje-error-modal" role="alert">
             <span class="material-symbols-rounded">error</span>
             {{ errorModal() }}
           </div>
         }
 
         @if (exitoModal()) {
-          <div class="mensaje-exito-modal">
+          <div class="mensaje-exito-modal" role="status">
             <span class="material-symbols-rounded">check_circle</span>
             {{ exitoModal() }}
           </div>
@@ -199,9 +203,10 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Nombre *</label>
+              <label class="form-label" for="input-nombre">Nombre *</label>
               <input
                 type="text"
+                id="input-nombre"
                 class="form-input"
                 placeholder="Nombre"
                 [value]="formulario().nombre"
@@ -209,9 +214,10 @@
               />
             </div>
             <div class="form-group">
-              <label class="form-label">Apellidos</label>
+              <label class="form-label" for="input-apellidos">Apellidos</label>
               <input
                 type="text"
+                id="input-apellidos"
                 class="form-input"
                 placeholder="Apellidos"
                 [value]="formulario().apellidos"
@@ -222,9 +228,10 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Teléfono *</label>
+              <label class="form-label" for="input-telefono">Teléfono *</label>
               <input
                 type="tel"
+                id="input-telefono"
                 class="form-input"
                 placeholder="666123456"
                 [value]="formulario().telefono"
@@ -232,8 +239,9 @@
               />
             </div>
             <div class="form-group">
-              <label class="form-label">Rol *</label>
+              <label class="form-label" for="select-rol">Rol *</label>
               <select
+                id="select-rol"
                 class="form-select"
                 [value]="formulario().rol"
                 (change)="actualizarCampo('rol', $any($event.target).value)"
@@ -253,9 +261,11 @@
           </h3>
 
           <div class="password-row">
-            <div class="form-group grow">
+            <div class="form-group flex-grow">
+              <label class="form-label visually-hidden" for="input-password">Contraseña</label>
               <input
                 type="text"
+                id="input-password"
                 class="form-input"
                 placeholder="Contraseña (mín. 6 caracteres)"
                 [value]="formulario().password"
@@ -272,6 +282,7 @@
                 class="btn-copiar"
                 [class.copiada]="passwordCopiada()"
                 (click)="copiarPassword()"
+                [attr.aria-label]="passwordCopiada() ? 'Copiada' : 'Copiar contraseña'"
               >
                 <span class="material-symbols-rounded">
                   {{ passwordCopiada() ? 'check' : 'content_copy' }}
@@ -287,8 +298,9 @@
             <h3 class="section-title">Plan y horarios fijos</h3>
 
             <div class="form-group">
-              <label class="form-label">Tipo de grupo *</label>
+              <label class="form-label" for="select-tipo-grupo">Tipo de grupo *</label>
               <select
+                id="select-tipo-grupo"
                 class="form-select"
                 [value]="formulario().tipoGrupo"
                 (change)="actualizarCampo('tipoGrupo', $any($event.target).value)"
@@ -301,12 +313,12 @@
 
             <!-- Selector de horarios -->
             <div class="horarios-selector">
-              <label class="form-label">Horarios fijos *</label>
+              <span class="form-label" id="horarios-label">Horarios fijos *</span>
               <p class="horarios-help">
                 Selecciona los días y horas en que el alumno asistirá regularmente
               </p>
 
-              <div class="horarios-grid">
+              <div class="horarios-grid" role="group" aria-labelledby="horarios-label">
                 @for (dia of horariosParaMostrar(); track dia.dia) {
                   <div class="dia-column">
                     <div class="dia-header">{{ dia.diaNombre }}</div>
@@ -319,15 +331,12 @@
                           [class.chip-focus]="horario.modalidad === 'focus'"
                           [class.chip-reducido]="horario.modalidad === 'reducido'"
                           (click)="toggleHorario(horario.id)"
+                          [attr.aria-pressed]="isHorarioSeleccionado(horario.id)"
+                          [attr.aria-label]="dia.diaNombre + ' ' + formatHora(horario.hora) + ' ' + horario.modalidad"
                         >
                           <span class="horario-hora">{{ formatHora(horario.hora) }}</span>
-                          @if (
-                            formulario().tipoGrupo === 'hibrido' ||
-                            formulario().tipoGrupo === 'especial'
-                          ) {
-                            <span class="horario-tipo">{{
-                              horario.modalidad === 'focus' ? 'F' : 'R'
-                            }}</span>
+                          @if (formulario().tipoGrupo === 'hibrido' || formulario().tipoGrupo === 'especial') {
+                            <span class="horario-tipo">{{ horario.modalidad === 'focus' ? 'F' : 'R' }}</span>
                           }
                         </button>
                       }
@@ -351,12 +360,12 @@
             <div class="form-check">
               <input
                 type="checkbox"
-                id="activo"
+                id="check-activo"
                 class="check-input"
                 [checked]="formulario().activo"
                 (change)="actualizarCampo('activo', $any($event.target).checked)"
               />
-              <label for="activo" class="check-label">Usuario activo</label>
+              <label for="check-activo" class="check-label">Usuario activo</label>
             </div>
           </div>
         }
@@ -386,13 +395,13 @@
 
 <!-- Modal Eliminar -->
 @if (mostrarModalEliminar()) {
-  <div class="modal-overlay modal-danger" role="dialog" aria-modal="true">
-    <div class="modal-backdrop" (click)="cerrarModalEliminar()"></div>
+  <div class="modal-overlay modal-danger" role="alertdialog" aria-modal="true" aria-labelledby="eliminar-titulo">
+    <div class="modal-backdrop" (click)="cerrarModalEliminar()" (keydown.enter)="cerrarModalEliminar()" tabindex="0" role="button" aria-label="Cerrar"></div>
 
     <div class="modal-content modal-pequeño">
       <div class="modal-header modal-header-danger">
-        <h2>Eliminar Usuario</h2>
-        <button class="btn-cerrar" (click)="cerrarModalEliminar()">
+        <h2 id="eliminar-titulo">Eliminar Usuario</h2>
+        <button class="btn-cerrar" (click)="cerrarModalEliminar()" aria-label="Cerrar">
           <span class="material-symbols-rounded">close</span>
         </button>
       </div>
@@ -401,8 +410,7 @@
         <div class="eliminar-warning">
           <span class="material-symbols-rounded warning-icon">warning</span>
           <p>
-            ¿Estás seguro de eliminar a <strong>{{ usuarioAEliminar()?.nombre }}</strong
-            >?
+            ¿Estás seguro de eliminar a <strong>{{ usuarioAEliminar()?.nombre }}</strong>?
           </p>
           <p class="warning-sub">
             Se eliminarán todas sus reservas y datos asociados. Esta acción no se puede deshacer.
