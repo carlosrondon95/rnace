@@ -5,7 +5,7 @@
   display: block;
   min-height: 100vh;
   background: var(--color-bg-main);
-  padding: var(--navbar-height) var(--space-md) calc(var(--space-xl) + 140px);
+  padding: var(--navbar-height) var(--space-md) var(--space-xl);
 }
 
 .reserva-page {
@@ -408,32 +408,33 @@
 // Columna de día
 .dia-col {
   background: var(--color-bg-elevated);
-  padding: var(--space-sm);
+  padding: var(--space-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  min-height: 120px;
+  min-height: 130px;
 
   .dia-header {
     text-align: center;
     padding-bottom: var(--space-sm);
-    border-bottom: 1px solid var(--color-border);
+    margin-bottom: var(--space-xs);
 
     .dia-nombre {
       display: block;
-      font-size: var(--font-size-xs);
+      font-size: 10px;
       font-weight: 600;
-      color: var(--color-text-primary);
+      color: var(--color-text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 2px;
+      letter-spacing: 0.8px;
+      margin-bottom: 4px;
     }
 
     .dia-fecha {
       display: block;
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-lg);
       font-weight: 700;
       color: var(--color-text-primary);
+      line-height: 1.2;
     }
   }
 
@@ -443,9 +444,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-md);
     min-height: 60px;
+    border: 1px dashed var(--color-border);
 
     span {
       font-size: var(--font-size-xs);
@@ -457,14 +459,14 @@
   .dia-slots {
     display: flex;
     flex-direction: column;
-    gap: var(--space-xs);
+    gap: 6px;
   }
 }
 
-// Botones de slot
+// Botones de slot (horas)
 .slot-btn {
   width: 100%;
-  padding: var(--space-sm);
+  padding: 10px var(--space-sm);
   border: 1px solid;
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
@@ -473,71 +475,93 @@
   transition: all var(--transition-fast);
   text-align: center;
   position: relative;
+  background: var(--color-bg-main);
 
   .slot-hora {
     display: block;
-    font-weight: 600;
+    font-weight: 700;
+    font-size: var(--font-size-md);
+    line-height: 1.2;
   }
 
   .slot-plazas {
     display: block;
     font-size: 10px;
-    font-weight: 400;
-    opacity: 0.8;
+    font-weight: 500;
+    margin-top: 2px;
+    opacity: 0.85;
   }
 
-  // Estados (coinciden con getEstadoClase)
-  // 'disponible'
-  &.disponible {
-    background: rgba(74, 222, 128, 0.1);
-    border-color: rgba(74, 222, 128, 0.3);
+  // Estado: Disponible
+  &.slot-btn--disponible {
+    background: rgba(74, 222, 128, 0.08);
+    border-color: rgba(74, 222, 128, 0.25);
     color: var(--color-success);
 
     &:hover {
-      background: rgba(74, 222, 128, 0.2);
+      background: rgba(74, 222, 128, 0.15);
       border-color: var(--color-success);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(74, 222, 128, 0.2);
     }
   }
 
-  // 'completa'
-  &.completa {
+  // Estado: Completa
+  &.slot-btn--completa {
     background: var(--color-bg-main);
     border-color: var(--color-border);
     color: var(--color-text-muted);
-    cursor: not-allowed;
-    opacity: 0.7;
+
+    &:hover {
+      border-color: var(--color-border-hover);
+      color: var(--color-text-secondary);
+    }
   }
 
-  // 'lista-espera'
-  &.lista-espera {
+  // Estado: En lista de espera
+  &.slot-btn--lista-espera {
     background: rgba(251, 191, 36, 0.1);
-    border-color: rgba(251, 191, 36, 0.3);
+    border-color: rgba(251, 191, 36, 0.4);
     color: var(--color-warning);
 
     &:hover {
-      background: rgba(251, 191, 36, 0.2);
+      background: rgba(251, 191, 36, 0.18);
       border-color: var(--color-warning);
     }
   }
 
-  // 'inscrito'
-  &.inscrito {
-    background: rgba(96, 165, 250, 0.15);
-    border-color: var(--color-info);
-    color: var(--color-info);
-    cursor: default;
+  // Estado: Seleccionada
+  &.slot-btn--selected {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-bg-deep);
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(184, 178, 158, 0.3);
+
+    .slot-hora,
+    .slot-plazas {
+      color: var(--color-bg-deep);
+      opacity: 1;
+    }
   }
 
-  // 'en-espera'
-  &.en-espera {
-    background: rgba(251, 191, 36, 0.15);
-    border-color: var(--color-warning);
-    color: var(--color-warning);
+  // Estado: Pasada
+  &.slot-btn--pasada {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: var(--color-bg-input);
+    border-color: transparent;
+    color: var(--color-text-muted);
   }
 
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  // Active state
+  &:active:not(:disabled):not(.slot-btn--pasada) {
+    transform: scale(0.98);
   }
 }
 
@@ -613,120 +637,255 @@
   }
 }
 
-// Panel de confirmación
-.confirm-panel {
+// Modal de confirmación
+.modal-overlay {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--color-bg-elevated);
-  border-top: 1px solid var(--color-border);
-  padding: var(--space-md);
-  padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom));
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 1000;
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  animation: fadeIn 0.2s ease;
+}
 
-  @media (min-width: 768px) {
-    padding: var(--space-lg);
+.modal-content {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+  animation: scaleIn 0.25s ease;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-main);
+
+  h2 {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+  }
+
+  .btn-cerrar-modal {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-xl);
-  }
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
 
-  .confirm-info {
-    margin-bottom: var(--space-md);
-
-    @media (min-width: 768px) {
-      margin-bottom: 0;
-      flex: 1;
-    }
-
-    .confirm-title {
-      font-size: var(--font-size-xs);
-      color: var(--color-text-muted);
-      margin: 0 0 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .confirm-detail {
-      font-size: var(--font-size-md);
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--color-border);
       color: var(--color-text-primary);
-      margin: 0 0 4px;
-
-      strong {
-        color: var(--color-accent);
-      }
     }
 
-    .confirm-estado {
-      margin: 0;
-      font-size: var(--font-size-sm);
+    .material-symbols-rounded {
+      font-size: 1.2rem;
+    }
+  }
+}
 
-      .estado-disponible {
-        color: var(--color-success);
-      }
+.modal-body {
+  padding: var(--space-lg);
+}
 
-      .estado-completa {
-        color: var(--color-text-muted);
-      }
+.sesion-seleccionada {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+
+  .sesion-icono {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+
+    .material-symbols-rounded {
+      font-size: 1.5rem;
+    }
+
+    &.icono-focus {
+      background: var(--color-focus-soft);
+      color: var(--color-focus);
+    }
+
+    &.icono-reducido {
+      background: var(--color-reducido-soft);
+      color: var(--color-reducido);
     }
   }
 
-  .confirm-actions {
+  .sesion-detalles {
     display: flex;
-    gap: var(--space-md);
+    flex-direction: column;
+    gap: 2px;
 
-    button {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: var(--space-sm);
-      padding: 0.8rem 1.5rem;
-      border-radius: var(--radius-md);
+    .sesion-modalidad {
+      font-size: var(--font-size-sm);
       font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: all 0.2s;
+      color: var(--color-text-primary);
+    }
 
-      .material-symbols-rounded {
-        font-size: 1.2rem;
-      }
+    .sesion-fecha {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-secondary);
+    }
 
-      &.btn-confirm {
-        background: var(--color-accent);
-        color: var(--color-bg-deep);
+    .sesion-hora {
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+      color: var(--color-accent);
+    }
+  }
+}
 
-        &:hover:not(:disabled) {
-          background: var(--color-accent-hover);
-        }
-      }
+.sesion-estado {
+  .estado-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
 
-      &.btn-lista-espera {
-        background: var(--color-warning);
-        color: var(--color-bg-deep);
-      }
+    .material-symbols-rounded {
+      font-size: 1.1rem;
+    }
 
-      &.btn-quitar-espera {
-        background: transparent;
-        border: 1px solid var(--color-warning);
-        color: var(--color-warning);
-      }
+    &.estado-disponible {
+      background: var(--color-success-soft);
+      color: var(--color-success);
+      border: 1px solid var(--color-success-border);
+    }
 
-      &.btn-disabled {
-        background: var(--color-bg-main);
-        color: var(--color-text-muted);
-        cursor: not-allowed;
-      }
+    &.estado-completa {
+      background: var(--color-bg-main);
+      color: var(--color-text-muted);
+      border: 1px solid var(--color-border);
+    }
+  }
+}
 
-      &:disabled {
-        opacity: 0.6;
-        cursor: wait;
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+
+  .btn-accion {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: 0.9rem 1.5rem;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    .material-symbols-rounded {
+      font-size: 1.2rem;
+    }
+
+    &.btn-primario {
+      background: var(--color-accent);
+      color: var(--color-bg-deep);
+
+      &:hover:not(:disabled) {
+        background: var(--color-accent-hover);
+        transform: translateY(-1px);
       }
     }
+
+    &.btn-espera {
+      background: var(--color-warning);
+      color: var(--color-bg-deep);
+
+      &:hover:not(:disabled) {
+        filter: brightness(1.1);
+      }
+    }
+
+    &.btn-quitar-espera {
+      background: transparent;
+      border: 1px solid var(--color-warning);
+      color: var(--color-warning);
+
+      &:hover:not(:disabled) {
+        background: rgba(251, 191, 36, 0.1);
+      }
+    }
+
+    &.btn-deshabilitado {
+      background: var(--color-bg-main);
+      color: var(--color-text-muted);
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    &.btn-cancelar {
+      background: transparent;
+      color: var(--color-text-secondary);
+
+      &:hover {
+        color: var(--color-text-primary);
+        background: rgba(255, 255, 255, 0.05);
+      }
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

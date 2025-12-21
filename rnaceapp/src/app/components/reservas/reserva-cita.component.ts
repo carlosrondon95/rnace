@@ -514,6 +514,18 @@ export class ReservaCitaComponent implements OnInit {
     return false;
   }
 
+  // Modal methods
+  deseleccionarSesion() {
+    this.sesionSeleccionada.set(null);
+  }
+
+  cerrarModal(event: MouseEvent) {
+    // Solo cerrar si se hace click en el overlay, no en el contenido
+    if (event.target === event.currentTarget) {
+      this.deseleccionarSesion();
+    }
+  }
+
   volver() {
     this.router.navigateByUrl('/dashboard');
   }

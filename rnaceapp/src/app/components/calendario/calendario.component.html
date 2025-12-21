@@ -159,8 +159,8 @@
       <!-- Celdas de días (solo L-V) -->
       @for (dia of diasCalendarioLaborables(); track dia.fecha) {
       <button type="button" [class]="getDiaClases(dia)"
-        [class.clickable]="(modoEdicion() && dia.esDelMes && dia.esLaborable) || (esAdmin() && !modoEdicion() && dia.reservas.length > 0)"
-        [disabled]="!((modoEdicion() && dia.esDelMes && dia.esLaborable) || (esAdmin() && !modoEdicion() && dia.reservas.length > 0))"
+        [class.clickable]="(modoEdicion() && dia.esDelMes && dia.esLaborable) || (!modoEdicion() && dia.reservas.length > 0)"
+        [disabled]="!((modoEdicion() && dia.esDelMes && dia.esLaborable) || (!modoEdicion() && dia.reservas.length > 0))"
         [attr.aria-label]="'Día ' + dia.dia + (dia.esFestivo ? ' - Festivo' : '')" (click)="onClickDia(dia)">
         <!-- Número del día -->
         <div class="dia-numero">
@@ -204,10 +204,6 @@
         <span class="leyenda-color leyenda-hoy"></span>
         <span>Hoy</span>
       </div>
-      <div class="leyenda-item">
-        <span class="leyenda-color leyenda-bloqueado"></span>
-        <span>Fin de semana</span>
-      </div>
       @if (!modoEdicion()) {
       <div class="leyenda-item">
         <span class="leyenda-color leyenda-festivo"></span>
@@ -237,32 +233,139 @@
     <div class="modal-overlay" (click)="cerrarDetalleDia()">
       <div class="modal-detalle-dia" (click)="$event.stopPropagation()">
         <header class="modal-header">
-          <h3>Reservas del día {{ diaSeleccionado()!.dia }}</h3>
-          <button class="btn-cerrar" (click)="cerrarDetalleDia()">
+          <button class="btn-cerrar" (click)="cerrarDetalleDia()" aria-label="Cerrar">
             <span class="material-symbols-rounded">close</span>
           </button>
+          <h3>{{ esAdmin() ? 'Reservas del día' : 'Tu clase del día' }} {{ diaSeleccionado()!.dia }}</h3>
         </header>
+
         <div class="modal-content">
+          @if (cargando()) {
+          <div class="loading-state">
+            <span class="spinner-small"></span>
+            <p>Cargando disponibilidad...</p>
+          </div>
+          } @else {
+          @if (esAdmin()) {
+          <!-- VISTA ADMIN: Lista de reservas existentes -->
           @if (reservasDiaSeleccionadoOrdenadas().length > 0) {
           <div class="lista-reservas-detalle">
             @for (reserva of reservasDiaSeleccionadoOrdenadas(); track reserva.id) {
-            <div class="reserva-detalle-row" [class.reserva-focus]="reserva.modalidad === 'focus'"
+            <div class="reserva-detalle-card" [class.reserva-focus]="reserva.modalidad === 'focus'"
               [class.reserva-reducido]="reserva.modalidad === 'reducido'">
-              <div class="hora-tag">{{ reserva.hora }}</div>
-              <div class="info-main">
-                <span class="usuario-nombre">{{ reserva.usuario_nombre }}</span>
-                @if (reserva.usuario_telefono) {
-                <span class="usuario-telefono">{{ reserva.usuario_telefono }}</span>
-                }
-              </div>
-              <div class="modalidad-badge">
-                {{ reserva.modalidad | titlecase }}
+
+              <div class="reserva-contenido">
+                <div class="reserva-hora-destacada">{{ reserva.hora }}</div>
+
+                <div class="reserva-tipo-grupo">
+                  <span class="modalidad-icono material-symbols-rounded">
+                    {{ reserva.modalidad === 'focus' ? 'fitness_center' : 'groups' }}
+                  </span>
+                  <span class="modalidad-nombre">Grupo {{ reserva.modalidad === 'focus' ? 'Focus' : 'Reducido' }}</span>
+                </div>
+
+                <div class="reserva-usuario-info">
+                  <span class="usuario-nombre">{{ reserva.usuario_nombre }}</span>
+                  @if (reserva.usuario_telefono) {
+                  <span class="usuario-telefono">{{ reserva.usuario_telefono }}</span>
+                  }
+                </div>
               </div>
             </div>
             }
           </div>
           } @else {
           <p class="no-reservas">No hay reservas para este día.</p>
+          }
+          } @else {
+          <!-- VISTA CLIENTE: Todas las sesiones del día con opciones -->
+          <h3>Sesiones del día</h3>
+          @if (sesionesDiaSeleccionado().length > 0) {
+          <div class="lista-reservas-detalle">
+            @for (sesion of sesionesDiaSeleccionado(); track sesion.id) {
+            <div class="reserva-detalle-card" [class.reserva-focus]="sesion.modalidad === 'focus'"
+              [class.reserva-reducido]="sesion.modalidad === 'reducido'"
+              [class.sesion-llena]="sesion.plazas_disponibles === 0 && !sesion.tiene_reserva">
+
+              <div class="reserva-contenido">
+                <div class="reserva-hora-destacada">{{ sesion.hora }}</div>
+
+                <div class="reserva-tipo-grupo">
+                  <span class="modalidad-icono material-symbols-rounded">
+                    {{ sesion.modalidad === 'focus' ? 'fitness_center' : 'groups' }}
+                  </span>
+                  <span class="modalidad-nombre">Grupo {{ sesion.modalidad === 'focus' ? 'Focus' : 'Reducido' }}</span>
+                </div>
+
+                <!-- Estado de la sesión -->
+                @if (sesion.tiene_reserva) {
+                <div class="estado-badge estado-tu-reserva">
+                  <span class="material-symbols-rounded">check_circle</span>
+                  Tu clase reservada
+                </div>
+                } @else if (sesion.en_lista_espera) {
+                <div class="estado-badge estado-espera">
+                  <span class="material-symbols-rounded">hourglass_top</span>
+                  En lista de espera
+                </div>
+                } @else if (sesion.plazas_disponibles === 0) {
+                <div class="estado-badge estado-lleno">
+                  <span class="material-symbols-rounded">group_off</span>
+                  Completo
+                </div>
+                } @else {
+                <div class="estado-badge estado-libre">
+                  <span class="material-symbols-rounded">check</span>
+                  {{ sesion.plazas_disponibles }} plazas libres
+                </div>
+                }
+              </div>
+
+              <!-- Acciones -->
+              <div class="reserva-acciones">
+                @if (sesion.tiene_reserva) {
+                <div class="mi-clase-container">
+                  <span class="material-symbols-rounded check-icon">check_circle</span>
+                  <p class="info-texto-destacado">Tienes plaza confirmada</p>
+                </div>
+
+                } @else if (misReservasDelDia().length > 0 && sesion.plazas_disponibles > 0 && !sesion.en_lista_espera)
+                {
+                <!-- Opción de cambio directo -->
+                <button class="btn-cambio-turno" [disabled]="guardando()"
+                  (click)="cambiarTurno(misReservasDelDia()[0].id, sesion.id)">
+                  @if (guardando()) { <span class="spinner-small"></span> }
+                  <span class="material-symbols-rounded">sync_alt</span>
+                  Cambiar por mi clase ({{ misReservasDelDia()[0].hora }})
+                </button>
+
+                } @else if (sesion.en_lista_espera) {
+                <!-- Salir de lista de espera -->
+                <button class="btn-secundario-danger" [disabled]="guardando()" (click)="salirListaEspera(sesion.id)">
+                  @if (guardando()) { <span class="spinner-small"></span> }
+                  Salir de lista de espera
+                </button>
+
+                } @else if (sesion.plazas_disponibles === 0) {
+                <!-- Apuntarse a lista de espera -->
+                <button class="btn-primario-espera" [disabled]="guardando()" (click)="apuntarseListaEspera(sesion.id)">
+                  @if (guardando()) { <span class="spinner-small"></span> }
+                  <span class="material-symbols-rounded">notifications_active</span>
+                  Avísame si hay hueco
+                </button>
+
+                } @else {
+                <!-- Clase disponible (futuro: botón reservar) -->
+                <p class="info-texto-disponible">Clase disponible</p>
+                }
+              </div>
+            </div>
+            }
+          </div>
+          } @else {
+          <p class="no-reservas">No hay sesiones programadas para este día.</p>
+          }
+          }
           }
         </div>
       </div>

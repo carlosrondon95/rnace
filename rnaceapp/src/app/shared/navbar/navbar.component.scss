@@ -38,18 +38,66 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  text-decoration: none;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // Gradiente sutil para más profundidad
+  background: linear-gradient(135deg, var(--color-accent) 0%, #a9a48f 100%);
+  padding: 8px 18px;
+  border-radius: var(--radius-lg); // Más redondeado para mejor flow
+  // Sombra con glow del color accent
+  box-shadow:
+    0 2px 8px rgba(184, 178, 158, 0.25),
+    0 0 20px rgba(184, 178, 158, 0.1);
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+
+  // Efecto de brillo sutil interno
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.15) 50%,
+        transparent 100%);
+    transition: left 0.6s ease;
+  }
 
   &:hover {
-    opacity: 1;
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+      0 6px 16px rgba(184, 178, 158, 0.35),
+      0 0 30px rgba(184, 178, 158, 0.15);
+
+    &::before {
+      left: 100%;
+    }
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.98);
   }
 }
 
 .logo-img {
-  height: 30px;
+  height: 20px;
   width: auto;
+  // Color oscuro para contraste con fondo claro
+  filter: brightness(0) saturate(100%) invert(18%) sepia(8%) saturate(302%) hue-rotate(24deg) brightness(97%) contrast(92%);
+  position: relative;
+  z-index: 1;
 
   @media (min-width: 768px) {
-    height: 34px;
+    height: 24px;
   }
 }
 
@@ -345,6 +393,7 @@
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

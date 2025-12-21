@@ -5,7 +5,11 @@
   display: block;
   min-height: 100vh;
   background: var(--color-bg-main);
-  padding: var(--navbar-height) var(--space-md) calc(var(--space-xl) + 80px);
+  padding: var(--navbar-height) var(--space-sm) calc(var(--space-xl) + 80px);
+
+  @media (min-width: 480px) {
+    padding: var(--navbar-height) var(--space-md) calc(var(--space-xl) + 80px);
+  }
 }
 
 .perfiles-page {

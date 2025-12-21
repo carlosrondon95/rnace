@@ -2,7 +2,7 @@
 // ACTUALIZADO: Usa nuevas funciones del sistema de horarios fijos
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
 
@@ -95,6 +95,21 @@ interface ConflictoCierre {
   numReservas: number;
 }
 
+// Sesiones con disponibilidad para vista de cliente - Actualizado
+interface SesionDia {
+  id: number;
+  hora: string;
+  modalidad: 'focus' | 'reducido';
+  capacidad: number;
+  plazas_ocupadas: number;
+  plazas_disponibles: number;
+  tiene_reserva: boolean;     // El usuario ya tiene reserva aquí
+  mi_reserva_id?: number;     // ID de la reserva si la tiene
+  en_lista_espera: boolean;   // El usuario está en lista de espera
+}
+
+// ...
+
 @Component({
   standalone: true,
   selector: 'app-calendario',
@@ -105,6 +120,7 @@ interface ConflictoCierre {
 export class CalendarioComponent implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   // Estado
   cargando = signal(true);
@@ -135,6 +151,7 @@ export class CalendarioComponent implements OnInit {
 
   // Modal detalle día
   diaSeleccionado = signal<DiaCalendario | null>(null);
+  sesionesDiaSeleccionado = signal<SesionDia[]>([]); // Para vista cliente
 
   reservasDiaSeleccionadoOrdenadas = computed(() => {
     const dia = this.diaSeleccionado();
@@ -178,8 +195,168 @@ export class CalendarioComponent implements OnInit {
     return { focus, reducido };
   });
 
+  // Variable para almacenar las reservas del usuario en el día actual
+  misReservasDelDia = signal<{ id: number; sesion_id: number; hora: string }[]>([]);
+
+  async onClickDia(dia: DiaCalendario) {
+    if (this.modoEdicion()) {
+      this.toggleFestivo(dia);
+      return;
+    }
+    if (this.esAdmin()) {
+      if (dia.reservas.length > 0) this.diaSeleccionado.set(dia);
+      return;
+    }
+    if (dia.esDelMes && dia.esLaborable && !dia.esFestivo) {
+      this.diaSeleccionado.set(dia);
+      await this.cargarSesionesDia(dia.fecha);
+    }
+  }
+
+  async cargarSesionesDia(fecha: string) {
+    const uid = this.userId();
+    if (!uid) return;
+    this.cargando.set(true);
+    try {
+      const { data: sesiones, error } = await supabase()
+        .from('sesiones').select('*').eq('fecha', fecha).eq('cancelada', false).order('hora');
+      if (error) throw error;
+      if (!sesiones || sesiones.length === 0) {
+        this.sesionesDiaSeleccionado.set([]);
+        this.misReservasDelDia.set([]);
+        return;
+      }
+      const { data: espera } = await supabase().from('lista_espera').select('sesion_id').eq('usuario_id', uid).in('sesion_id', sesiones.map(s => s.id));
+      const esperaSet = new Set(espera?.map(e => e.sesion_id) || []);
+      const { data: reservas } = await supabase().from('reservas').select('id, sesion_id, estado').eq('usuario_id', uid).eq('estado', 'activa').in('sesion_id', sesiones.map(s => s.id));
+
+      const reservasMap = new Map();
+      const misReservas: { id: number; sesion_id: number; hora: string }[] = [];
+      if (reservas) {
+        reservas.forEach(r => {
+          reservasMap.set(r.sesion_id, r.id);
+          const s = sesiones.find(ses => ses.id === r.sesion_id);
+          if (s) misReservas.push({ id: r.id, sesion_id: r.sesion_id, hora: s.hora.slice(0, 5) });
+        });
+      }
+      this.misReservasDelDia.set(misReservas);
+
+      const sesionesDia = sesiones.map(s => ({
+        id: s.id, hora: s.hora.slice(0, 5), modalidad: s.modalidad, capacidad: s.capacidad,
+        plazas_ocupadas: 0, plazas_disponibles: 0,
+        tiene_reserva: reservasMap.has(s.id), mi_reserva_id: reservasMap.get(s.id), en_lista_espera: esperaSet.has(s.id)
+      }));
+
+      const { data: disponibilidad } = await supabase().from('vista_sesiones_disponibilidad').select('sesion_id, plazas_ocupadas, plazas_disponibles').in('sesion_id', sesiones.map(s => s.id));
+      if (disponibilidad) {
+        const dispMap = new Map(disponibilidad.map(d => [d.sesion_id, d]));
+        sesionesDia.forEach(s => {
+          const d = dispMap.get(s.id);
+          if (d) { s.plazas_ocupadas = d.plazas_ocupadas; s.plazas_disponibles = d.plazas_disponibles; }
+        });
+      }
+      this.sesionesDiaSeleccionado.set(sesionesDia);
+    } catch (err) { console.error(err); } finally { this.cargando.set(false); }
+  }
+
+  async cambiarTurno(reservaId: number, nuevaSesionId: number) {
+    const uid = this.userId();
+    if (!uid) return;
+    if (!confirm('¿Seguro que quieres cambiar tu clase a este nuevo horario?')) return;
+    this.guardando.set(true);
+
+    try {
+      const { data, error } = await supabase().rpc('cambiar_turno', { p_usuario_id: uid, p_reserva_id: reservaId, p_nueva_sesion_id: nuevaSesionId });
+      if (error) throw error;
+
+      if (data && data[0]?.ok) {
+        this.mensajeExito.set(data[0].mensaje);
+        const dia = this.diaSeleccionado();
+        if (dia) { await this.cargarSesionesDia(dia.fecha); this.cargarCalendario(); }
+      } else { this.error.set(data?.[0]?.mensaje || 'No se pudo cambiar.'); }
+    } catch (err: any) { this.error.set(err.message || 'Error.'); } finally { this.guardando.set(false); }
+  }
+
+  async apuntarseListaEspera(sesionId: number) {
+    const uid = this.userId();
+    if (!uid) return;
+    this.guardando.set(true);
+    try {
+      const { data, error } = await supabase().rpc('apuntarse_lista_espera', { p_usuario_id: uid, p_sesion_id: sesionId });
+      if (error) throw error;
+      if (data && data[0]?.ok) {
+        this.mensajeExito.set(data[0].mensaje);
+        const dia = this.diaSeleccionado();
+        if (dia) await this.cargarSesionesDia(dia.fecha);
+      } else { this.error.set(data?.[0]?.mensaje || 'Error.'); }
+    } catch (err: any) { this.error.set(err.message); } finally { this.guardando.set(false); }
+  }
+
+  async salirListaEspera(sesionId: number) {
+    const uid = this.userId();
+    if (!uid) return;
+    this.guardando.set(true);
+    try {
+      const { data, error } = await supabase().rpc('quitar_lista_espera', { p_usuario_id: uid, p_sesion_id: sesionId });
+      if (error) throw error;
+      if (data && data[0]?.ok) {
+        this.mensajeExito.set(data[0].mensaje);
+        const dia = this.diaSeleccionado();
+        if (dia) await this.cargarSesionesDia(dia.fecha);
+      } else { this.error.set(data?.[0]?.mensaje || 'Error.'); }
+    } catch (err: any) { this.error.set(err.message); } finally { this.guardando.set(false); }
+  }
+
   ngOnInit() {
-    this.cargarCalendario();
+    this.cargarCalendario().then(() => {
+      // Verificar si hay una sesión específica para abrir (desde notificación)
+      this.route.queryParams.subscribe(async params => {
+        const sesionId = params['sesion'];
+        if (sesionId) {
+          await this.abrirDiaDeSesion(Number(sesionId));
+        }
+      });
+    });
+  }
+
+  async abrirDiaDeSesion(sesionId: number) {
+    try {
+      // Obtener fecha de la sesión
+      const { data, error } = await supabase()
+        .from('sesiones')
+        .select('fecha')
+        .eq('id', sesionId)
+        .single();
+
+      if (error || !data) return;
+
+      const fechaSesion = data.fecha;
+      const fechaDate = new Date(fechaSesion);
+
+      // Si la sesión es de otro mes, cambiar mes
+      const anioSesion = fechaDate.getFullYear();
+      const mesSesion = fechaDate.getMonth() + 1;
+
+      // Asumimos que podemos cambiar el mes directamente
+      if (anioSesion !== this.anioActual() || mesSesion !== this.mesActual()) {
+        this.anioActual.set(anioSesion);
+        this.mesActual.set(mesSesion);
+        await this.cargarCalendario();
+      }
+
+      // Encontrar día en el calendario actual
+      // (Esperamos un poco a que se actualice el signal de diasCalendario si cambiamos de mes)
+      // Aunque como cargarCalendario es await, debería estar listo
+      const diaEncontrado = this.diasCalendario().find(d => d.fecha === fechaSesion);
+
+      if (diaEncontrado) {
+        // Abrir el detalle directamente
+        await this.onClickDia(diaEncontrado);
+      }
+
+    } catch (err) {
+      console.warn('Error al intentar abrir sesión directa:', err);
+    }
   }
 
   async cargarCalendario() {
@@ -759,19 +936,13 @@ export class CalendarioComponent implements OnInit {
     return clases.join(' ');
   }
 
-  onClickDia(dia: DiaCalendario) {
-    if (this.modoEdicion()) {
-      this.toggleFestivo(dia);
-    } else {
-      // Mostrar detalle si hay reservas (para admin o cliente)
-      if (dia.reservas.length > 0) {
-        this.diaSeleccionado.set(dia);
-      }
-    }
-  }
+
 
   cerrarDetalleDia() {
     this.diaSeleccionado.set(null);
+    this.sesionesDiaSeleccionado.set([]);
+    this.mensajeExito.set(null);
+    this.error.set(null);
   }
 
   getReservasCount(dia: DiaCalendario, tipo: 'focus' | 'reducido'): number {
@@ -812,6 +983,62 @@ export class CalendarioComponent implements OnInit {
     } catch (err) {
       console.error('Error:', err);
       this.error.set('Error al cancelar la reserva.');
+    } finally {
+      this.guardando.set(false);
+    }
+  }
+
+  // Verifica si una reserva puede ser cancelada (al menos 1 hora antes)
+  puedeCancelar(reserva: ReservaCalendario): boolean {
+    const dia = this.diaSeleccionado();
+    if (!dia) return false;
+
+    const fechaHoraReserva = new Date(`${dia.fecha}T${reserva.hora}:00`);
+    const ahora = new Date();
+    const diferenciaMs = fechaHoraReserva.getTime() - ahora.getTime();
+    const unaHoraMs = 60 * 60 * 1000;
+
+    return diferenciaMs >= unaHoraMs;
+  }
+
+  // Cancelar reserva desde el modal y recargar datos
+  async cancelarReservaDesdeModal(reservaId: number) {
+    if (!confirm('¿Estás seguro de cancelar esta clase? Se generará una recuperación si corresponde.')) {
+      return;
+    }
+
+    this.guardando.set(true);
+    this.error.set(null);
+    this.mensajeExito.set(null);
+
+    try {
+      const uid = this.userId();
+      if (!uid) return;
+
+      const { data, error } = await supabase().rpc('cancelar_reserva', {
+        p_usuario_id: uid,
+        p_reserva_id: reservaId,
+      });
+
+      if (error) {
+        this.error.set('Error al cancelar la clase: ' + error.message);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const resultado = data[0];
+        if (resultado.ok) {
+          this.mensajeExito.set(resultado.mensaje);
+          // Cerrar modal y recargar calendario
+          this.diaSeleccionado.set(null);
+          await this.cargarCalendario();
+        } else {
+          this.error.set(resultado.mensaje);
+        }
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      this.error.set('Error al cancelar la clase.');
     } finally {
       this.guardando.set(false);
     }

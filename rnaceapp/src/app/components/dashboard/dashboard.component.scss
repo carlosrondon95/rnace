@@ -5,7 +5,12 @@
   display: block;
   min-height: 100vh;
   background: var(--color-bg-main);
-  padding: var(--navbar-height) var(--space-md) calc(var(--space-xl) + 80px);
+  /* Padding lateral reducido en móvil para ganar espacio */
+  padding: var(--navbar-height) var(--space-sm) calc(var(--space-xl) + 80px);
+
+  @media (min-width: 480px) {
+    padding: var(--navbar-height) var(--space-md) calc(var(--space-xl) + 80px);
+  }
 }
 
 // ============ CONTENEDOR PRINCIPAL ============
@@ -345,14 +350,14 @@
 // ============ ACTION CARDS ============
 .actions-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
+  /* 1 Columna por defecto (Móvil) */
   gap: var(--space-sm);
   margin-bottom: var(--space-xl);
 
-  &--admin {
-    @media (min-width: 480px) {
-      grid-template-columns: repeat(2, 1fr);
-    }
+  /* Al menos 2 columnas en tablets/desktop */
+  @media (min-width: 600px) {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
