@@ -142,6 +142,15 @@
   /* === Safe Areas (iOS) === */
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* === Responsive Adjustments === */
+  @media (max-width: 480px) {
+    --space-md: 0.75rem;
+    --space-lg: 1rem;
+    --space-xl: 1.5rem;
+    --font-size-2xl: 1.35rem;
+    --font-size-xl: 1.2rem;
+  }
 }
 
 /* ============ RESET & BASE ============ */
