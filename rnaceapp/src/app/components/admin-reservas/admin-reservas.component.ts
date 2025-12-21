@@ -46,8 +46,8 @@ interface ReservaSupabaseResponse {
   sesion_id: number;
   es_recuperacion: boolean;
   sesiones:
-    | { fecha_inicio: string; modalidad: string }
-    | { fecha_inicio: string; modalidad: string }[];
+  | { fecha: string; modalidad: string }
+  | { fecha: string; modalidad: string }[];
 }
 
 @Component({
@@ -165,12 +165,12 @@ export class AdminReservasComponent implements OnInit {
           `
           id,
           usuario_id,
-          sesiones!inner(fecha_inicio)
+          sesiones!inner(fecha)
         `,
         )
         .eq('estado', 'activa')
-        .gte('sesiones.fecha_inicio', inicioMes)
-        .lte('sesiones.fecha_inicio', finMes + 'T23:59:59');
+        .gte('sesiones.fecha', inicioMes)
+        .lte('sesiones.fecha', finMes + 'T23:59:59');
 
       // Mapear usuarios a sus grupos
       const usuarioGrupo = new Map<string, string>();
@@ -269,19 +269,19 @@ export class AdminReservasComponent implements OnInit {
           id,
           sesion_id,
           es_recuperacion,
-          sesiones!inner(fecha_inicio, modalidad)
+          sesiones!inner(fecha, modalidad)
         `,
         )
         .eq('usuario_id', usuario.id)
         .eq('estado', 'activa')
-        .gte('sesiones.fecha_inicio', inicioMes)
-        .lte('sesiones.fecha_inicio', finMes + 'T23:59:59')
-        .order('sesiones(fecha_inicio)', { ascending: true });
+        .gte('sesiones.fecha', inicioMes)
+        .lte('sesiones.fecha', finMes + 'T23:59:59')
+        .order('sesiones(fecha)', { ascending: true });
 
       const reservas: Reserva[] = (data || []).map((r: ReservaSupabaseResponse) => {
         // Supabase con !inner puede devolver objeto o array según la configuración
         const sesion = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
-        const fechaInicio = new Date(sesion.fecha_inicio);
+        const fechaInicio = new Date(sesion.fecha);
         return {
           id: r.id,
           sesion_id: r.sesion_id,
@@ -358,7 +358,8 @@ export class AdminReservasComponent implements OnInit {
       .lte('fecha', finMes)
       .gt('plazas_disponibles', 0)
       .neq('sesion_id', reserva.sesion_id)
-      .order('fecha_inicio', { ascending: true });
+      .order('fecha', { ascending: true })
+      .order('hora', { ascending: true });
 
     const sesiones: SesionDisponible[] = (data || []).map(
       (s: {

@@ -41,12 +41,17 @@ interface ReservaDB {
   usuario_id: string;
   estado: string;
   sesiones:
-    | {
-        fecha: string;
-        hora: string;
-        modalidad: string;
-      }[]
-    | null;
+  | {
+    fecha: string;
+    hora: string;
+    modalidad: string;
+  }
+  | {
+    fecha: string;
+    hora: string;
+    modalidad: string;
+  }[]
+  | null;
   usuario_nombre?: string;
   usuario_telefono?: string;
 }
@@ -62,16 +67,16 @@ interface ReservaDBLista {
   sesion_id: number;
   es_recuperacion: boolean;
   sesiones:
-    | {
-        fecha: string;
-        hora: string;
-        modalidad: string;
-      }
-    | {
-        fecha: string;
-        hora: string;
-        modalidad: string;
-      }[];
+  | {
+    fecha: string;
+    hora: string;
+    modalidad: string;
+  }
+  | {
+    fecha: string;
+    hora: string;
+    modalidad: string;
+  }[];
 }
 
 interface ReservaLista {
@@ -83,6 +88,11 @@ interface ReservaLista {
   dia_nombre: string;
   es_recuperacion: boolean;
   puede_cancelar: boolean;
+}
+
+interface ConflictoCierre {
+  fecha: string;
+  numReservas: number;
 }
 
 @Component({
@@ -108,9 +118,13 @@ export class CalendarioComponent implements OnInit {
 
   // Datos
   diasCalendario = signal<DiaCalendario[]>([]);
-  reservasLista = signal<ReservaLista[]>([]);
+  // reservasLista eliminada ya que usaremos el calendario para todos
   mesAgenda = signal<MesAgenda | null>(null);
   festivosSeleccionados = signal<Set<string>>(new Set());
+
+  // Modal confirmación cierre
+  mostrarModalConfirmacion = signal(false);
+  conflictosCierre = signal<ConflictoCierre[]>([]);
 
   // Usuario
   esAdmin = computed(() => this.auth.getRol() === 'admin');
@@ -118,6 +132,15 @@ export class CalendarioComponent implements OnInit {
 
   // Modo edición
   modoEdicion = signal(false);
+
+  // Modal detalle día
+  diaSeleccionado = signal<DiaCalendario | null>(null);
+
+  reservasDiaSeleccionadoOrdenadas = computed(() => {
+    const dia = this.diaSeleccionado();
+    if (!dia) return [];
+    return [...dia.reservas].sort((a, b) => a.hora.localeCompare(b.hora));
+  });
 
   // Computed
   nombreMes = computed(() => {
@@ -156,11 +179,7 @@ export class CalendarioComponent implements OnInit {
   });
 
   ngOnInit() {
-    if (this.esAdmin()) {
-      this.cargarCalendario();
-    } else {
-      this.cargarReservasLista();
-    }
+    this.cargarCalendario();
   }
 
   async cargarCalendario() {
@@ -350,9 +369,12 @@ export class CalendarioComponent implements OnInit {
     // Mapa de reservas por fecha
     const reservasPorFecha = new Map<string, ReservaCalendario[]>();
     reservasData.forEach((r) => {
-      if (!r.sesiones || r.sesiones.length === 0) return;
+      if (!r.sesiones) return;
 
-      const sesion = r.sesiones[0];
+      // Supabase puede devolver un objeto o un array dependiendo de la relación
+      const sesion = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
+      if (!sesion) return;
+
       const fecha = sesion.fecha;
       const hora = sesion.hora.substring(0, 5);
 
@@ -525,7 +547,40 @@ export class CalendarioComponent implements OnInit {
     return this.festivosSeleccionados().has(fecha);
   }
 
-  async guardarYAbrirMes() {
+  guardarYAbrirMes() {
+    if (!this.esAdmin()) return;
+
+    const festivos = this.festivosSeleccionados();
+    const conflictos: ConflictoCierre[] = [];
+
+    this.diasCalendario().forEach((dia) => {
+      if (festivos.has(dia.fecha) && dia.reservas.length > 0) {
+        conflictos.push({
+          fecha: dia.fecha,
+          numReservas: dia.reservas.length,
+        });
+      }
+    });
+
+    if (conflictos.length > 0) {
+      this.conflictosCierre.set(conflictos);
+      this.mostrarModalConfirmacion.set(true);
+    } else {
+      this.procesarGuardado();
+    }
+  }
+
+  cancelarCierre() {
+    this.mostrarModalConfirmacion.set(false);
+    this.conflictosCierre.set([]);
+  }
+
+  confirmarCierreConConflictos() {
+    this.mostrarModalConfirmacion.set(false);
+    this.procesarGuardado();
+  }
+
+  async procesarGuardado() {
     if (!this.esAdmin()) return;
 
     this.guardando.set(true);
@@ -705,79 +760,22 @@ export class CalendarioComponent implements OnInit {
   }
 
   onClickDia(dia: DiaCalendario) {
-    if (this.modoEdicion() && this.esAdmin()) {
+    if (this.modoEdicion()) {
       this.toggleFestivo(dia);
+    } else {
+      // Mostrar detalle si hay reservas (para admin o cliente)
+      if (dia.reservas.length > 0) {
+        this.diaSeleccionado.set(dia);
+      }
     }
   }
 
-  async cargarReservasLista() {
-    const uid = this.userId();
-    if (!uid) return;
+  cerrarDetalleDia() {
+    this.diaSeleccionado.set(null);
+  }
 
-    this.cargando.set(true);
-    this.error.set(null);
-
-    try {
-      const client = supabase();
-      const hoy = new Date().toISOString().split('T')[0];
-
-      // Cargar reservas futuras del usuario
-      const { data, error } = await client
-        .from('reservas')
-        .select(
-          `
-          id,
-          sesion_id,
-          es_recuperacion,
-          sesiones!inner (
-            fecha,
-            hora,
-            modalidad
-          )
-        `,
-        )
-        .eq('usuario_id', uid)
-        .eq('estado', 'activa')
-        .gte('sesiones.fecha', hoy)
-        .order('sesiones(fecha)', { ascending: true });
-
-      if (error) {
-        console.error('Error cargando reservas:', error);
-        this.error.set('Error al cargar tus reservas.');
-        this.reservasLista.set([]);
-        return;
-      }
-
-      const reservas: ReservaLista[] = (data || []).map((r: ReservaDBLista) => {
-        const sesion = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
-        const fechaObj = new Date(sesion.fecha + 'T' + sesion.hora);
-        const ahora = new Date();
-        const horasHastaClase = (fechaObj.getTime() - ahora.getTime()) / (1000 * 60 * 60);
-
-        return {
-          id: r.id,
-          sesion_id: r.sesion_id,
-          fecha: fechaObj.toLocaleDateString('es-ES', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          }),
-          hora: sesion.hora.substring(0, 5),
-          modalidad: sesion.modalidad as 'focus' | 'reducido',
-          dia_nombre: fechaObj.toLocaleDateString('es-ES', { weekday: 'long' }),
-          es_recuperacion: r.es_recuperacion || false,
-          puede_cancelar: horasHastaClase >= 1,
-        };
-      });
-
-      this.reservasLista.set(reservas);
-    } catch (err) {
-      console.error('Error:', err);
-      this.error.set('Error al cargar tus reservas.');
-    } finally {
-      this.cargando.set(false);
-    }
+  getReservasCount(dia: DiaCalendario, tipo: 'focus' | 'reducido'): number {
+    return dia.reservas.filter((r) => r.modalidad === tipo).length;
   }
 
   async cancelarReserva(reservaId: number) {
@@ -807,7 +805,6 @@ export class CalendarioComponent implements OnInit {
         const resultado = data[0];
         if (resultado.ok) {
           this.mensajeExito.set(resultado.mensaje);
-          await this.cargarReservasLista();
         } else {
           this.error.set(resultado.mensaje);
         }

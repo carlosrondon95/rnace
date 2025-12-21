@@ -1,0 +1,156 @@
+<!-- src/app/shared/navbar/navbar.component.html -->
+
+<!-- Top Navbar -->
+<nav class="navbar" [class.navbar--hidden]="!mostrarNavbar()">
+  <div class="navbar-container">
+    <!-- Logo -->
+    <a routerLink="/dashboard" class="navbar-logo">
+      <img src="assets/img/logo.png" alt="RNACE" class="logo-img" />
+    </a>
+
+    <!-- Links centro (solo desktop) -->
+    @if (estaLogueado()) {
+      <div class="navbar-links">
+        @if (isCliente()) {
+          <a routerLink="/calendario" routerLinkActive="active" class="nav-link">
+            <span class="material-symbols-rounded">calendar_month</span>
+            <span>Clases</span>
+          </a>
+          <a routerLink="/recuperar-clase" routerLinkActive="active" class="nav-link">
+            <span class="material-symbols-rounded">replay</span>
+            <span>Recuperar</span>
+          </a>
+        }
+
+        @if (isAdmin()) {
+          <a routerLink="/calendario" routerLinkActive="active" class="nav-link">
+            <span class="material-symbols-rounded">calendar_month</span>
+            <span>Calendario</span>
+          </a>
+          <a routerLink="/gestionar-perfiles" routerLinkActive="active" class="nav-link">
+            <span class="material-symbols-rounded">manage_accounts</span>
+            <span>Perfiles</span>
+          </a>
+          <a routerLink="/lista-espera" routerLinkActive="active" class="nav-link">
+            <span class="material-symbols-rounded">hourglass_top</span>
+            <span>Espera</span>
+          </a>
+          <a routerLink="/admin-reservas" routerLinkActive="active" class="nav-link">
+            <span class="material-symbols-rounded">event_note</span>
+            <span>Reservas</span>
+          </a>
+        }
+      </div>
+    }
+
+    <!-- Acciones derecha -->
+    <div class="navbar-actions">
+      @if (estaLogueado()) {
+        <!-- Botón notificaciones -->
+        <button
+          type="button"
+          class="btn-notif"
+          (click)="irANotificaciones()"
+          aria-label="Ver notificaciones"
+        >
+          <span class="material-symbols-rounded">notifications</span>
+          @if (notificacionesNoLeidas() > 0) {
+            <span class="notif-badge">
+              {{ notificacionesNoLeidas() > 9 ? '9+' : notificacionesNoLeidas() }}
+            </span>
+          }
+        </button>
+
+        <!-- Menú usuario -->
+        <div class="user-menu">
+          <button
+            type="button"
+            class="btn-user"
+            (click)="toggleMenu()"
+            [attr.aria-expanded]="menuAbierto()"
+            aria-label="Menú de usuario"
+          >
+            <span class="user-avatar">{{ iniciales() }}</span>
+            <span class="material-symbols-rounded icon-chevron">expand_more</span>
+          </button>
+
+          @if (menuAbierto()) {
+            <div class="dropdown-menu" role="menu">
+              <div class="dropdown-header">
+                <span class="dropdown-name">{{ nombreUsuario() }}</span>
+                <span class="dropdown-role">{{ rolLabel() }}</span>
+              </div>
+              <div class="dropdown-divider"></div>
+              <button type="button" class="dropdown-item" (click)="cerrarSesion()" role="menuitem">
+                <span class="material-symbols-rounded">logout</span>
+                Cerrar sesión
+              </button>
+            </div>
+          }
+        </div>
+      } @else {
+        <a routerLink="/login" class="btn-login">Entrar</a>
+      }
+    </div>
+  </div>
+</nav>
+
+<!-- Overlay para cerrar menú -->
+@if (menuAbierto()) {
+  <div
+    class="menu-overlay"
+    (click)="cerrarMenu()"
+    (keydown.escape)="cerrarMenu()"
+    tabindex="-1"
+    aria-hidden="true"
+  ></div>
+}
+
+<!-- Bottom Navigation (solo móvil) -->
+@if (estaLogueado()) {
+  <nav class="bottom-nav" aria-label="Navegación principal">
+    @if (isCliente()) {
+      <a
+        routerLink="/dashboard"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="bottom-nav-item"
+      >
+        <span class="material-symbols-rounded">home</span>
+        <span class="bottom-nav-label">Inicio</span>
+      </a>
+      <a routerLink="/calendario" routerLinkActive="active" class="bottom-nav-item">
+        <span class="material-symbols-rounded">calendar_month</span>
+        <span class="bottom-nav-label">Clases</span>
+      </a>
+      <a routerLink="/recuperar-clase" routerLinkActive="active" class="bottom-nav-item">
+        <span class="material-symbols-rounded">replay</span>
+        <span class="bottom-nav-label">Recuperar</span>
+      </a>
+    }
+
+    @if (isAdmin()) {
+      <a
+        routerLink="/dashboard"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="bottom-nav-item"
+      >
+        <span class="material-symbols-rounded">home</span>
+        <span class="bottom-nav-label">Inicio</span>
+      </a>
+      <a routerLink="/calendario" routerLinkActive="active" class="bottom-nav-item">
+        <span class="material-symbols-rounded">calendar_month</span>
+        <span class="bottom-nav-label">Calendario</span>
+      </a>
+      <a routerLink="/gestionar-perfiles" routerLinkActive="active" class="bottom-nav-item">
+        <span class="material-symbols-rounded">manage_accounts</span>
+        <span class="bottom-nav-label">Perfiles</span>
+      </a>
+      <a routerLink="/lista-espera" routerLinkActive="active" class="bottom-nav-item">
+        <span class="material-symbols-rounded">hourglass_top</span>
+        <span class="bottom-nav-label">Espera</span>
+      </a>
+    }
+  </nav>
+}

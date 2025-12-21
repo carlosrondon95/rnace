@@ -92,6 +92,10 @@ export class ReservaCitaComponent implements OnInit {
     return this.recuperacionesModalidad().length > 0;
   });
 
+  tieneRecuperacionValidaMes = computed(() => {
+    return this.recuperacionesModalidad().some(r => this.esValidaParaMesActual(r));
+  });
+
   // Modalidades disponibles según tipo de grupo
   modalidadesDisponibles = computed((): Modalidad[] => {
     const tipo = this.tipoGrupo();
@@ -193,7 +197,7 @@ export class ReservaCitaComponent implements OnInit {
 
     try {
       await this.verificarMesAbierto();
-      
+
       if (this.mesAbierto()) {
         await Promise.all([
           this.cargarTipoGrupo(),
@@ -234,7 +238,7 @@ export class ReservaCitaComponent implements OnInit {
 
     if (data?.tipo_grupo) {
       this.tipoGrupo.set(data.tipo_grupo);
-      
+
       // Establecer modalidad inicial
       if (data.tipo_grupo === 'reducido') {
         this.modalidad.set('reducido');
@@ -501,6 +505,13 @@ export class ReservaCitaComponent implements OnInit {
   formatearFecha(fecha: string): string {
     const d = new Date(fecha + 'T12:00:00');
     return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+  }
+
+  esValidaParaMesActual(recup: Recuperacion): boolean {
+    const { anio, mes } = this.mesActual();
+    if (recup.anio_limite > anio) return true;
+    if (recup.anio_limite === anio && recup.mes_limite >= mes) return true;
+    return false;
   }
 
   volver() {
