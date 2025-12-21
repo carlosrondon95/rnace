@@ -1,812 +1,79 @@
-// src/app/components/calendario/calendario.component.scss
-// ====== VARIABLES ======
-$color-background: #1a1a1a;
-$color-surface: #242422;
-$color-surface-hover: #2f302d;
-$color-border: #3a3b38;
-$color-border-soft: rgba(255, 255, 255, 0.08);
-$color-text: #ebe9e3;
-$color-text-muted: rgba(235, 233, 227, 0.7);
-$color-text-soft: rgba(235, 233, 227, 0.5);
-$color-primary: #8b7355;
-$color-secondary: #a08968;
-$color-success: #22c55e;
-$color-danger: #ef4444;
-$color-warning: #fbbf24;
-$color-info: #60a5fa;
-$color-focus: #60a5fa;
-$color-reducido: #a78bfa;
-$color-festivo: #f59e0b;
-$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-$shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+// Calendario - Mobile First
+// Estilos elegantes y modernos
 
-// ====== BASE ======
-.calendario-page {
-  display: flex;
-  flex-direction: column;
+:host {
+  display: block;
   min-height: 100vh;
-  background: $color-background;
-  color: $color-text;
-  padding: 1rem;
+  background: var(--color-bg-main);
+  padding: var(--navbar-height) var(--space-md) calc(var(--space-xl) + 80px);
 }
 
-// ====== HEADER ======
+.calendario-page {
+  max-width: var(--max-width-wide);
+  margin: 0 auto;
+}
+
+// ============ HEADER ============
 .page-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid $color-border-soft;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+  padding-top: var(--space-lg);
+
+  h1 {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+  }
 }
 
 .btn-volver {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.5rem 0.8rem;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
   background: transparent;
-  border: 1px solid $color-border;
-  color: $color-text-muted;
-  border-radius: 8px;
-  font-size: 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 
   .material-symbols-rounded {
     font-size: 1.1rem;
   }
 
   &:hover {
-    background: $color-surface-hover;
-    color: $color-text;
-    border-color: $color-border;
+    border-color: var(--color-accent);
+    color: var(--color-accent);
   }
 }
 
-.page-header h1 {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: $color-text;
-  margin: 0;
-}
-
-// ====== MIS CLASES (CLIENTE) ======
-.mis-clases-section {
-  background: $color-surface;
-  border: 1px solid $color-border-soft;
-  border-radius: 12px;
-  padding: 1.25rem;
-  margin-bottom: 1.5rem;
-}
-
-.mis-clases-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid $color-border-soft;
-
-  .material-symbols-rounded {
-    font-size: 1.3rem;
-    color: $color-primary;
-  }
-
-  h2 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: $color-text;
-    margin: 0;
-  }
-}
-
-.mis-clases-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.mis-clases-vacio {
+// ============ LOADING STATE ============
+.loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  color: $color-text-muted;
-  text-align: center;
+  padding: var(--space-2xl);
+  color: var(--color-text-muted);
 
-  .material-symbols-rounded {
-    font-size: 2.5rem;
-    color: $color-text-soft;
-    margin-bottom: 0.75rem;
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
   }
 
   p {
-    font-size: 0.9rem;
-    margin: 0;
+    margin-top: var(--space-md);
+    font-size: var(--font-size-sm);
   }
-}
-
-// ====== CARD DE RESERVA (MIS CLASES - CLIENTE) ======
-.reserva-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: $color-surface-hover;
-  border: 1px solid $color-border-soft;
-  border-radius: 10px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: $color-border;
-    box-shadow: $shadow-sm;
-  }
-
-  &.reserva-focus {
-    border-left: 3px solid $color-focus;
-  }
-
-  &.reserva-reducido {
-    border-left: 3px solid $color-reducido;
-  }
-}
-
-.reserva-icono {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  flex-shrink: 0;
-
-  .material-symbols-rounded {
-    font-size: 1.3rem;
-  }
-
-  .reserva-focus & {
-    background: rgba(96, 165, 250, 0.15);
-    color: $color-focus;
-  }
-
-  .reserva-reducido & {
-    background: rgba(167, 139, 250, 0.15);
-    color: $color-reducido;
-  }
-}
-
-.reserva-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  min-width: 0; // Permite que flex-shrink funcione
-}
-
-// CORREGIDO: Texto "Clase Focus" / "Clase Reducido" (para Mis Clases del cliente)
-// Renombrado de .reserva-modalidad a .reserva-modalidad-texto para evitar conflictos
-.reserva-modalidad {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: $color-text;
-  white-space: nowrap; // Evita que "Clase Focus" se rompa
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  // NO usar flex-wrap: wrap aquí - causa el problema de texto partido
-}
-
-.reserva-badge {
-  padding: 0.15rem 0.5rem;
-  background: rgba(251, 191, 36, 0.15);
-  color: $color-warning;
-  border-radius: 6px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.reserva-fecha {
-  font-size: 0.9rem;
-  color: $color-text-muted;
-  text-transform: capitalize;
-}
-
-.reserva-hora {
-  font-size: 0.85rem;
-  color: $color-text-soft;
-}
-
-.reserva-acciones {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.btn-cancelar-reserva {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 1rem;
-  background: rgba(239, 68, 68, 0.1);
-  color: $color-danger;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  .material-symbols-rounded {
-    font-size: 1.1rem;
-  }
-
-  &:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.4);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-}
-
-.reserva-no-cancelable {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.5rem 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
-  font-size: 0.8rem;
-  color: $color-text-soft;
-
-  .material-symbols-rounded {
-    font-size: 1rem;
-  }
-}
-
-// ====== NAVEGACIÓN DE MESES ======
-.mes-navegacion {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.btn-mes {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: $color-surface;
-  border: 1px solid $color-border-soft;
-  border-radius: 10px;
-  color: $color-text-muted;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  .material-symbols-rounded {
-    font-size: 1.3rem;
-  }
-
-  &:hover {
-    background: $color-surface-hover;
-    color: $color-text;
-    border-color: $color-border;
-  }
-}
-
-.mes-nombre {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: $color-text;
-  min-width: 180px;
-  text-align: center;
-  text-transform: capitalize;
-}
-
-// ====== CALENDARIO GRID ======
-.calendario-container {
-  background: $color-surface;
-  border: 1px solid $color-border-soft;
-  border-radius: 12px;
-  padding: 1rem;
-  overflow: hidden;
-}
-
-.calendario-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 2px;
-  background: $color-border-soft;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-// Encabezados de días
-.dia-header {
-  padding: 0.75rem 0.5rem;
-  background: $color-surface-hover;
-  text-align: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: $color-text-muted;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-
-  &.fin-semana {
-    color: $color-text-soft;
-    background: rgba(255, 255, 255, 0.03);
-  }
-}
-
-// Celdas de días
-.dia-celda {
-  min-height: 100px;
-  padding: 0.5rem;
-  background: $color-surface;
-  display: flex;
-  flex-direction: column;
-  cursor: default;
-  transition: all 0.2s ease;
-
-  &.fuera-mes {
-    background: rgba(255, 255, 255, 0.02);
-
-    .dia-numero {
-      color: $color-text-soft;
-    }
-  }
-
-  &.es-hoy {
-    .dia-numero {
-      background: $color-primary;
-      color: white;
-    }
-  }
-
-  &.laborable:not(.fuera-mes):not(.bloqueado) {
-    cursor: pointer;
-
-    &:hover {
-      background: $color-surface-hover;
-    }
-  }
-
-  // NUEVO: Fines de semana y días bloqueados con mismo estilo visual
-  &.bloqueado,
-  &.fin-semana {
-    background: rgba(255, 255, 255, 0.02);
-    cursor: not-allowed;
-
-    .dia-numero {
-      color: $color-text-soft;
-    }
-  }
-
-  &.festivo {
-    background: rgba(245, 158, 11, 0.05);
-    border: 1px solid rgba(245, 158, 11, 0.2);
-
-    .dia-numero {
-      color: $color-festivo;
-    }
-  }
-}
-
-.dia-numero {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: $color-text;
-  margin-bottom: 0.4rem;
-}
-
-// Reservas dentro del calendario (vista admin)
-.dia-reservas {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-}
-
-// Item de reserva pequeño (admin calendar view)
-.reserva-item {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.5rem;
-  background: $color-surface-hover;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  overflow: hidden;
-
-  &.reserva-focus {
-    border-left: 2px solid $color-focus;
-  }
-
-  &.reserva-reducido {
-    border-left: 2px solid $color-reducido;
-  }
-
-  &.reserva-propia {
-    background: rgba(34, 197, 94, 0.1);
-    border-left: 2px solid $color-success;
-  }
-}
-
-.reserva-hora-small {
-  font-weight: 600;
-  color: $color-secondary;
-  white-space: nowrap;
-}
-
-// Badge de modalidad pequeño (admin) - SEPARADO del texto de modalidad
-.reserva-modalidad-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: $color-text-muted;
-  flex-shrink: 0;
-}
-
-.reserva-usuario {
-  flex: 1;
-  color: $color-text-muted;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.reserva-label {
-  flex: 1;
-  color: $color-text-muted;
-  white-space: nowrap;
-}
-
-// Badges festivo/más
-.festivo-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.4rem;
-  background: rgba(245, 158, 11, 0.15);
-  color: $color-festivo;
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: 600;
-
-  .material-symbols-rounded {
-    font-size: 0.75rem;
-  }
-}
-
-.mas-reservas {
-  padding: 0.2rem 0.4rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  font-size: 0.65rem;
-  color: $color-text-muted;
-  text-align: center;
-}
-
-// ====== LEYENDA ======
-.leyenda {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1.5rem;
-  padding: 1rem;
-  background: $color-surface;
-  border-radius: 10px;
-  border: 1px solid $color-border-soft;
-  flex-wrap: wrap;
-  margin-top: 1rem;
-}
-
-.leyenda-item {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  color: $color-text-muted;
-}
-
-.leyenda-color {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-
-  &.focus {
-    background: $color-focus;
-  }
-
-  &.reducido {
-    background: $color-reducido;
-  }
-
-  &.festivo {
-    background: $color-festivo;
-  }
-
-  &.propia {
-    background: $color-success;
-  }
-}
-
-// ====== MODAL (Admin) ======
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-content {
-  background: $color-surface;
-  border: 1px solid $color-border;
-  border-radius: 16px;
-  max-width: 500px;
-  width: 100%;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: $shadow-lg;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.25rem;
-  border-bottom: 1px solid $color-border-soft;
-
-  h2 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: $color-text;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-
-    .material-symbols-rounded {
-      font-size: 1.3rem;
-      color: $color-primary;
-    }
-  }
-}
-
-.btn-cerrar-modal {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: transparent;
-  border: 1px solid $color-border-soft;
-  border-radius: 8px;
-  color: $color-text-muted;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: $color-surface-hover;
-    color: $color-text;
-  }
-}
-
-.modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.25rem;
-}
-
-// ====== ADMIN CONTROLS ======
-.admin-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: $color-surface;
-  border: 1px solid $color-border-soft;
-  border-radius: 12px;
-}
-
-.admin-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.admin-label {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: $color-text-muted;
-}
-
-.btn-admin {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 1rem;
-  background: $color-surface-hover;
-  border: 1px solid $color-border;
-  border-radius: 8px;
-  color: $color-text;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  .material-symbols-rounded {
-    font-size: 1.1rem;
-  }
-
-  &:hover {
-    background: $color-border;
-  }
-
-  &.btn-primary {
-    background: $color-primary;
-    border-color: $color-primary;
-    color: white;
-
-    &:hover {
-      background: darken($color-primary, 10%);
-    }
-  }
-
-  &.btn-success {
-    background: rgba(34, 197, 94, 0.15);
-    border-color: rgba(34, 197, 94, 0.3);
-    color: $color-success;
-
-    &:hover {
-      background: rgba(34, 197, 94, 0.25);
-    }
-  }
-
-  &.btn-danger {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.3);
-    color: $color-danger;
-
-    &:hover {
-      background: rgba(239, 68, 68, 0.25);
-    }
-  }
-}
-
-// ====== TOGGLE SWITCH ======
-.toggle-container {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.toggle-label {
-  font-size: 0.85rem;
-  color: $color-text-muted;
-}
-
-.toggle-switch {
-  position: relative;
-  width: 48px;
-  height: 26px;
-  background: $color-border;
-  border-radius: 13px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-
-  &.active {
-    background: $color-success;
-
-    .toggle-thumb {
-      transform: translateX(22px);
-    }
-  }
-}
-
-.toggle-thumb {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  background: white;
-  border-radius: 50%;
-  box-shadow: $shadow-sm;
-  transition: transform 0.2s ease;
-}
-
-// ====== ESTADOS ======
-.loading-state,
-.error-state,
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  text-align: center;
-  color: $color-text-muted;
-
-  .material-symbols-rounded {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    color: $color-text-soft;
-  }
-
-  h2 {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: $color-text;
-    margin: 0 0 0.5rem;
-  }
-
-  p {
-    font-size: 0.9rem;
-    margin: 0;
-  }
-}
-
-.error-state .material-symbols-rounded {
-  color: $color-danger;
-}
-
-// ====== SPINNER ======
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid $color-border;
-  border-top-color: $color-primary;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.spinner-small {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: currentColor;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -815,181 +82,1034 @@ $shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
   }
 }
 
-// ====== MENSAJES ======
-.mensaje-exito,
-.mensaje-error {
+// ============ MENSAJES ============
+.mensaje-exito {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-success-soft);
+  border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-md);
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-md);
 
   .material-symbols-rounded {
     font-size: 1.2rem;
   }
 }
 
-.mensaje-exito {
-  background: rgba(34, 197, 94, 0.15);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: $color-success;
-}
-
 .mensaje-error {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: $color-danger;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-md);
+
+  .material-symbols-rounded {
+    font-size: 1.2rem;
+  }
 }
 
-// ====== RESPONSIVE ======
-@media (max-width: 768px) {
-  .calendario-page {
-    padding: 0.75rem;
+// ============ VISTA CLIENTE: RESERVAS ============
+.reservas-container {
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+}
+
+.reservas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.reserva-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  transition: all var(--transition-base);
+
+  &:hover {
+    border-color: var(--color-border-hover);
   }
 
-  .page-header h1 {
+  &.reserva-focus {
+    border-left: 3px solid var(--color-focus);
+  }
+
+  &.reserva-reducido {
+    border-left: 3px solid var(--color-reducido);
+  }
+}
+
+.reserva-icono {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+
+  .reserva-focus & {
+    background: var(--color-focus-soft);
+    color: var(--color-focus);
+  }
+
+  .reserva-reducido & {
+    background: var(--color-reducido-soft);
+    color: var(--color-reducido);
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.3rem;
+  }
+}
+
+.reserva-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.reserva-tipo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.reserva-modalidad {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.reserva-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  padding: 2px 8px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border-radius: var(--radius-full);
+}
+
+.reserva-fecha {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.reserva-hora {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.reserva-acciones {
+  flex-shrink: 0;
+}
+
+.btn-cancelar-reserva {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  .material-symbols-rounded {
+    font-size: 1rem;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--color-danger-soft);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.reserva-no-cancelable {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+
+  .material-symbols-rounded {
+    font-size: 1rem;
+  }
+}
+
+// ============ EMPTY STATE ============
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-md);
+  text-align: center;
+
+  .material-symbols-rounded {
+    font-size: 4rem;
+    color: var(--color-text-muted);
+    opacity: 0.5;
+    margin-bottom: var(--space-md);
+  }
+
+  h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 var(--space-sm);
+  }
+
+  p {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+}
+
+// ============ VISTA ADMIN: CALENDARIO ============
+.calendario-container {
+  max-width: 100%;
+}
+
+// Navegación del mes
+.mes-navegacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+.btn-nav {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.3rem;
+  }
+}
+
+.mes-info {
+  text-align: center;
+  min-width: 160px;
+
+  h2 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+  }
+}
+
+.mes-estado {
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+  font-weight: 500;
+
+  &.mes-abierto {
+    color: var(--color-success);
+  }
+}
+
+// ============ PANEL ADMIN ============
+.panel-admin {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.btn-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid;
+
+  .material-symbols-rounded {
     font-size: 1.1rem;
   }
 
-  .dia-celda {
-    min-height: 70px;
-    padding: 0.3rem;
+  &--primary {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-bg-deep);
+
+    &:hover:not(:disabled) {
+      opacity: 0.9;
+    }
   }
 
-  .dia-numero {
+  &--secondary {
+    background: transparent;
+    border-color: var(--color-border);
+    color: var(--color-text-secondary);
+
+    &:hover:not(:disabled) {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+    }
+  }
+
+  &--danger {
+    background: transparent;
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
+
+    &:hover:not(:disabled) {
+      background: var(--color-danger-soft);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Estadísticas
+.estadisticas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.stat-card {
+  text-align: center;
+  padding: var(--space-sm);
+  background: var(--color-bg-main);
+  border-radius: var(--radius-md);
+}
+
+.stat-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2xs);
+}
+
+.stat-value {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-accent);
+
+  &.stat-focus {
+    color: var(--color-focus);
+  }
+
+  &.stat-reducido {
+    color: var(--color-reducido);
+  }
+}
+
+// ============ MODO EDICIÓN ============
+.edicion-panel {
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.edicion-info {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+
+  .material-symbols-rounded {
+    color: var(--color-warning);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+}
+
+.edicion-texto {
+  strong {
+    display: block;
+    font-size: var(--font-size-sm);
+    color: var(--color-warning);
+    margin-bottom: var(--space-2xs);
+  }
+
+  p {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+}
+
+.edicion-resumen {
+  margin-bottom: var(--space-md);
+}
+
+.festivos-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.edicion-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.btn-edicion {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid;
+
+  .material-symbols-rounded {
+    font-size: 1rem;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-cancelar {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-text-muted);
+  }
+}
+
+.btn-guardar {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-bg-deep);
+
+  &:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+}
+
+// ============ CALENDARIO GRID ============
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  margin-bottom: var(--space-lg);
+}
+
+.dia-header {
+  text-align: center;
+  padding: var(--space-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: transparent;
+  margin-bottom: var(--space-xs);
+  opacity: 0.8;
+}
+
+// Celda de día
+.dia-celda {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); // Más redondeado para elegancia
+  min-height: 80px;
+  padding: var(--space-sm);
+  position: relative;
+  transition: all var(--transition-fast);
+
+  @media (max-width: 479px) {
+    min-height: 60px;
+    padding: var(--space-xs);
+  }
+
+  &:hover:not(.dia-vacio):not(.dia-festivo):not(:disabled) {
+    border-color: var(--color-border-hover);
+  }
+
+  &.dia-vacio {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  &.dia-hoy {
+    border-color: var(--color-accent);
+
+    .dia-numero {
+      background: var(--color-accent);
+      color: var(--color-bg-deep);
+    }
+  }
+
+  &.dia-festivo {
+    background: var(--color-danger-soft);
+    border-color: var(--color-danger-border);
+
+    .dia-numero {
+      background: rgba(248, 113, 113, 0.2);
+      color: var(--color-danger);
+    }
+  }
+
+  // Estilo para días con reservas (Cliente y Admin)
+  &.dia-celda--con-reservas {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+
+    .dia-numero {
+      background: var(--color-accent);
+      color: var(--color-bg-deep);
+      font-weight: 700;
+    }
+
+    &:hover {
+      background: var(--color-accent);
+
+      .dia-numero {
+        background: var(--color-bg-deep);
+        color: var(--color-accent);
+      }
+
+      .indicador {
+        background: var(--color-bg-deep);
+      }
+    }
+  }
+
+  &.dia-fuera-mes {
+    opacity: 0.15; // Muy tenue
+    background: var(--color-bg-input); // Fondo más oscuro
+    border-color: transparent;
+    pointer-events: none;
+    filter: grayscale(1) brightness(0.5); // Desaturar y oscurecer
+  }
+
+  &.clickable {
+    cursor: pointer;
+
+    // Efecto sutil al hover para días clickeables
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.dia-numero {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-xs);
+
+  @media (max-width: 479px) {
     width: 24px;
     height: 24px;
-    font-size: 0.75rem;
-  }
-
-  .reserva-item {
-    font-size: 0.65rem;
-    padding: 0.25rem 0.4rem;
-  }
-
-  .festivo-badge {
-    font-size: 0.6rem;
-    padding: 0.15rem 0.3rem;
+    font-size: var(--font-size-xs);
   }
 }
 
-@media (max-width: 600px) {
-  // Mis clases responsivo
-  .reserva-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.875rem;
+.festivo-badge {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  background: var(--color-danger-soft);
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  color: var(--color-danger);
+
+  .material-symbols-rounded {
+    font-size: 10px;
   }
 
-  .reserva-icono {
-    width: 36px;
-    height: 36px;
+  @media (max-width: 479px) {
+    padding: 1px 4px;
+    font-size: 8px;
+  }
+}
 
-    .material-symbols-rounded {
-      font-size: 1.1rem;
-    }
+// Indicadores en el calendario
+.dia-indicadores {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.indicador {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  line-height: 1.2;
+}
+
+.indicador-focus {
+  background-color: var(--color-focus-soft);
+  color: var(--color-focus);
+}
+
+.indicador-reducido {
+  background-color: var(--color-reducido-soft);
+  color: var(--color-reducido);
+}
+
+.reserva-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 500;
+
+  @media (max-width: 479px) {
+    padding: 2px 4px;
+    font-size: 9px;
   }
 
-  .reserva-info {
-    width: 100%;
+  &.reserva-focus {
+    background: var(--color-focus-soft);
+    color: var(--color-focus);
   }
 
-  // En móvil permitimos que el badge de recuperación baje si es necesario
-  .reserva-modalidad {
+  &.reserva-reducido {
+    background: var(--color-reducido-soft);
+    color: var(--color-reducido);
+  }
+
+  &.reserva-propia {
+    border: 1px solid var(--color-accent);
+  }
+}
+
+.reserva-hora {
+  font-weight: 600;
+}
+
+.reserva-modalidad {
+  opacity: 0.7;
+}
+
+.reserva-usuario {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60px;
+}
+
+.reserva-label {
+  font-size: 8px;
+  opacity: 0.8;
+}
+
+// ============ LEYENDA ============
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-lg);
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.leyenda-color {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-sm);
+
+  &.leyenda-hoy {
+    background: var(--color-accent);
+  }
+
+  &.leyenda-bloqueado {
+    background: var(--color-bg-main);
+    border: 1px solid var(--color-border);
+  }
+
+  &.leyenda-festivo {
+    background: var(--color-danger);
+  }
+
+  &.leyenda-reserva-propia {
+    background: var(--color-accent-soft);
+    border: 1px solid var(--color-accent);
+  }
+
+  &.leyenda-focus {
+    background: var(--color-focus);
+  }
+
+  &.leyenda-reducido {
+    background: var(--color-reducido);
+  }
+}
+
+// ============ SPINNER ============
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+// Modal Detalle
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+.modal-detalle-dia {
+  background: var(--color-bg-elevated);
+  width: 100%;
+  max-width: 400px;
+  max-height: 80vh;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+// Modal Confirmación Conflictos
+.modal-confirmacion {
+  position: relative;
+  width: 90%;
+  max-width: 450px;
+  background: #32332f;
+  /* Fondo oscuro sólido */
+  border-radius: 12px;
+  border: 2px solid rgba(248, 113, 113, 0.6);
+  /* Borde rojo más visible */
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #ebe9e3;
+}
+
+.header-danger {
+  padding: 1.25rem 1.5rem;
+  background: rgba(248, 113, 113, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgba(248, 113, 113, 0.3);
+
+  h3 {
+    color: #f87171;
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  .icon-warn {
+    color: #f87171;
+    font-size: 1.6rem;
+  }
+}
+
+.warn-text {
+  color: #ebe9e3;
+  font-size: 0.95rem;
+  margin: 0 0 1rem;
+  line-height: 1.6;
+  padding: 1.5rem 1.5rem 0;
+}
+
+.lista-conflictos {
+  list-style: none;
+  padding: 0 1.5rem;
+  margin: 0 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 180px;
+  overflow-y: auto;
+
+  /* Scrollbar fina */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+  }
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    /* Fondo elemento */
+    border-radius: 8px;
     font-size: 0.95rem;
-    white-space: normal; // Permitir wrap solo en móvil
-    flex-wrap: wrap;
-    gap: 0.4rem;
+    color: #ebe9e3;
+    border-left: 4px solid #f87171;
+    align-items: center;
   }
 
-  .reserva-fecha {
+  .conflicto-fecha {
+    font-weight: 600;
+  }
+
+  .conflicto-count {
+    color: #f87171;
+    font-weight: 700;
+    background: rgba(248, 113, 113, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
     font-size: 0.85rem;
   }
-
-  .reserva-hora {
-    font-size: 0.8rem;
-  }
-
-  .reserva-acciones {
-    width: 100%;
-
-    .btn-cancelar-reserva {
-      width: 100%;
-      justify-content: center;
-    }
-  }
-
-  .btn-text {
-    display: inline;
-  }
-
-  // Calendario responsivo
-  .dia-header {
-    padding: 0.5rem 0.25rem;
-    font-size: 0.65rem;
-  }
-
-  .dia-celda {
-    min-height: 55px;
-    padding: 0.2rem;
-  }
-
-  .dia-numero {
-    width: 20px;
-    height: 20px;
-    font-size: 0.7rem;
-    margin-bottom: 0.2rem;
-  }
-
-  .reserva-item {
-    font-size: 0.6rem;
-    padding: 0.2rem;
-    gap: 0.2rem;
-  }
-
-  .leyenda {
-    gap: 1rem;
-    padding: 0.75rem;
-  }
-
-  .leyenda-item {
-    font-size: 0.75rem;
-  }
 }
 
-@media (min-width: 601px) {
-  .btn-text {
-    display: none;
-  }
-
-  .reserva-card {
-    min-width: 0;
-  }
-
-  .reserva-info {
-    min-width: 0;
-  }
+.warn-subtext {
+  font-size: 0.85rem;
+  color: rgba(235, 233, 227, 0.6);
+  margin: 0 1.5rem 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-style: italic;
 }
 
-// ====== SCROLLBAR PERSONALIZADO ======
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-::-webkit-scrollbar-track {
-  background: $color-surface;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: $color-border;
-  border-radius: 4px;
+.btn-confirmar-peligro {
+  padding: 0.75rem 1.5rem;
+  background: #f87171;
+  border: 1px solid #f87171;
+  color: #1a1a1a;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px rgba(248, 113, 113, 0.2);
 
   &:hover {
-    background: lighten($color-border, 10%);
+    background: #ef4444;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(248, 113, 113, 0.3);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+
+.btn-cerrar {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover {
+    background: var(--color-border);
+    color: var(--color-text-primary);
+  }
+}
+
+.modal-content {
+  padding: var(--space-md);
+  overflow-y: auto;
+}
+
+.lista-reservas-detalle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.reserva-detalle-row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-main);
+  border: 1px solid var(--color-border);
+  gap: var(--space-sm);
+
+  &.reserva-focus {
+    border-left: 3px solid var(--color-focus);
+  }
+
+  &.reserva-reducido {
+    border-left: 3px solid var(--color-reducido);
+  }
+}
+
+.hora-tag {
+  font-weight: 700;
+  font-family: monospace;
+  font-size: var(--font-size-md);
+  color: var(--color-text-primary);
+  background: var(--color-bg-main);
+  border: 1px solid var(--color-border);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.info-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.usuario-nombre {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.usuario-telefono {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.modalidad-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: var(--color-bg-elevated);
+
+  .reserva-focus & {
+    background: var(--color-focus-soft);
+    color: var(--color-focus);
+  }
+
+  .reserva-reducido & {
+    background: var(--color-reducido-soft);
+    color: var(--color-reducido);
+  }
+}
+
+.no-reservas {
+  text-align: center;
+  color: var(--color-text-muted);
+  margin: var(--space-md) 0;
+}
+
+.btn-text {
+  @media (max-width: 479px) {
+    display: none;
   }
 }

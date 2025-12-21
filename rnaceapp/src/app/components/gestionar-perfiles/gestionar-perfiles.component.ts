@@ -134,7 +134,7 @@ export class GestionarPerfilesComponent implements OnInit {
           ...(focus.find(f => f.dia === dia)?.horarios || []),
           ...(reducido.find(r => r.dia === dia)?.horarios || []),
         ].sort((a, b) => a.hora.localeCompare(b.hora));
-        
+
         if (horariosDia.length > 0) {
           todos.push({
             dia,
@@ -149,7 +149,7 @@ export class GestionarPerfilesComponent implements OnInit {
 
   private agruparPorDia(horarios: HorarioDisponible[]): HorarioPorDia[] {
     const porDia = new Map<number, HorarioDisponible[]>();
-    
+
     for (const h of horarios) {
       if (!porDia.has(h.dia_semana)) {
         porDia.set(h.dia_semana, []);
@@ -432,7 +432,7 @@ export class GestionarPerfilesComponent implements OnInit {
     this.formulario.update((f) => {
       const seleccionados = [...f.horariosSeleccionados];
       const index = seleccionados.indexOf(horarioId);
-      
+
       if (index > -1) {
         seleccionados.splice(index, 1);
       } else {
@@ -503,7 +503,7 @@ export class GestionarPerfilesComponent implements OnInit {
     const f = this.formulario();
     const tieneNombre = f.nombre.trim().length > 0;
     const tieneTelefono = f.telefono.trim().length >= 9;
-    
+
     const necesitaHorarios = f.rol === 'cliente';
     const tieneHorarios = !necesitaHorarios || f.horariosSeleccionados.length > 0;
 
@@ -590,6 +590,14 @@ export class GestionarPerfilesComponent implements OnInit {
     }
 
     this.exitoModal.set(`Usuario creado. Teléfono: ${telefono}`);
+    this.guardando.set(true);
+    try {
+      await this.sincronizarReservasUsuario(userId);
+    } catch (err) {
+      console.error('Error sincronizando reservas:', err);
+    } finally {
+      this.guardando.set(false);
+    }
     await this.cargarUsuarios();
   }
 
@@ -660,8 +668,112 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
+    // Sincronizar reservas si es cliente
+    if (f.rol === 'cliente') {
+      try {
+        await this.sincronizarReservasUsuario(userId);
+      } catch (err) {
+        console.error('Error sincronizando reservas:', err);
+      }
+    }
+
     this.exitoModal.set('Usuario actualizado correctamente.');
     await this.cargarUsuarios();
+  }
+
+  private async sincronizarReservasUsuario(userId: string) {
+    const client = supabase();
+
+    // 1. Obtener horarios fijos
+    const { data: horariosFijos, error: hError } = await client
+      .from('horario_fijo_usuario')
+      .select(`
+        id, 
+        horario_disponible_id,
+        horarios_disponibles (
+          dia_semana, 
+          hora
+        )
+      `)
+      .eq('usuario_id', userId)
+      .eq('activo', true);
+
+    if (hError || !horariosFijos || horariosFijos.length === 0) return;
+
+    const horariosMap = new Set<string>();
+    horariosFijos.forEach((hf) => {
+      const hd = hf.horarios_disponibles as any;
+      if (hd) {
+        const horaSimple = hd.hora.slice(0, 5);
+        horariosMap.add(`${hd.dia_semana}-${horaSimple}`);
+      }
+    });
+
+    // 2. Obtener meses abiertos
+    const { data: mesesAbiertos } = await client
+      .from('agenda_mes')
+      .select('anio, mes')
+      .eq('abierto', true);
+
+    if (!mesesAbiertos || mesesAbiertos.length === 0) return;
+
+    // 3. Obtener sesiones futuras
+    const hoyStr = new Date().toISOString().split('T')[0];
+
+    const { data: sesionesFuturas, error: sError } = await client
+      .from('sesiones')
+      .select('id, fecha, hora')
+      .gte('fecha', hoyStr)
+      .eq('cancelada', false);
+
+    if (sError || !sesionesFuturas) return;
+
+    // 4. Filtrar sesiones coincidentes
+    const sesionesA_Reservar: any[] = [];
+
+    for (const sesion of sesionesFuturas) {
+      const d = new Date(sesion.fecha);
+      const jsDay = d.getDay();
+      const sistemaDia = jsDay === 0 ? 7 : jsDay; // 1=Lun ... 7=Dom
+
+      // Verificar si el mes está abierto
+      const mesSesion = d.getMonth() + 1;
+      const anioSesion = d.getFullYear();
+      const mesAbierto = mesesAbiertos.some((m) => m.anio === anioSesion && m.mes === mesSesion);
+
+      if (!mesAbierto) continue;
+
+      const horaSimple = sesion.hora.slice(0, 5);
+      const key = `${sistemaDia}-${horaSimple}`;
+
+      if (horariosMap.has(key)) {
+        sesionesA_Reservar.push(sesion);
+      }
+    }
+
+    if (sesionesA_Reservar.length === 0) return;
+
+    // 5. Verificar existentes
+    const idsSesiones = sesionesA_Reservar.map((s) => s.id);
+    const { data: reservasExistentes } = await client
+      .from('reservas')
+      .select('sesion_id')
+      .eq('usuario_id', userId)
+      .in('sesion_id', idsSesiones);
+
+    const setReservadas = new Set(reservasExistentes?.map((r) => r.sesion_id));
+
+    const nuevasReservas = sesionesA_Reservar
+      .filter((s) => !setReservadas.has(s.id))
+      .map((s) => ({
+        usuario_id: userId,
+        sesion_id: s.id,
+        estado: 'activa',
+      }));
+
+    if (nuevasReservas.length > 0) {
+      await client.from('reservas').insert(nuevasReservas);
+    }
   }
 
   formatearFecha(fecha: string): string {
@@ -710,11 +822,11 @@ export class GestionarPerfilesComponent implements OnInit {
   }
 
   obtenerClaseGrupo(tipo: string | undefined): string {
-    if (tipo === 'focus') return 'grupo-focus';
-    if (tipo === 'reducido') return 'grupo-reducido';
-    if (tipo === 'hibrido') return 'grupo-hibrido';
-    if (tipo === 'especial') return 'grupo-especial';
-    return '';
+    if (tipo === 'focus') return 'avatar-focus plan-focus';
+    if (tipo === 'reducido') return 'avatar-reducido plan-reducido';
+    if (tipo === 'hibrido') return 'avatar-hibrido plan-hibrido';
+    if (tipo === 'especial') return 'avatar-especial plan-especial';
+    return 'avatar-sin-plan';
   }
 
   obtenerClaseRol(rol: string): string {

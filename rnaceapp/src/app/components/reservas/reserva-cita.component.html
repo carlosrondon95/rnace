@@ -24,250 +24,237 @@
 
   <!-- Badge mes cerrado -->
   @if (!mesAbierto() && !cargando()) {
-    <div class="mes-cerrado-badge" role="alert">
-      <span class="material-symbols-rounded">lock</span>
-      Este mes aún no está abierto
-    </div>
+  <div class="mes-cerrado-badge" role="alert">
+    <span class="material-symbols-rounded">lock</span>
+    Este mes aún no está abierto
+  </div>
   }
 
   <section class="reserva-card">
     <!-- Loading -->
     @if (cargando()) {
-      <div class="loading-state">
-        <div class="spinner"></div>
-        <p>Cargando disponibilidad...</p>
-      </div>
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Cargando disponibilidad...</p>
+    </div>
     }
 
     <!-- Contenido principal -->
     @if (!cargando() && mesAbierto()) {
-      <!-- Info de recuperaciones -->
-      <div class="recuperaciones-section">
-        <div class="recuperaciones-header">
-          <span class="material-symbols-rounded">replay</span>
-          <span>Tus recuperaciones disponibles</span>
-        </div>
+    <!-- Info de recuperaciones -->
+    <div class="recuperaciones-section">
+      <div class="recuperaciones-header">
+        <span class="material-symbols-rounded">replay</span>
+        <span>Tus recuperaciones disponibles</span>
+      </div>
 
-        @if (recuperaciones().length === 0) {
-          <div class="sin-recuperaciones">
-            <p>No tienes recuperaciones pendientes.</p>
-            <p class="hint">Las recuperaciones se generan cuando cancelas una clase con más de 1 hora de antelación.</p>
+      @if (recuperaciones().length === 0) {
+      <div class="sin-recuperaciones">
+        <p>No tienes recuperaciones pendientes.</p>
+        <p class="hint">Las recuperaciones se generan cuando cancelas una clase con más de 1 hora de antelación.</p>
+      </div>
+      } @else {
+      <div class="recuperaciones-lista">
+        @for (recup of recuperaciones(); track recup.id) {
+        <div class="recuperacion-card" [class.recup-focus]="recup.modalidad === 'focus'"
+          [class.recup-reducido]="recup.modalidad === 'reducido'" [class.invalida]="!esValidaParaMesActual(recup)">
+          <div class="recup-modalidad">
+            <span class="material-symbols-rounded">
+              {{ recup.modalidad === 'focus' ? 'fitness_center' : 'groups' }}
+            </span>
+            {{ recup.modalidad === 'focus' ? 'Focus' : 'Reducido' }}
           </div>
-        } @else {
-          <div class="recuperaciones-lista">
-            @for (recup of recuperaciones(); track recup.id) {
-              <div 
-                class="recuperacion-card"
-                [class.recup-focus]="recup.modalidad === 'focus'"
-                [class.recup-reducido]="recup.modalidad === 'reducido'"
-              >
-                <div class="recup-modalidad">
-                  <span class="material-symbols-rounded">
-                    {{ recup.modalidad === 'focus' ? 'fitness_center' : 'groups' }}
-                  </span>
-                  {{ recup.modalidad === 'focus' ? 'Focus' : 'Reducido' }}
-                </div>
-                <div class="recup-validez">
-                  Válida hasta {{ formatearMesRecuperacion(recup.mes_limite, recup.anio_limite) }}
-                </div>
-                @if (recup.motivo === 'festivo') {
-                  <span class="recup-origen">Por festivo</span>
-                }
-              </div>
+          <div class="recup-validez">
+            @if (esValidaParaMesActual(recup)) {
+            Válida hasta {{ formatearMesRecuperacion(recup.mes_limite, recup.anio_limite) }}
+            } @else {
+            <span class="texto-invalida">No válida para este mes</span>
             }
           </div>
+          @if (recup.motivo === 'festivo') {
+          <span class="recup-origen">Por festivo</span>
+          }
+        </div>
         }
       </div>
-
-      <!-- Selector de modalidad -->
-      @if (puedeToggleModalidad()) {
-        <div class="mode-toggle" role="radiogroup" aria-label="Seleccionar modalidad">
-          @for (mod of modalidadesDisponibles(); track mod) {
-            <button
-              type="button"
-              class="mode-btn"
-              [class.mode-btn--active]="modalidad() === mod"
-              [class.mode-btn--focus]="mod === 'focus'"
-              [class.mode-btn--reducido]="mod === 'reducido'"
-              [attr.aria-pressed]="modalidad() === mod"
-              (click)="selectModalidad(mod)"
-            >
-              <span class="mode-icon material-symbols-rounded">
-                {{ mod === 'focus' ? 'fitness_center' : 'groups' }}
-              </span>
-              <div class="mode-content">
-                <span class="mode-name">Grupo {{ getNombreModalidad(mod) }}</span>
-                <span class="mode-subtitle">
-                  {{ mod === 'focus' ? 'Máx. 3 personas' : 'Máx. 8 personas' }}
-                </span>
-              </div>
-            </button>
-          }
-        </div>
       }
+    </div>
 
-      <!-- Aviso si no tiene recuperaciones de esta modalidad -->
-      @if (!tieneRecuperacion()) {
-        <div class="aviso-sin-recup" role="alert">
-          <span class="material-symbols-rounded">info</span>
-          <span>No tienes recuperaciones de {{ getNombreModalidad(modalidad()) }}. Puedes apuntarte a lista de espera.</span>
+    <!-- Selector de modalidad -->
+    @if (puedeToggleModalidad()) {
+    <div class="mode-toggle" role="radiogroup" aria-label="Seleccionar modalidad">
+      @for (mod of modalidadesDisponibles(); track mod) {
+      <button type="button" class="mode-btn" [class.mode-btn--active]="modalidad() === mod"
+        [class.mode-btn--focus]="mod === 'focus'" [class.mode-btn--reducido]="mod === 'reducido'"
+        [attr.aria-pressed]="modalidad() === mod" (click)="selectModalidad(mod)">
+        <span class="mode-icon material-symbols-rounded">
+          {{ mod === 'focus' ? 'fitness_center' : 'groups' }}
+        </span>
+        <div class="mode-content">
+          <span class="mode-name">Grupo {{ getNombreModalidad(mod) }}</span>
+          <span class="mode-subtitle">
+            {{ mod === 'focus' ? 'Máx. 3 personas' : 'Máx. 8 personas' }}
+          </span>
         </div>
+      </button>
       }
+    </div>
+    }
 
-      <!-- Grid de sesiones por semanas -->
-      @if (semanasAgrupadas().length > 0) {
-        <div class="semanas-container">
-          @for (semana of semanasAgrupadas(); track semana.numeroSemana) {
-            <div class="semana-card">
-              <div class="semana-header">
-                <span class="semana-label">{{ semana.tituloSemana }}</span>
-              </div>
+    <!-- Aviso si no tiene recuperaciones de esta modalidad -->
+    @if (!tieneRecuperacion()) {
+    <div class="aviso-sin-recup" role="alert">
+      <span class="material-symbols-rounded">info</span>
+      <span>No tienes recuperaciones de {{ getNombreModalidad(modalidad()) }}. Puedes apuntarte a lista de
+        espera.</span>
+    </div>
+    }
 
-              <div class="semana-grid">
-                @for (dia of semana.dias; track dia.fecha) {
-                  <div class="dia-col">
-                    <div class="dia-header">
-                      <span class="dia-nombre">{{ dia.diaNombre }}</span>
-                      <span class="dia-fecha">{{ dia.fechaFormateada }}</span>
-                    </div>
+    <!-- Grid de sesiones por semanas -->
+    @if (semanasAgrupadas().length > 0) {
+    <div class="semanas-container">
+      @for (semana of semanasAgrupadas(); track semana.numeroSemana) {
+      <div class="semana-card">
+        <div class="semana-header">
+          <span class="semana-label">{{ semana.tituloSemana }}</span>
+        </div>
 
-                    @if (dia.sesiones.length === 0) {
-                      <div class="dia-vacio">
-                        <span>Sin sesiones</span>
-                      </div>
-                    } @else {
-                      <div class="dia-slots">
-                        @for (sesion of dia.sesiones; track sesion.id) {
-                          <button
-                            type="button"
-                            class="slot-btn"
-                            [class]="getEstadoClase(sesion)"
-                            [disabled]="sesion.estado === 'pasada'"
-                            (click)="selectSesion(sesion)"
-                            [attr.aria-label]="dia.diaNombre + ' ' + sesion.hora + ' - ' + getEstadoTexto(sesion)"
-                          >
-                            <span class="slot-hora">{{ sesion.hora }}</span>
-                            <span class="slot-plazas">{{ getEstadoTexto(sesion) }}</span>
-                          </button>
-                        }
-                      </div>
-                    }
-                  </div>
-                }
-              </div>
+        <div class="semana-grid">
+          @for (dia of semana.dias; track dia.fecha) {
+          <div class="dia-col">
+            <div class="dia-header">
+              <span class="dia-nombre">{{ dia.diaNombre }}</span>
+              <span class="dia-fecha">{{ dia.fechaFormateada }}</span>
             </div>
+
+            @if (dia.sesiones.length === 0) {
+            <div class="dia-vacio">
+              <span>Sin sesiones</span>
+            </div>
+            } @else {
+            <div class="dia-slots">
+              @for (sesion of dia.sesiones; track sesion.id) {
+              <button type="button" class="slot-btn" [class]="getEstadoClase(sesion)"
+                [disabled]="sesion.estado === 'pasada'" (click)="selectSesion(sesion)"
+                [attr.aria-label]="dia.diaNombre + ' ' + sesion.hora + ' - ' + getEstadoTexto(sesion)">
+                <span class="slot-hora">{{ sesion.hora }}</span>
+                <span class="slot-plazas">{{ getEstadoTexto(sesion) }}</span>
+              </button>
+              }
+            </div>
+            }
+          </div>
           }
-        </div>
-      } @else {
-        <div class="no-sesiones">
-          <span class="material-symbols-rounded">event_busy</span>
-          <p>No hay sesiones de {{ getNombreModalidad(modalidad()) }} disponibles este mes.</p>
-        </div>
-      }
-
-      <!-- Mensajes -->
-      @if (mensajeExito(); as msg) {
-        <div class="mensaje-exito" role="status">
-          <span class="material-symbols-rounded">check_circle</span>
-          {{ msg }}
-        </div>
-      }
-
-      @if (error(); as err) {
-        <div class="mensaje-error" role="alert">
-          <span class="material-symbols-rounded">error</span>
-          {{ err }}
-        </div>
-      }
-
-      <!-- Leyenda -->
-      <div class="leyenda">
-        <div class="leyenda-item">
-          <span class="leyenda-color leyenda-disponible"></span>
-          <span>Con plazas</span>
-        </div>
-        <div class="leyenda-item">
-          <span class="leyenda-color leyenda-completa"></span>
-          <span>Completa</span>
-        </div>
-        <div class="leyenda-item">
-          <span class="leyenda-color leyenda-lista-espera"></span>
-          <span>En lista de espera</span>
-        </div>
-        <div class="leyenda-item">
-          <span class="leyenda-color leyenda-seleccionada"></span>
-          <span>Seleccionada</span>
         </div>
       </div>
+      }
+    </div>
+    } @else {
+    <div class="no-sesiones">
+      <span class="material-symbols-rounded">event_busy</span>
+      <p>No hay sesiones de {{ getNombreModalidad(modalidad()) }} disponibles este mes.</p>
+    </div>
+    }
+
+    <!-- Mensajes -->
+    @if (mensajeExito(); as msg) {
+    <div class="mensaje-exito" role="status">
+      <span class="material-symbols-rounded">check_circle</span>
+      {{ msg }}
+    </div>
+    }
+
+    @if (error(); as err) {
+    <div class="mensaje-error" role="alert">
+      <span class="material-symbols-rounded">error</span>
+      {{ err }}
+    </div>
+    }
+
+    <!-- Leyenda -->
+    <div class="leyenda">
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-disponible"></span>
+        <span>Con plazas</span>
+      </div>
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-completa"></span>
+        <span>Completa</span>
+      </div>
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-lista-espera"></span>
+        <span>En lista de espera</span>
+      </div>
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-seleccionada"></span>
+        <span>Seleccionada</span>
+      </div>
+    </div>
     }
   </section>
 
   <!-- Panel de confirmación -->
   @if (sesionSeleccionada(); as sesion) {
-    <div class="confirm-panel">
-      <div class="confirm-info">
-        <p class="confirm-title">Has seleccionado:</p>
-        <p class="confirm-detail">
-          <strong>{{ getNombreModalidad(modalidad()) }}</strong>
-          · {{ obtenerNombreDia(sesion.fecha) | titlecase }} {{ formatearFecha(sesion.fecha) }} a las {{ sesion.hora }}
-        </p>
-        <p class="confirm-estado">
-          @if (sesion.estado === 'disponible') {
-            <span class="estado-disponible">{{ sesion.plazas_disponibles }} plaza{{ sesion.plazas_disponibles !== 1 ? 's' : '' }} disponible{{ sesion.plazas_disponibles !== 1 ? 's' : '' }}</span>
-          } @else {
-            <span class="estado-completa">Sesión completa</span>
-          }
-        </p>
-      </div>
-
-      <div class="confirm-actions">
-        <!-- Si hay plazas y tiene recuperación -->
-        @if (sesion.estado === 'disponible' && tieneRecuperacion()) {
-          <button
-            type="button"
-            class="btn-confirm"
-            [disabled]="guardando()"
-            (click)="usarRecuperacion()"
-          >
-            @if (guardando()) {
-              <span class="spinner-small"></span>
-              Procesando...
-            } @else {
-              <span class="material-symbols-rounded">replay</span>
-              Usar recuperación
-            }
-          </button>
+  <div class="confirm-panel">
+    <div class="confirm-info">
+      <p class="confirm-title">Has seleccionado:</p>
+      <p class="confirm-detail">
+        <strong>{{ getNombreModalidad(modalidad()) }}</strong>
+        · {{ obtenerNombreDia(sesion.fecha) | titlecase }} {{ formatearFecha(sesion.fecha) }} a las {{ sesion.hora }}
+      </p>
+      <p class="confirm-estado">
+        @if (sesion.estado === 'disponible') {
+        <span class="estado-disponible">{{ sesion.plazas_disponibles }} plaza{{ sesion.plazas_disponibles !== 1 ? 's' :
+          '' }} disponible{{ sesion.plazas_disponibles !== 1 ? 's' : '' }}</span>
+        } @else {
+        <span class="estado-completa">Sesión completa</span>
         }
-
-        <!-- Si hay plazas pero NO tiene recuperación -->
-        @if (sesion.estado === 'disponible' && !tieneRecuperacion()) {
-          <button type="button" class="btn-confirm btn-disabled" disabled>
-            <span class="material-symbols-rounded">block</span>
-            Sin recuperaciones
-          </button>
-        }
-
-        <!-- Si está completa, botón de lista de espera -->
-        @if (sesion.estado === 'completa') {
-          <button
-            type="button"
-            [class]="sesion.en_lista_espera ? 'btn-quitar-espera' : 'btn-lista-espera'"
-            [disabled]="guardando()"
-            (click)="toggleListaEspera(sesion)"
-          >
-            @if (guardando()) {
-              <span class="spinner-small"></span>
-              Procesando...
-            } @else if (sesion.en_lista_espera) {
-              <span class="material-symbols-rounded">remove_circle</span>
-              Quitar de lista de espera
-            } @else {
-              <span class="material-symbols-rounded">notification_add</span>
-              Apuntarme a lista de espera
-            }
-          </button>
-        }
-      </div>
+      </p>
     </div>
+
+    <div class="confirm-actions">
+      <!-- Si hay plazas y tiene recuperación -->
+      @if (sesion.estado === 'disponible' && tieneRecuperacionValidaMes()) {
+      <button type="button" class="btn-confirm" [disabled]="guardando()" (click)="usarRecuperacion()">
+        @if (guardando()) {
+        <span class="spinner-small"></span>
+        Procesando...
+        } @else {
+        <span class="material-symbols-rounded">replay</span>
+        Usar recuperación
+        }
+      </button>
+      }
+
+      <!-- Si hay plazas pero NO tiene recuperación VÁLIDA -->
+      @if (sesion.estado === 'disponible' && !tieneRecuperacionValidaMes()) {
+      <button type="button" class="btn-confirm btn-disabled" disabled>
+        <span class="material-symbols-rounded">block</span>
+        @if (tieneRecuperacion()) {
+        Recuperación no válida aquí
+        } @else {
+        Sin recuperaciones
+        }
+      </button>
+      }
+
+      <!-- Si está completa, botón de lista de espera -->
+      @if (sesion.estado === 'completa') {
+      <button type="button" [class]="sesion.en_lista_espera ? 'btn-quitar-espera' : 'btn-lista-espera'"
+        [disabled]="guardando()" (click)="toggleListaEspera(sesion)">
+        @if (guardando()) {
+        <span class="spinner-small"></span>
+        Procesando...
+        } @else if (sesion.en_lista_espera) {
+        <span class="material-symbols-rounded">remove_circle</span>
+        Quitar de lista de espera
+        } @else {
+        <span class="material-symbols-rounded">notification_add</span>
+        Apuntarme a lista de espera
+        }
+      </button>
+      }
+    </div>
+  </div>
   }
 </main>

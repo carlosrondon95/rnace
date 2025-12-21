@@ -3,352 +3,306 @@
 <main class="calendario-page">
   <!-- Header con botón volver -->
   @if (!cargando()) {
-    <header class="page-header">
-      <button class="btn-volver" (click)="volver()">
-        <span class="material-symbols-rounded">arrow_back</span>
-        Volver
-      </button>
-      <h1>{{ esAdmin() ? 'Gestionar Calendario' : 'Mis Clases' }}</h1>
-    </header>
+  <header class="page-header">
+    <button class="btn-volver" (click)="volver()">
+      <span class="material-symbols-rounded">arrow_back</span>
+      Volver
+    </button>
+    <h1>{{ esAdmin() ? 'Gestionar Calendario' : 'Mis Clases' }}</h1>
+  </header>
   }
 
   <!-- Loading -->
   @if (cargando()) {
-    <div class="loading-state">
-      <div class="spinner"></div>
-      <p>Cargando calendario...</p>
-    </div>
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando calendario...</p>
+  </div>
   }
 
   <!-- Contenido principal -->
   @if (!cargando()) {
-    <!-- Vista para CLIENTES: Lista de reservas -->
-    @if (!esAdmin()) {
-      <div class="reservas-container">
-        <!-- Mensajes -->
-        @if (mensajeExito(); as msg) {
-          <div class="mensaje-exito">
-            <span class="material-symbols-rounded">check_circle</span>
-            {{ msg }}
-          </div>
-        }
+  <!-- Vista Calendario (para TODOS: Admin y Cliente) -->
+  <div class="calendario-container">
+    <!-- Navegación del mes -->
+    <div class="mes-navegacion">
+      <button class="btn-nav" (click)="mesAnterior()" [disabled]="guardando()">
+        <span class="material-symbols-rounded">chevron_left</span>
+      </button>
 
-        @if (error(); as err) {
-          <div class="mensaje-error">
-            <span class="material-symbols-rounded">error</span>
-            {{ err }}
-          </div>
-        }
-
-        <!-- Lista de reservas -->
-        @if (reservasLista().length > 0) {
-          <div class="reservas-lista">
-            @for (reserva of reservasLista(); track reserva.id) {
-              <div
-                class="reserva-card"
-                [class.reserva-focus]="reserva.modalidad === 'focus'"
-                [class.reserva-reducido]="reserva.modalidad === 'reducido'"
-              >
-                <div class="reserva-icono">
-                  <span class="material-symbols-rounded">
-                    {{ reserva.modalidad === 'focus' ? 'fitness_center' : 'groups' }}
-                  </span>
-                </div>
-                <div class="reserva-info">
-                  <div class="reserva-tipo">
-                    <span class="reserva-modalidad"
-                      >Clase {{ reserva.modalidad === 'focus' ? 'Focus' : 'Reducido' }}</span
-                    >
-                    @if (reserva.es_recuperacion) {
-                      <span class="reserva-badge">Recuperación</span>
-                    }
-                  </div>
-                  <span class="reserva-fecha">{{ reserva.fecha }}</span>
-                  <span class="reserva-hora">{{ reserva.hora }}</span>
-                </div>
-                <div class="reserva-acciones">
-                  @if (reserva.puede_cancelar) {
-                    <button
-                      class="btn-cancelar-reserva"
-                      [disabled]="guardando()"
-                      (click)="cancelarReserva(reserva.id)"
-                      title="Cancelar reserva"
-                    >
-                      @if (guardando()) {
-                        <span class="spinner-small"></span>
-                      } @else {
-                        <span class="material-symbols-rounded">close</span>
-                        <span class="btn-text">Cancelar</span>
-                      }
-                    </button>
-                  } @else {
-                    <span class="reserva-no-cancelable">
-                      <span class="material-symbols-rounded">schedule</span>
-                      <span>Muy próxima</span>
-                    </span>
-                  }
-                </div>
-              </div>
-            }
-          </div>
-        } @else {
-          <div class="empty-state">
-            <span class="material-symbols-rounded">event_available</span>
-            <h3>No tienes clases programadas</h3>
-            <p>Dirígete a "Reservar cita" para programar tu próxima clase.</p>
-          </div>
-        }
+      <div class="mes-info">
+        <h2>{{ nombreMes() | titlecase }}</h2>
+        <span class="mes-estado" [class.mes-abierto]="mesEstaAbierto()">
+          {{ mesEstaAbierto() ? 'Mes abierto' : 'Mes cerrado' }}
+        </span>
       </div>
-    }
 
-    <!-- Vista para ADMIN: Calendario completo -->
+      <button class="btn-nav" (click)="mesSiguiente()" [disabled]="guardando()">
+        <span class="material-symbols-rounded">chevron_right</span>
+      </button>
+    </div>
+
+    <!-- Panel de control (solo admin) -->
     @if (esAdmin()) {
-      <div class="calendario-container">
-        <!-- Navegación del mes -->
-        <div class="mes-navegacion">
-          <button class="btn-nav" (click)="mesAnterior()" [disabled]="guardando()">
-            <span class="material-symbols-rounded">chevron_left</span>
-          </button>
+    <div class="panel-admin">
+      <!-- Botones de acción arriba -->
+      @if (!modoEdicion()) {
+      <div class="admin-actions">
+        @if (!mesEstaAbierto()) {
+        <button class="btn-admin btn-admin--primary" (click)="activarModoEdicion()" [disabled]="guardando()">
+          <span class="material-symbols-rounded">edit_calendar</span>
+          Configurar y abrir mes
+        </button>
+        }
 
-          <div class="mes-info">
-            <h2>{{ nombreMes() | titlecase }}</h2>
-            <span class="mes-estado" [class.mes-abierto]="mesEstaAbierto()">
-              {{ mesEstaAbierto() ? 'Mes abierto' : 'Mes cerrado' }}
-            </span>
+        @if (mesEstaAbierto()) {
+        <button class="btn-admin btn-admin--secondary" (click)="activarModoEdicion()" [disabled]="guardando()">
+          <span class="material-symbols-rounded">edit_calendar</span>
+          Editar días festivos
+        </button>
+
+        <button class="btn-admin btn-admin--danger" (click)="cerrarMes()" [disabled]="guardando()">
+          <span class="material-symbols-rounded">lock</span>
+          Cerrar mes
+        </button>
+        }
+      </div>
+
+      <!-- Estadísticas debajo de los botones -->
+      <div class="estadisticas">
+        <div class="stat-card">
+          <span class="stat-label">Total reservas</span>
+          <span class="stat-value">{{ totalReservas() }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Focus</span>
+          <span class="stat-value stat-focus">{{ reservasPorModalidad().focus }}</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Reducido</span>
+          <span class="stat-value stat-reducido">{{
+            reservasPorModalidad().reducido
+            }}</span>
+        </div>
+      </div>
+      }
+
+      <!-- Modo edición -->
+      @if (modoEdicion()) {
+      <div class="edicion-panel">
+        <div class="edicion-info">
+          <span class="material-symbols-rounded">info</span>
+          <div class="edicion-texto">
+            <strong>Modo configuración</strong>
+            <p>
+              Haz clic en los días laborables (lun-vie) para marcarlos como
+              festivos/cerrados
+            </p>
           </div>
-
-          <button class="btn-nav" (click)="mesSiguiente()" [disabled]="guardando()">
-            <span class="material-symbols-rounded">chevron_right</span>
-          </button>
         </div>
 
-        <!-- Panel de control (solo admin) -->
-        @if (esAdmin()) {
-          <div class="panel-admin">
-            <!-- Botones de acción arriba -->
-            @if (!modoEdicion()) {
-              <div class="admin-actions">
-                @if (!mesEstaAbierto()) {
-                  <button
-                    class="btn-admin btn-admin--primary"
-                    (click)="activarModoEdicion()"
-                    [disabled]="guardando()"
-                  >
-                    <span class="material-symbols-rounded">edit_calendar</span>
-                    Configurar y abrir mes
-                  </button>
-                }
-
-                @if (mesEstaAbierto()) {
-                  <button
-                    class="btn-admin btn-admin--secondary"
-                    (click)="activarModoEdicion()"
-                    [disabled]="guardando()"
-                  >
-                    <span class="material-symbols-rounded">edit_calendar</span>
-                    Editar días festivos
-                  </button>
-
-                  <button
-                    class="btn-admin btn-admin--danger"
-                    (click)="cerrarMes()"
-                    [disabled]="guardando()"
-                  >
-                    <span class="material-symbols-rounded">lock</span>
-                    Cerrar mes
-                  </button>
-                }
-              </div>
-
-              <!-- Estadísticas debajo de los botones -->
-              <div class="estadisticas">
-                <div class="stat-card">
-                  <span class="stat-label">Total reservas</span>
-                  <span class="stat-value">{{ totalReservas() }}</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">Focus</span>
-                  <span class="stat-value stat-focus">{{ reservasPorModalidad().focus }}</span>
-                </div>
-                <div class="stat-card">
-                  <span class="stat-label">Reducido</span>
-                  <span class="stat-value stat-reducido">{{
-                    reservasPorModalidad().reducido
-                  }}</span>
-                </div>
-              </div>
-            }
-
-            <!-- Modo edición -->
-            @if (modoEdicion()) {
-              <div class="edicion-panel">
-                <div class="edicion-info">
-                  <span class="material-symbols-rounded">info</span>
-                  <div class="edicion-texto">
-                    <strong>Modo configuración</strong>
-                    <p>
-                      Haz clic en los días laborables (lun-vie) para marcarlos como
-                      festivos/cerrados
-                    </p>
-                  </div>
-                </div>
-
-                <div class="edicion-resumen">
-                  <span class="festivos-count">
-                    {{ festivosSeleccionados().size }} día{{
-                      festivosSeleccionados().size !== 1 ? 's' : ''
-                    }}
-                    festivo{{ festivosSeleccionados().size !== 1 ? 's' : '' }}
-                  </span>
-                </div>
-
-                <div class="edicion-actions">
-                  <button
-                    class="btn-edicion btn-cancelar"
-                    (click)="cancelarEdicion()"
-                    [disabled]="guardando()"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    class="btn-edicion btn-guardar"
-                    (click)="guardarYAbrirMes()"
-                    [disabled]="guardando()"
-                  >
-                    @if (!guardando()) {
-                      <span class="material-symbols-rounded">save</span>
-                    } @else {
-                      <span class="spinner-small"></span>
-                    }
-                    {{
-                      guardando()
-                        ? 'Guardando...'
-                        : mesEstaAbierto()
-                          ? 'Guardar cambios'
-                          : 'Guardar y abrir mes'
-                    }}
-                  </button>
-                </div>
-              </div>
-            }
-          </div>
-        }
-
-        <!-- Mensajes -->
-        @if (mensajeExito()) {
-          <div class="mensaje-exito">
-            <span class="material-symbols-rounded">check_circle</span>
-            {{ mensajeExito() }}
-          </div>
-        }
-
-        @if (error()) {
-          <div class="mensaje-error">
-            <span class="material-symbols-rounded">error</span>
-            {{ error() }}
-          </div>
-        }
-
-        <!-- Calendario -->
-        <div class="calendario-grid">
-          <!-- Cabecera días de la semana -->
-          @for (dia of diasSemana; track dia) {
-            <div class="dia-header">{{ dia }}</div>
-          }
-
-          <!-- Celdas de días (solo L-V) -->
-          @for (dia of diasCalendarioLaborables(); track dia.fecha) {
-            <button
-              type="button"
-              [class]="getDiaClases(dia)"
-              [class.clickable]="modoEdicion() && dia.esDelMes && dia.esLaborable"
-              [disabled]="!(modoEdicion() && dia.esDelMes && dia.esLaborable)"
-              [attr.aria-label]="'Día ' + dia.dia + (dia.esFestivo ? ' - Festivo' : '')"
-              (click)="onClickDia(dia)"
-            >
-              <!-- Número del día -->
-              <div class="dia-numero">
-                {{ dia.dia }}
-              </div>
-
-              <!-- Indicador de festivo (modo edición) -->
-              @if (modoEdicion() && esFestivoSeleccionado(dia.fecha)) {
-                <div class="festivo-badge">
-                  <span class="material-symbols-rounded">block</span>
-                  Festivo
-                </div>
-              }
-
-              <!-- Indicador de festivo (modo normal) -->
-              @if (!modoEdicion() && dia.esFestivo && dia.esDelMes) {
-                <div class="festivo-badge">
-                  <span class="material-symbols-rounded">event_busy</span>
-                  Festivo
-                </div>
-              }
-
-              <!-- Lista de reservas -->
-              @if (dia.reservas.length > 0 && !modoEdicion()) {
-                <div class="reservas-dia-lista">
-                  @for (reserva of dia.reservas; track reserva.id) {
-                    <div
-                      class="reserva-item"
-                      [class.reserva-propia]="reserva.es_propia"
-                      [class.reserva-focus]="reserva.modalidad === 'focus'"
-                      [class.reserva-reducido]="reserva.modalidad === 'reducido'"
-                    >
-                      <span class="reserva-hora">{{ reserva.hora }}</span>
-                      <span class="reserva-modalidad">
-                        {{ reserva.modalidad === 'focus' ? 'F' : 'R' }}
-                      </span>
-                      @if (esAdmin()) {
-                        <span class="reserva-usuario">{{ reserva.usuario_nombre }}</span>
-                      }
-                      @if (!esAdmin() && reserva.es_propia) {
-                        <span class="reserva-label">Tu clase</span>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            </button>
-          }
+        <div class="edicion-resumen">
+          <span class="festivos-count">
+            {{ festivosSeleccionados().size }} día{{
+            festivosSeleccionados().size !== 1 ? 's' : ''
+            }}
+            festivo{{ festivosSeleccionados().size !== 1 ? 's' : '' }}
+          </span>
         </div>
 
-        <!-- Leyenda -->
-        <div class="leyenda">
-          <div class="leyenda-item">
-            <span class="leyenda-color leyenda-hoy"></span>
-            <span>Hoy</span>
-          </div>
-          <div class="leyenda-item">
-            <span class="leyenda-color leyenda-bloqueado"></span>
-            <span>Fin de semana</span>
-          </div>
-          @if (!modoEdicion()) {
-            <div class="leyenda-item">
-              <span class="leyenda-color leyenda-festivo"></span>
-              <span>Festivo</span>
-            </div>
+        <div class="edicion-actions">
+          <button class="btn-edicion btn-cancelar" (click)="cancelarEdicion()" [disabled]="guardando()">
+            Cancelar
+          </button>
+          <button class="btn-edicion btn-guardar" (click)="guardarYAbrirMes()" [disabled]="guardando()">
+            @if (!guardando()) {
+            <span class="material-symbols-rounded">save</span>
+            } @else {
+            <span class="spinner-small"></span>
+            }
+            {{
+            guardando()
+            ? 'Guardando...'
+            : mesEstaAbierto()
+            ? 'Guardar cambios'
+            : 'Guardar y abrir mes'
+            }}
+          </button>
+        </div>
+      </div>
+      }
+    </div>
+    }
+
+    <!-- Mensajes -->
+    @if (mensajeExito()) {
+    <div class="mensaje-exito">
+      <span class="material-symbols-rounded">check_circle</span>
+      {{ mensajeExito() }}
+    </div>
+    }
+
+    @if (error()) {
+    <div class="mensaje-error">
+      <span class="material-symbols-rounded">error</span>
+      {{ error() }}
+    </div>
+    }
+
+    <!-- Calendario -->
+    <div class="calendario-grid">
+      <!-- Cabecera días de la semana -->
+      @for (dia of diasSemana; track dia) {
+      <div class="dia-header">{{ dia }}</div>
+      }
+
+      <!-- Celdas de días (solo L-V) -->
+      @for (dia of diasCalendarioLaborables(); track dia.fecha) {
+      <button type="button" [class]="getDiaClases(dia)"
+        [class.clickable]="(modoEdicion() && dia.esDelMes && dia.esLaborable) || (esAdmin() && !modoEdicion() && dia.reservas.length > 0)"
+        [disabled]="!((modoEdicion() && dia.esDelMes && dia.esLaborable) || (esAdmin() && !modoEdicion() && dia.reservas.length > 0))"
+        [attr.aria-label]="'Día ' + dia.dia + (dia.esFestivo ? ' - Festivo' : '')" (click)="onClickDia(dia)">
+        <!-- Número del día -->
+        <div class="dia-numero">
+          {{ dia.dia }}
+        </div>
+
+        <!-- Indicador de festivo (modo edición) -->
+        @if (modoEdicion() && esFestivoSeleccionado(dia.fecha)) {
+        <div class="festivo-badge">
+          <span class="material-symbols-rounded">block</span>
+          Festivo
+        </div>
+        }
+
+        <!-- Indicador de festivo (modo normal) -->
+        @if (!modoEdicion() && dia.esFestivo && dia.esDelMes) {
+        <div class="festivo-badge">
+          <span class="material-symbols-rounded">event_busy</span>
+          Festivo
+        </div>
+        }
+
+        <!-- Indicadores de reservas (Solo admin, vista general) -->
+        @if (dia.reservas.length > 0 && !modoEdicion()) {
+        <div class="dia-indicadores">
+          @if (getReservasCount(dia, 'focus') > 0) {
+          <span class="indicador indicador-focus">F: {{ getReservasCount(dia, 'focus') }}</span>
           }
-          @if (!esAdmin()) {
-            <div class="leyenda-item">
-              <span class="leyenda-color leyenda-reserva-propia"></span>
-              <span>Tus clases</span>
-            </div>
+          @if (getReservasCount(dia, 'reducido') > 0) {
+          <span class="indicador indicador-reducido">R: {{ getReservasCount(dia, 'reducido') }}</span>
           }
-          @if (esAdmin()) {
-            <div class="leyenda-item">
-              <span class="leyenda-color leyenda-focus"></span>
-              <span>Focus</span>
+        </div>
+        }
+      </button>
+      }
+    </div>
+
+    <!-- Leyenda -->
+    <div class="leyenda">
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-hoy"></span>
+        <span>Hoy</span>
+      </div>
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-bloqueado"></span>
+        <span>Fin de semana</span>
+      </div>
+      @if (!modoEdicion()) {
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-festivo"></span>
+        <span>Festivo</span>
+      </div>
+      }
+      @if (!esAdmin()) {
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-reserva-propia"></span>
+        <span>Tus clases</span>
+      </div>
+      }
+      @if (esAdmin()) {
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-focus"></span>
+        <span>Focus</span>
+      </div>
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-reducido"></span>
+        <span>Reducido</span>
+      </div>
+      }
+    </div>
+
+    <!-- Modal Detalle Día -->
+    @if (diaSeleccionado()) {
+    <div class="modal-overlay" (click)="cerrarDetalleDia()">
+      <div class="modal-detalle-dia" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+          <h3>Reservas del día {{ diaSeleccionado()!.dia }}</h3>
+          <button class="btn-cerrar" (click)="cerrarDetalleDia()">
+            <span class="material-symbols-rounded">close</span>
+          </button>
+        </header>
+        <div class="modal-content">
+          @if (reservasDiaSeleccionadoOrdenadas().length > 0) {
+          <div class="lista-reservas-detalle">
+            @for (reserva of reservasDiaSeleccionadoOrdenadas(); track reserva.id) {
+            <div class="reserva-detalle-row" [class.reserva-focus]="reserva.modalidad === 'focus'"
+              [class.reserva-reducido]="reserva.modalidad === 'reducido'">
+              <div class="hora-tag">{{ reserva.hora }}</div>
+              <div class="info-main">
+                <span class="usuario-nombre">{{ reserva.usuario_nombre }}</span>
+                @if (reserva.usuario_telefono) {
+                <span class="usuario-telefono">{{ reserva.usuario_telefono }}</span>
+                }
+              </div>
+              <div class="modalidad-badge">
+                {{ reserva.modalidad | titlecase }}
+              </div>
             </div>
-            <div class="leyenda-item">
-              <span class="leyenda-color leyenda-reducido"></span>
-              <span>Reducido</span>
-            </div>
+            }
+          </div>
+          } @else {
+          <p class="no-reservas">No hay reservas para este día.</p>
           }
         </div>
       </div>
+    </div>
     }
+  </div>
+  }
+
+  <!-- Modal Confirmación Cierre con Conflictos -->
+  @if (mostrarModalConfirmacion()) {
+  <div class="modal-overlay modal-danger">
+    <div class="modal-confirmacion">
+      <header class="modal-header header-danger">
+        <span class="material-symbols-rounded icon-warn">warning</span>
+        <h3>¡Atención! Conflictos detectados</h3>
+      </header>
+
+      <div class="modal-body">
+        <p class="warn-text">Has marcado días festivos que contienen reservas activas. Si continúas:</p>
+
+        <ul class="lista-conflictos">
+          @for (conflicto of conflictosCierre(); track conflicto.fecha) {
+          <li>
+            <span class="conflicto-fecha">{{ conflicto.fecha | date:'dd/MM/yyyy' }}</span>
+            <span class="conflicto-count">{{ conflicto.numReservas }} reserva(s)</span>
+          </li>
+          }
+        </ul>
+
+        <p class="warn-subtext">Se cancelarán estas reservas y se notificará a los usuarios generando recuperaciones.
+        </p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancelar" (click)="cancelarCierre()">Cancelar</button>
+        <button class="btn-confirmar-peligro" (click)="confirmarCierreConConflictos()">
+          Entendido, cerrar día
+        </button>
+      </div>
+    </div>
+  </div>
   }
 </main>

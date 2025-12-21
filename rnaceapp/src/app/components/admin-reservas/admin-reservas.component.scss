@@ -152,8 +152,13 @@
 // Vista Grupos
 .grupos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  /* Un poco más de espacio */
+  max-width: 900px;
+  /* Ancho contenido */
+  margin: 2rem auto;
+  /* Centrado */
 }
 
 .grupo-card {
@@ -237,72 +242,80 @@
 
 // Vista Usuarios
 .usuarios-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+  padding: 0.5rem 0;
 }
 
 .usuario-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 1rem;
-  padding: 1rem 1.25rem;
-  background: #3a3b37;
-  border: 1px solid rgba(232, 233, 227, 0.1);
-  border-radius: 12px;
+  padding: 2rem 1.5rem;
+  background: linear-gradient(145deg, #3a3b37 0%, #343531 100%);
+  border: 1px solid rgba(232, 233, 227, 0.08);
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.15s;
-  text-align: left;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  text-align: center;
 
   &:hover {
+    transform: translateY(-4px);
     border-color: rgba(232, 233, 227, 0.2);
-    background: rgba(255, 255, 255, 0.02);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+
+    .usuario-avatar {
+      transform: scale(1.1);
+      background: rgba(184, 178, 158, 0.15);
+      color: #ebe9e3;
+    }
   }
 }
 
 .usuario-avatar {
-  width: 44px;
-  height: 44px;
+  width: 72px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(184, 178, 158, 0.1);
-  border-radius: 10px;
-  flex-shrink: 0;
+  background: rgba(184, 178, 158, 0.08);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  color: rgba(184, 178, 158, 0.7);
 
   .material-symbols-rounded {
-    font-size: 1.4rem;
-    color: rgba(184, 178, 158, 0.6);
+    font-size: 2.2rem;
   }
 }
 
 .usuario-info {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.4rem;
+  width: 100%;
 }
 
 .usuario-nombre {
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: 1.05rem;
+  font-weight: 600;
   color: #ebe9e3;
+  line-height: 1.3;
 }
 
 .usuario-telefono {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: rgba(235, 233, 227, 0.5);
+  background: rgba(0, 0, 0, 0.15);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  align-self: center;
+  letter-spacing: 0.5px;
 }
 
 .usuario-arrow {
-  font-size: 1.3rem;
-  color: rgba(235, 233, 227, 0.3);
-  transition: transform 0.15s;
-
-  .usuario-card:hover & {
-    transform: translateX(4px);
-    color: #b8b29e;
-  }
+  display: none;
 }
 
 // Vista Reservas

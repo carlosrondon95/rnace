@@ -1,132 +1,164 @@
 // src/app/auth/login/login.component.scss
-
-$color-bg: #494b46;
-$color-primary: #b8b29e;
-$color-secondary: #ebe9e3;
-$color-error: #f87171;
+// ============================================
+// LOGIN - Elegante & Mobile-First
+// ============================================
 
 .login-page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: $color-bg;
-  padding: 1.5rem;
+  background: var(--gradient-page);
+  padding: var(--space-md);
+  position: relative;
+  overflow: hidden;
+
+  // Textura sutil de fondo
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 80%, rgba(184, 178, 158, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(184, 178, 158, 0.02) 0%, transparent 40%);
+    pointer-events: none;
+  }
+
+  // En móviles pequeños, alinear arriba
+  @media (max-height: 600px) {
+    align-items: flex-start;
+    padding-top: var(--space-xl);
+  }
 }
 
 .login-card {
+  position: relative;
   width: 100%;
-  max-width: 420px;
-  background: #3a3b37;
-  border-radius: 16px;
-  padding: 2.25rem 2rem;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(232, 233, 227, 0.12);
-  color: $color-secondary;
+  max-width: 380px;
+  background: var(--color-bg-main);
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl) var(--space-lg);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  animation: scaleIn 0.4s ease;
+
+  @media (min-width: 480px) {
+    padding: var(--space-2xl) var(--space-xl);
+  }
 }
 
+// ============ HEADER ============
 .login-header {
   text-align: center;
-  margin-bottom: 1.8rem;
+  margin-bottom: var(--space-xl);
 
   h1 {
-    margin: 0.75rem 0 0.25rem;
-    font-size: 1.4rem;
-    font-weight: 600;
+    margin: var(--space-md) 0 var(--space-xs);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 1px;
   }
 
-  .subtitle {
+  .tagline {
     margin: 0;
-    font-size: 0.9rem;
-    opacity: 0.85;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
   }
 }
 
+.login-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+
+  @media (min-width: 480px) {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+// ============ FORM ============
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  gap: var(--space-md);
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: var(--space-xs);
 
   label {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: $color-secondary;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
   }
 
   input {
-    border-radius: 10px;
-    border: 1px solid rgba(232, 233, 227, 0.25);
-    padding: 0.65rem 0.8rem;
-    background: #2f302d;
-    color: $color-secondary;
-    font-size: 0.95rem;
+    width: 100%;
+    padding: var(--space-md);
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+    font-family: inherit;
     outline: none;
-    transition:
-      border-color 0.15s ease,
-      box-shadow 0.15s ease,
-      background 0.15s ease;
+    transition: all var(--transition-fast);
 
     &::placeholder {
-      color: rgba(235, 233, 227, 0.5);
+      color: var(--color-text-subtle);
     }
 
     &:focus {
-      border-color: $color-primary;
-      box-shadow: 0 0 0 1px rgba(184, 178, 158, 0.45);
-      background: #343530;
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 3px var(--color-accent-soft);
+      background: var(--color-bg-main);
     }
   }
+}
 
-  &.has-error input {
-    border-color: $color-error;
+// ============ ERROR BOX ============
+.error-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  animation: slideUp 0.25s ease;
+
+  .material-symbols-rounded {
+    font-size: 1.15rem;
+    flex-shrink: 0;
   }
 }
 
-.field-hint {
-  font-size: 0.72rem;
-  color: rgba(235, 233, 227, 0.6);
-  margin-top: 0.1rem;
-}
-
-.field-error {
-  color: $color-error;
-  font-size: 0.78rem;
-}
-
-.error-box {
-  background: rgba(248, 113, 113, 0.12);
-  border: 1px solid rgba(248, 113, 113, 0.6);
-  color: $color-error;
-  border-radius: 10px;
-  padding: 0.55rem 0.75rem;
-  font-size: 0.8rem;
-}
-
+// ============ BUTTON ============
 .btn-primary {
-  margin-top: 0.5rem;
+  position: relative;
   width: 100%;
+  margin-top: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-accent);
+  color: var(--color-bg-deep);
   border: none;
-  border-radius: 999px;
-  padding: 0.7rem 1rem;
-  font-size: 0.95rem;
-  font-weight: 600;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  background: $color-primary;
-  color: #252521;
-  transition:
-    transform 0.1s ease,
-    box-shadow 0.1s ease,
-    opacity 0.1s ease;
+  transition: all var(--transition-fast);
+  overflow: hidden;
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--shadow-md), var(--shadow-glow);
   }
 
   &:active:not(:disabled) {
@@ -136,19 +168,29 @@ $color-error: #f87171;
 
   &:disabled {
     opacity: 0.6;
-    cursor: default;
+    cursor: not-allowed;
   }
 }
 
-.info-hint {
-  margin: 0.8rem 0 0;
-  font-size: 0.78rem;
-  text-align: center;
-  opacity: 0.8;
+// ============ ANIMATIONS ============
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-@media (max-width: 480px) {
-  .login-card {
-    padding: 1.75rem 1.3rem;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
