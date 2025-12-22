@@ -25,6 +25,7 @@
             "assets": [
               "src/favicon.ico",
               "src/firebase-messaging-sw.js",
+              "src/manifest.webmanifest",
               {
                 "glob": "**/*",
                 "input": "public"

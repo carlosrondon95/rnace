@@ -16,8 +16,8 @@ const messaging = firebase.messaging();
 // Configuración por tipo de notificación
 const NOTIFICATION_CONFIG = {
   reserva_confirmada: {
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: '/assets/icon/logofull.JPG',
+    badge: '/assets/icon/logofull.JPG',
     vibrate: [200, 100, 200],
     actions: [
       { action: 'ver', title: '📅 Ver reserva' },
@@ -25,8 +25,8 @@ const NOTIFICATION_CONFIG = {
     ]
   },
   reserva_cancelada: {
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: '/assets/icon/logofull.JPG',
+    badge: '/assets/icon/logofull.JPG',
     vibrate: [300, 100, 300, 100, 300],
     requireInteraction: true,
     actions: [
@@ -34,16 +34,16 @@ const NOTIFICATION_CONFIG = {
     ]
   },
   recordatorio: {
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: '/assets/icon/logofull.JPG',
+    badge: '/assets/icon/logofull.JPG',
     vibrate: [100, 50, 100],
     actions: [
       { action: 'ver', title: '👀 Ver detalles' }
     ]
   },
   lista_espera: {
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: '/assets/icon/logofull.JPG',
+    badge: '/assets/icon/logofull.JPG',
     vibrate: [200, 100, 200, 100, 200],
     requireInteraction: true,
     actions: [
@@ -52,8 +52,8 @@ const NOTIFICATION_CONFIG = {
     ]
   },
   default: {
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: '/assets/icon/logofull.JPG',
+    badge: '/assets/icon/logofull.JPG',
     vibrate: [100]
   }
 };
