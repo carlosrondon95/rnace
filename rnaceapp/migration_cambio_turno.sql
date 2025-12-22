@@ -66,8 +66,15 @@ BEGIN
   WHERE id = p_reserva_id;
   
   /* Eliminado fecha_reserva que no existe */
-  INSERT INTO reservas (sesion_id, usuario_id, estado)
-  VALUES (p_nueva_sesion_id, p_usuario_id, 'activa');
+  /* Si ya existe una reserva (aunque sea cancelada), la reactivamos. Si no, insertamos. */
+  IF EXISTS (SELECT 1 FROM reservas WHERE sesion_id = p_nueva_sesion_id AND usuario_id = p_usuario_id) THEN
+    UPDATE reservas 
+    SET estado = 'activa' 
+    WHERE sesion_id = p_nueva_sesion_id AND usuario_id = p_usuario_id;
+  ELSE
+    INSERT INTO reservas (sesion_id, usuario_id, estado)
+    VALUES (p_nueva_sesion_id, p_usuario_id, 'activa');
+  END IF;
 
   /* 5. Gestionar lista de espera */
   DELETE FROM lista_espera 
