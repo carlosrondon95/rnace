@@ -236,7 +236,14 @@
           <button class="btn-cerrar" (click)="cerrarDetalleDia()" aria-label="Cerrar">
             <span class="material-symbols-rounded">close</span>
           </button>
-          <h3>{{ esAdmin() ? 'Reservas del día' : 'Tu clase del día' }} {{ diaSeleccionado()!.dia }}</h3>
+          <h3>
+            {{ esAdmin() ? 'Reservas del día' : 'Tu clase del día' }} {{ diaSeleccionado()!.dia }}
+            @if (!esAdmin() && tipoGrupoUsuario()) {
+            <span style="font-size: 0.8rem; font-weight: normal; opacity: 0.7;">
+              ({{ tipoGrupoUsuario() | titlecase }})
+            </span>
+            }
+          </h3>
         </header>
 
         <div class="modal-content">
@@ -330,91 +337,69 @@
           }
           } @else {
           <!-- VISTA CLIENTE: Todas las sesiones del día con opciones -->
-          <h3>Sesiones del día</h3>
-          @if (sesionesDiaSeleccionado().length > 0) {
+          <h3 class="section-title">Sesiones del día</h3>
+          @if (sesionesFiltradasPorGrupo().length > 0) {
           <div class="lista-reservas-detalle">
-            @for (sesion of sesionesDiaSeleccionado(); track sesion.id) {
+            @for (sesion of sesionesFiltradasPorGrupo(); track sesion.id) {
             <div class="reserva-detalle-card" [class.reserva-focus]="sesion.modalidad === 'focus'"
               [class.reserva-reducido]="sesion.modalidad === 'reducido'"
               [class.sesion-llena]="sesion.plazas_disponibles === 0 && !sesion.tiene_reserva">
 
+              <!-- Left: Time and Type -->
               <div class="reserva-contenido">
                 <div class="reserva-hora-destacada">{{ sesion.hora }}</div>
-
                 <div class="reserva-tipo-grupo">
                   <span class="modalidad-icono material-symbols-rounded">
                     {{ sesion.modalidad === 'focus' ? 'fitness_center' : 'groups' }}
                   </span>
-                  <span class="modalidad-nombre">Grupo {{ sesion.modalidad === 'focus' ? 'Focus' : 'Reducido' }}</span>
+                  <span class="modalidad-nombre">{{ sesion.modalidad === 'focus' ? 'Focus' : 'Reducido' }}</span>
                 </div>
+              </div>
 
-                <!-- Estado de la sesión -->
+              <!-- Right: Status/Action -->
+              <div class="reserva-acciones">
                 @if (sesion.tiene_reserva) {
                 <div class="estado-badge estado-tu-reserva">
                   <span class="material-symbols-rounded">check_circle</span>
-                  Tu clase reservada
+                  Tu clase
                 </div>
                 } @else if (sesion.en_lista_espera) {
-                <div class="estado-badge estado-espera">
-                  <span class="material-symbols-rounded">hourglass_top</span>
-                  En lista de espera
-                </div>
+                <button class="btn-secundario-danger btn-compact" [disabled]="guardando()"
+                  (click)="salirListaEspera(sesion.id)">
+                  Salir espera
+                </button>
                 } @else if (sesion.plazas_disponibles === 0) {
-                <div class="estado-badge estado-lleno">
-                  <span class="material-symbols-rounded">group_off</span>
-                  Completo
-                </div>
+                <button class="btn-primario-espera btn-compact" [disabled]="guardando()"
+                  (click)="apuntarseListaEspera(sesion.id)">
+                  Avisar hueco
+                </button>
+                } @else if (misReservasDelDia().length > 0) {
+                <button class="btn-cambio-turno btn-compact" [disabled]="guardando()"
+                  (click)="cambiarTurno(misReservasDelDia()[0].id, sesion.id)">
+                  <span class="material-symbols-rounded">sync_alt</span>
+                  Cambiar
+                </button>
                 } @else {
                 <div class="estado-badge estado-libre">
-                  <span class="material-symbols-rounded">check</span>
-                  {{ sesion.plazas_disponibles }} plazas libres
+                  {{ sesion.plazas_disponibles }} libres
                 </div>
-                }
-              </div>
-
-              <!-- Acciones -->
-              <div class="reserva-acciones">
-                @if (sesion.tiene_reserva) {
-                <div class="mi-clase-container">
-                  <span class="material-symbols-rounded check-icon">check_circle</span>
-                  <p class="info-texto-destacado">Tienes plaza confirmada</p>
-                </div>
-
-                } @else if (misReservasDelDia().length > 0 && sesion.plazas_disponibles > 0 && !sesion.en_lista_espera)
-                {
-                <!-- Opción de cambio directo -->
-                <button class="btn-cambio-turno" [disabled]="guardando()"
-                  (click)="cambiarTurno(misReservasDelDia()[0].id, sesion.id)">
-                  @if (guardando()) { <span class="spinner-small"></span> }
-                  <span class="material-symbols-rounded">sync_alt</span>
-                  Cambiar por mi clase ({{ misReservasDelDia()[0].hora }})
-                </button>
-
-                } @else if (sesion.en_lista_espera) {
-                <!-- Salir de lista de espera -->
-                <button class="btn-secundario-danger" [disabled]="guardando()" (click)="salirListaEspera(sesion.id)">
-                  @if (guardando()) { <span class="spinner-small"></span> }
-                  Salir de lista de espera
-                </button>
-
-                } @else if (sesion.plazas_disponibles === 0) {
-                <!-- Apuntarse a lista de espera -->
-                <button class="btn-primario-espera" [disabled]="guardando()" (click)="apuntarseListaEspera(sesion.id)">
-                  @if (guardando()) { <span class="spinner-small"></span> }
-                  <span class="material-symbols-rounded">notifications_active</span>
-                  Avísame si hay hueco
-                </button>
-
-                } @else {
-                <!-- Clase disponible (futuro: botón reservar) -->
-                <p class="info-texto-disponible">Clase disponible</p>
                 }
               </div>
             </div>
             }
           </div>
           } @else {
-          <p class="no-reservas">No hay sesiones programadas para este día.</p>
+          <div class="empty-state-modal">
+            <p class="no-reservas">No hay sesiones programadas para este día.</p>
+            <!-- DEBUG INFO -->
+            <div
+              style="margin-top: 10px; font-size: 0.75rem; color: #999; padding: 10px; background: #eee; border-radius: 4px;">
+              <p>Debug Info (Captura esto si hay error):</p>
+              <p>Usuario: {{ userId() || 'No ID' }}</p>
+              <p>Grupo detectado: {{ tipoGrupoUsuario() || 'Ninguno (NULL)' }}</p>
+              <p>Sesiones totales día: {{ sesionesDiaSeleccionado().length }}</p>
+            </div>
+          </div>
           }
           }
           }
