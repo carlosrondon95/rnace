@@ -1,10 +1,16 @@
 import { serve } from 'std/http/server';
 import { createClient } from '@supabase/supabase-js';
+import { SignJWT, importPKCS8 } from 'jose';
 
 // Variables de entorno
-const FIREBASE_SERVER_KEY = Deno.env.get('FIREBASE_SERVER_KEY')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+// Configuración de Service Account (puede venir como variables individuales o un JSON completo)
+const FIREBASE_SERVICE_ACCOUNT = Deno.env.get('FIREBASE_SERVICE_ACCOUNT');
+const FIREBASE_PROJECT_ID = Deno.env.get('FIREBASE_PROJECT_ID');
+const FIREBASE_CLIENT_EMAIL = Deno.env.get('FIREBASE_CLIENT_EMAIL');
+const FIREBASE_PRIVATE_KEY = Deno.env.get('FIREBASE_PRIVATE_KEY');
 
 // Tipos
 interface NotificationRequest {
@@ -13,6 +19,12 @@ interface NotificationRequest {
   titulo?: string;
   mensaje?: string;
   data?: Record<string, string>;
+}
+
+interface ServiceAccount {
+  project_id: string;
+  client_email: string;
+  private_key: string;
 }
 
 // Plantillas de mensajes
@@ -50,6 +62,49 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+async function getAccessToken(serviceAccount: ServiceAccount): Promise<string> {
+  const jwt = await new SignJWT({
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: 'https://oauth2.googleapis.com/token'
+  })
+    .setProtectedHeader({ alg: 'RS256' })
+    .setExpirationTime('1h')
+    .sign(await importPKCS8(serviceAccount.private_key, 'RS256'));
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt
+    })
+  });
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+function getServiceAccount(): ServiceAccount {
+  if (FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      return JSON.parse(FIREBASE_SERVICE_ACCOUNT);
+    } catch {
+      console.error('Error parseando FIREBASE_SERVICE_ACCOUNT');
+    }
+  }
+
+  if (FIREBASE_PROJECT_ID && FIREBASE_CLIENT_EMAIL && FIREBASE_PRIVATE_KEY) {
+    return {
+      project_id: FIREBASE_PROJECT_ID,
+      client_email: FIREBASE_CLIENT_EMAIL,
+      private_key: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') // Corregir saltos de línea si vienen escapados
+    };
+  }
+
+  throw new Error('Configuración de Firebase Service Account no encontrada');
+}
+
 serve(async (req: Request) => {
   // Manejar preflight CORS
   if (req.method === 'OPTIONS') {
@@ -64,27 +119,12 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Verificar Server Key
-    if (!FIREBASE_SERVER_KEY) {
-      throw new Error('FIREBASE_SERVER_KEY no configurada');
-    }
-
+    const serviceAccount = getServiceAccount();
     const payload: NotificationRequest = await req.json();
 
     // Validar campos
-    if (!payload.user_id) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'user_id es requerido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!payload.tipo) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'tipo es requerido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    if (!payload.user_id) throw new Error('user_id es requerido');
+    if (!payload.tipo) throw new Error('tipo es requerido');
 
     // Cliente Supabase con service key
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -95,22 +135,19 @@ serve(async (req: Request) => {
       .select('token, device_info')
       .eq('user_id', payload.user_id);
 
-    if (tokensError) {
-      console.error('Error obteniendo tokens:', tokensError);
-      throw tokensError;
-    }
+    if (tokensError) throw tokensError;
 
     if (!tokens || tokens.length === 0) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          message: 'El usuario no tiene dispositivos registrados'
-        }),
+        JSON.stringify({ success: false, message: 'El usuario no tiene dispositivos registrados' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log(`Enviando a ${tokens.length} dispositivo(s)`);
+
+    // Obtener token de acceso para FCM v1
+    const accessToken = await getAccessToken(serviceAccount);
 
     // Generar contenido con plantilla
     const template = TEMPLATES[payload.tipo];
@@ -124,45 +161,56 @@ serve(async (req: Request) => {
     const results = await Promise.all(
       tokens.map(async ({ token, device_info }) => {
         try {
-          const response = await fetch('https://fcm.googleapis.com/fcm/send', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `key=${FIREBASE_SERVER_KEY}`
-            },
-            body: JSON.stringify({
-              to: token,
-              notification: {
-                title: content.titulo,
-                body: content.mensaje,
-                icon: '/icons/icon-192x192.png',
-                click_action: url
+          const response = await fetch(
+            `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
               },
-              data: {
-                tipo: payload.tipo,
-                url: url,
-                tag: `${payload.tipo}-${Date.now()}`,
-                ...payload.data
-              },
-              webpush: {
-                fcm_options: { link: url }
-              }
-            })
-          });
+              body: JSON.stringify({
+                message: {
+                  token: token,
+                  notification: {
+                    title: content.titulo,
+                    body: content.mensaje,
+                    icon: '/assets/icon/logofull.JPG',
+                    click_action: url
+                  },
+                  data: {
+                    tipo: payload.tipo,
+                    url: url,
+                    tag: `${payload.tipo}-${Date.now()}`,
+                    ...payload.data
+                  },
+                  webpush: {
+                    fcm_options: { link: url },
+                    headers: { Urgency: 'high' }
+                  }
+                }
+              })
+            }
+          );
 
           const result = await response.json();
 
-          // Si token inválido, eliminarlo
-          if (result.results?.[0]?.error === 'NotRegistered' ||
-            result.results?.[0]?.error === 'InvalidRegistration') {
-            console.log(`Token inválido, eliminando...`);
-            await supabase.from('fcm_tokens').delete().eq('token', token);
+          if (!response.ok) {
+            const errorCode = result.error?.details?.[0]?.errorCode || result.error?.status;
+
+            // Si token inválido, eliminarlo
+            if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
+              console.log(`Token inválido (${errorCode}), eliminando...`);
+              await supabase.from('fcm_tokens').delete().eq('token', token);
+            }
+
+            throw new Error(result.error?.message || 'Error desconocido de FCM');
           }
 
           return {
             device: device_info || 'unknown',
-            success: result.success === 1,
-            error: result.results?.[0]?.error
+            success: true,
+            messageId: result.name
           };
         } catch (error) {
           return {
@@ -174,7 +222,7 @@ serve(async (req: Request) => {
       })
     );
 
-    // Guardar en historial de notificaciones (opcional)
+    // Guardar en historial de notificaciones
     await supabase.from('notificaciones').insert({
       usuario_id: payload.user_id,
       tipo: payload.tipo,
