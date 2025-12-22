@@ -3,9 +3,7 @@
 
 :host {
   display: block;
-  min-height: 100vh;
-  background: var(--color-bg-main);
-  /* Padding lateral reducido en móvil para ganar espacio */
+  // background: var(--color-bg-main); // Removed to use global gradient
   padding: var(--navbar-height) var(--space-sm) calc(var(--space-xl) + 80px);
 
   @media (min-width: 480px) {

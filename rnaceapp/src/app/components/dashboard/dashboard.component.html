@@ -7,247 +7,244 @@
         <h1>{{ saludo() }}, {{ nombreUsuario() }}</h1>
         <p class="welcome-subtitle">
           @if (isCliente()) {
-            Tu espacio de bienestar
+          Tu espacio de bienestar
           } @else if (isProfesor()) {
-            Panel de profesor
+          Panel de profesor
           } @else {
-            Panel de administración
+          Panel de administración
           }
         </p>
       </div>
 
       <!-- Botón notificaciones -->
-      <button
-        type="button"
-        class="btn-notificaciones"
-        (click)="irANotificaciones()"
-        aria-label="Ver notificaciones"
-      >
+      <button type="button" class="btn-notificaciones" (click)="irANotificaciones()" aria-label="Ver notificaciones">
         <span class="material-symbols-rounded">notifications</span>
         @if (notificacionesNoLeidas() > 0) {
-          <span class="notif-badge">{{ notificacionesNoLeidas() }}</span>
+        <span class="notif-badge">{{ notificacionesNoLeidas() }}</span>
         }
       </button>
     </header>
 
     <!-- ==================== CLIENTE ==================== -->
     @if (isCliente()) {
-      <!-- Próximas clases -->
-      <section class="section">
-        <div class="section-header">
-          <h2>
-            <span class="material-symbols-rounded">event</span>
-            Próximas clases
-          </h2>
-          <a routerLink="/calendario" class="link-ver-mas">Ver todas</a>
+    <!-- Próximas clases -->
+    <section class="section">
+      <div class="section-header">
+        <h2>
+          <span class="material-symbols-rounded">event</span>
+          Próximas clases
+        </h2>
+        <a routerLink="/calendario" class="link-ver-mas">Ver todas</a>
+      </div>
+
+      @if (cargando()) {
+      <div class="loading-inline">
+        <div class="spinner-small"></div>
+        <span>Cargando...</span>
+      </div>
+      } @else if (proximasClases().length === 0) {
+      <div class="empty-card">
+        <span class="material-symbols-rounded">event_busy</span>
+        <p>No tienes clases programadas</p>
+      </div>
+      } @else {
+      <div class="clases-lista">
+        @for (clase of proximasClases(); track trackByClaseId($index, clase)) {
+        <div class="clase-card" [class.clase-card--recuperacion]="clase.es_recuperacion">
+          <div class="clase-fecha">
+            <span class="clase-dia">{{ clase.dia_nombre }}</span>
+            <span class="clase-fecha-num">{{ clase.fecha }}</span>
+          </div>
+          <div class="clase-info">
+            <span class="clase-hora">{{ clase.hora }}</span>
+            <span class="clase-modalidad" [class]="'modalidad--' + clase.modalidad">
+              {{ clase.modalidad }}
+            </span>
+            @if (clase.es_recuperacion) {
+            <span class="tag-recuperacion">Recuperación</span>
+            }
+          </div>
         </div>
-
-        @if (cargando()) {
-          <div class="loading-inline">
-            <div class="spinner-small"></div>
-            <span>Cargando...</span>
-          </div>
-        } @else if (proximasClases().length === 0) {
-          <div class="empty-card">
-            <span class="material-symbols-rounded">event_busy</span>
-            <p>No tienes clases programadas</p>
-          </div>
-        } @else {
-          <div class="clases-lista">
-            @for (clase of proximasClases(); track trackByClaseId($index, clase)) {
-              <div class="clase-card" [class.clase-card--recuperacion]="clase.es_recuperacion">
-                <div class="clase-fecha">
-                  <span class="clase-dia">{{ clase.dia_nombre }}</span>
-                  <span class="clase-fecha-num">{{ clase.fecha }}</span>
-                </div>
-                <div class="clase-info">
-                  <span class="clase-hora">{{ clase.hora }}</span>
-                  <span class="clase-modalidad" [class]="'modalidad--' + clase.modalidad">
-                    {{ clase.modalidad }}
-                  </span>
-                  @if (clase.es_recuperacion) {
-                    <span class="tag-recuperacion">Recuperación</span>
-                  }
-                </div>
-              </div>
-            }
-          </div>
         }
-      </section>
-
-      <!-- Recuperaciones disponibles -->
-      @if (tieneRecuperaciones()) {
-        <section class="section section--highlight">
-          <div class="section-header">
-            <h2>
-              <span class="material-symbols-rounded">replay</span>
-              Recuperaciones disponibles
-            </h2>
-          </div>
-
-          <div class="recuperaciones-lista">
-            @for (recup of recuperaciones(); track trackByRecupId($index, recup)) {
-              <div class="recuperacion-card">
-                <div class="recuperacion-info">
-                  <span class="recuperacion-modalidad" [class]="'modalidad--' + recup.modalidad">
-                    {{ recup.modalidad }}
-                  </span>
-                  <span class="recuperacion-expira">
-                    Válida hasta {{ getNombreMes(recup.mes_limite) }} {{ recup.anio_limite }}
-                  </span>
-                </div>
-                <a routerLink="/recuperar-clase" class="btn-usar">
-                  Usar
-                  <span class="material-symbols-rounded">arrow_forward</span>
-                </a>
-              </div>
-            }
-          </div>
-        </section>
+      </div>
       }
+    </section>
 
-      <!-- Acciones rápidas cliente -->
-      <section class="actions-grid">
-        <a routerLink="/calendario" class="action-card action-card--primary">
-          <span class="action-icon material-symbols-rounded">calendar_month</span>
-          <div class="action-content">
-            <h3>Mis clases</h3>
-            <p>Ver mi calendario</p>
-          </div>
-          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
-        </a>
+    <!-- Recuperaciones disponibles -->
+    @if (tieneRecuperaciones()) {
+    <section class="section section--highlight">
+      <div class="section-header">
+        <h2>
+          <span class="material-symbols-rounded">replay</span>
+          Recuperaciones disponibles
+        </h2>
+      </div>
 
-        <a routerLink="/recuperar-clase" class="action-card">
-          <span class="action-icon material-symbols-rounded">replay</span>
-          <div class="action-content">
-            <h3>Recuperar clase</h3>
-            <p>Usar recuperación</p>
+      <div class="recuperaciones-lista">
+        @for (recup of recuperaciones(); track trackByRecupId($index, recup)) {
+        <div class="recuperacion-card">
+          <div class="recuperacion-info">
+            <span class="recuperacion-modalidad" [class]="'modalidad--' + recup.modalidad">
+              {{ recup.modalidad }}
+            </span>
+            <span class="recuperacion-expira">
+              Válida hasta {{ getNombreMes(recup.mes_limite) }} {{ recup.anio_limite }}
+            </span>
           </div>
-          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
-        </a>
-      </section>
+          <a routerLink="/recuperar-clase" class="btn-usar">
+            Usar
+            <span class="material-symbols-rounded">arrow_forward</span>
+          </a>
+        </div>
+        }
+      </div>
+    </section>
+    }
+
+    <!-- Acciones rápidas cliente -->
+    <section class="actions-grid">
+      <a routerLink="/calendario" class="action-card action-card--primary">
+        <span class="action-icon material-symbols-rounded">calendar_month</span>
+        <div class="action-content">
+          <h3>Mis clases</h3>
+          <p>Ver mi calendario</p>
+        </div>
+        <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+      </a>
+
+      <a routerLink="/recuperar-clase" class="action-card">
+        <span class="action-icon material-symbols-rounded">replay</span>
+        <div class="action-content">
+          <h3>Recuperar clase</h3>
+          <p>Usar recuperación</p>
+        </div>
+        <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+      </a>
+    </section>
     }
 
     <!-- ==================== PROFESOR ==================== -->
     @if (isProfesor()) {
-      <section class="actions-grid">
-        <a routerLink="/calendario" class="action-card action-card--primary">
-          <span class="action-icon material-symbols-rounded">calendar_month</span>
-          <div class="action-content">
-            <h3>Mi calendario</h3>
-            <p>Ver clases programadas</p>
-          </div>
-          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
-        </a>
-      </section>
+    <section class="actions-grid">
+      <a routerLink="/calendario" class="action-card action-card--primary">
+        <span class="action-icon material-symbols-rounded">calendar_month</span>
+        <div class="action-content">
+          <h3>Mi calendario</h3>
+          <p>Ver clases programadas</p>
+        </div>
+        <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+      </a>
+    </section>
     }
 
     <!-- ==================== ADMIN ==================== -->
     @if (isAdmin()) {
-      <!-- Estadísticas del día -->
-      <section class="section">
-        <div class="section-header">
-          <h2>
-            <span class="material-symbols-rounded">analytics</span>
-            Hoy
-          </h2>
+    <!-- Estadísticas del día -->
+    <section class="section">
+      <div class="section-header">
+        <h2>
+          <span class="material-symbols-rounded">analytics</span>
+          Hoy
+        </h2>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-value">{{ estadisticas().clases_hoy }}</span>
+          <span class="stat-label">Clases</span>
         </div>
-
-        <div class="stats-grid">
-          <div class="stat-card">
-            <span class="stat-value">{{ estadisticas().clases_hoy }}</span>
-            <span class="stat-label">Clases</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-value">{{ estadisticas().alumnos_hoy }}</span>
-            <span class="stat-label">Alumnos</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-value">{{ estadisticas().plazas_disponibles }}</span>
-            <span class="stat-label">Plazas libres</span>
-          </div>
-          <div class="stat-card stat-card--warning">
-            <span class="stat-value">{{ estadisticas().en_lista_espera }}</span>
-            <span class="stat-label">En espera</span>
-          </div>
+        <div class="stat-card">
+          <span class="stat-value">{{ estadisticas().alumnos_hoy }}</span>
+          <span class="stat-label">Alumnos</span>
         </div>
-      </section>
+        <div class="stat-card">
+          <span class="stat-value">{{ estadisticas().plazas_disponibles }}</span>
+          <span class="stat-label">Plazas libres</span>
+        </div>
+        <div class="stat-card stat-card--warning">
+          <span class="stat-value">{{ estadisticas().en_lista_espera }}</span>
+          <span class="stat-label">En espera</span>
+        </div>
+      </div>
+    </section>
 
-      <!-- Clases de hoy -->
-      @if (clasesHoy().length > 0) {
-        <section class="section">
-          <div class="section-header">
-            <h2>
-              <span class="material-symbols-rounded">schedule</span>
-              Clases de hoy
-            </h2>
+    <!-- Clases de hoy -->
+    @if (clasesHoy().length > 0) {
+    <section class="section">
+      <div class="section-header">
+        <h2>
+          <span class="material-symbols-rounded">schedule</span>
+          Clases de hoy
+        </h2>
+      </div>
+
+      <div class="clases-admin-lista">
+        @for (clase of clasesHoy(); track trackByClaseId($index, clase)) {
+        <div class="clase-admin-card">
+          <div class="clase-admin-header">
+            <span class="clase-admin-hora">{{ clase.hora }}</span>
+            <span class="clase-admin-modalidad" [class]="'modalidad--' + clase.modalidad">
+              {{ clase.modalidad }}
+            </span>
+            <span class="clase-admin-ocupacion">
+              {{ clase.reservas_count }}/{{ clase.capacidad }}
+            </span>
           </div>
-
-          <div class="clases-admin-lista">
-            @for (clase of clasesHoy(); track trackByClaseId($index, clase)) {
-              <div class="clase-admin-card">
-                <div class="clase-admin-header">
-                  <span class="clase-admin-hora">{{ clase.hora }}</span>
-                  <span class="clase-admin-modalidad" [class]="'modalidad--' + clase.modalidad">
-                    {{ clase.modalidad }}
-                  </span>
-                  <span class="clase-admin-ocupacion">
-                    {{ clase.reservas_count }}/{{ clase.capacidad }}
-                  </span>
-                </div>
-                @if (clase.alumnos.length > 0) {
-                  <div class="clase-admin-alumnos">
-                    @for (alumno of clase.alumnos; track alumno) {
-                      <span class="alumno-tag">{{ alumno }}</span>
-                    }
-                  </div>
-                } @else {
-                  <p class="clase-admin-vacia">Sin reservas</p>
-                }
-              </div>
+          @if (clase.alumnos.length > 0) {
+          <div class="clase-admin-alumnos">
+            @for (alumno of clase.alumnos; track alumno) {
+            <span class="alumno-tag">{{ alumno }}</span>
             }
           </div>
-        </section>
-      }
+          } @else {
+          <p class="clase-admin-vacia">Sin reservas</p>
+          }
+        </div>
+        }
+      </div>
+    </section>
+    }
 
-      <!-- Acciones admin -->
-      <section class="actions-grid actions-grid--admin">
-        <a routerLink="/gestionar-perfiles" class="action-card action-card--primary">
-          <span class="action-icon material-symbols-rounded">manage_accounts</span>
-          <div class="action-content">
-            <h3>Gestionar perfiles</h3>
-            <p>Usuarios y horarios</p>
-          </div>
-          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
-        </a>
+    <!-- Acciones admin -->
+    <section class="actions-grid actions-grid--admin">
+      <a routerLink="/gestionar-perfiles" class="action-card action-card--primary">
+        <span class="action-icon material-symbols-rounded">manage_accounts</span>
+        <div class="action-content">
+          <h3>Gestionar perfiles</h3>
+          <p>Usuarios y horarios</p>
+        </div>
+        <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+      </a>
 
-        <a routerLink="/calendario" class="action-card">
-          <span class="action-icon material-symbols-rounded">calendar_month</span>
-          <div class="action-content">
-            <h3>Calendario</h3>
-            <p>Meses y festivos</p>
-          </div>
-          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
-        </a>
+      <a routerLink="/calendario" class="action-card">
+        <span class="action-icon material-symbols-rounded">calendar_month</span>
+        <div class="action-content">
+          <h3>Calendario</h3>
+          <p>Meses y festivos</p>
+        </div>
+        <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+      </a>
 
-        <a routerLink="/admin-reservas" class="action-card">
-          <span class="action-icon material-symbols-rounded">event_note</span>
-          <div class="action-content">
-            <h3>Reservas</h3>
-            <p>Ver todas las reservas</p>
-          </div>
-          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
-        </a>
+      <a routerLink="/admin-reservas" class="action-card">
+        <span class="action-icon material-symbols-rounded">event_note</span>
+        <div class="action-content">
+          <h3>Reservas</h3>
+          <p>Ver todas las reservas</p>
+        </div>
+        <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+      </a>
 
-        <a routerLink="/lista-espera" class="action-card">
-          <span class="action-icon material-symbols-rounded">hourglass_top</span>
-          <div class="action-content">
-            <h3>Lista de espera</h3>
-            <p>Gestionar cola</p>
-          </div>
-          <span class="action-arrow material-symbols-rounded">arrow_forward</span>
-        </a>
-      </section>
+      <a routerLink="/lista-espera" class="action-card">
+        <span class="action-icon material-symbols-rounded">hourglass_top</span>
+        <div class="action-content">
+          <h3>Lista de espera</h3>
+          <p>Gestionar cola</p>
+        </div>
+        <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+      </a>
+
+
+    </section>
     }
 
     <!-- Info usuario -->

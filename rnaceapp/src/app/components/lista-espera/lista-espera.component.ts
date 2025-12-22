@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
 import { supabase } from '../../core/supabase.client';
 
 interface SesionAgrupada {
@@ -32,6 +33,7 @@ interface SesionAgrupada {
 export class ListaEsperaComponent implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private confirmation = inject(ConfirmationService);
 
   // Estado
   cargando = signal(true);
@@ -196,7 +198,12 @@ export class ListaEsperaComponent implements OnInit {
       return;
     }
 
-    if (!confirm('¿Asignar plaza a este usuario? Se creará una reserva y se le notificará.')) {
+    if (!await this.confirmation.confirm({
+      titulo: 'Asignar plaza',
+      mensaje: '¿Asignar plaza a este usuario? Se creará una reserva y se le notificará.',
+      textoConfirmar: 'Asignar',
+      tipo: 'info'
+    })) {
       return;
     }
 
@@ -260,7 +267,12 @@ export class ListaEsperaComponent implements OnInit {
   }
 
   async quitarDeEspera(sesionId: number, usuarioId: string) {
-    if (!confirm('¿Quitar a este usuario de la lista de espera?')) {
+    if (!await this.confirmation.confirm({
+      titulo: 'Quitar de lista de espera',
+      mensaje: '¿Quitar a este usuario de la lista de espera?',
+      tipo: 'warning',
+      textoConfirmar: 'Quitar'
+    })) {
       return;
     }
 
@@ -301,7 +313,7 @@ export class ListaEsperaComponent implements OnInit {
           titulo: '¡Hay una plaza disponible!',
           mensaje: `Hay plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}. ¡Date prisa!`,
           sesion_id: sesion.sesion_id,
-          accion_url: '/recuperar-clase',
+          accion_url: `/calendario?sesion=${sesion.sesion_id}`,
         });
 
       this.mensajeExito.set(`Notificación enviada a ${nombre}`);

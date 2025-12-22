@@ -15,7 +15,8 @@
   --color-bg-input: #2a2b27;
 
   /* === Gradientes de Fondo === */
-  --gradient-page: radial-gradient(ellipse at top, #4a4c47 0%, #3a3b37 50%, #32332f 100%);
+  /* User requested gradient from Notifications panel */
+  --gradient-page: radial-gradient(circle at top, #55574f 0, #494b46 45%, #32332f 100%);
   --gradient-card: linear-gradient(145deg, rgba(66, 67, 64, 0.5), rgba(50, 51, 47, 0.3));
 
   /* === Color Primario (Accent) === */
@@ -175,7 +176,10 @@ body {
   font-size: var(--font-size-base);
   line-height: var(--line-height-normal);
   color: var(--color-text-primary);
-  background: var(--color-bg-deep);
+  background: var(--gradient-page);
+  /* Updated to use gradient */
+  background-attachment: fixed;
+  /* Ensure gradient covers full scroll */
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;

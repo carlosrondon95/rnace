@@ -150,17 +150,17 @@ import { Subscription } from 'rxjs';
         font-size: 1.5rem;
       }
 
-      &--install {
+      &.prompt-icon--install {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
       }
 
-      &--ios {
+      &.prompt-icon--ios {
         background: linear-gradient(135deg, #1a1a2e 0%, #434343 100%);
         color: white;
       }
 
-      &--notification {
+      &.prompt-icon--notification {
         background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         color: white;
       }
@@ -278,12 +278,12 @@ import { Subscription } from 'rxjs';
         font-size: 1rem;
       }
 
-      &--success {
+      &.status-badge--success {
         background: rgba(74, 222, 128, 0.15);
         color: var(--color-success, #22c55e);
       }
 
-      &--denied {
+      &.status-badge--denied {
         background: rgba(248, 113, 113, 0.15);
         color: var(--color-danger);
       }

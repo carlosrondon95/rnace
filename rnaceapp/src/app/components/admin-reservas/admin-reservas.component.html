@@ -4,29 +4,29 @@
   <!-- Header -->
   <header class="page-header">
     @if (vistaActual() === 'grupos') {
-      <button class="btn-volver" (click)="volver()">
-        <span class="material-symbols-rounded">arrow_back</span>
-        Dashboard
-      </button>
+    <button class="btn-volver" (click)="volver()">
+      <span class="material-symbols-rounded">arrow_back</span>
+      Dashboard
+    </button>
     } @else if (vistaActual() === 'usuarios') {
-      <button class="btn-volver" (click)="volverAGrupos()">
-        <span class="material-symbols-rounded">arrow_back</span>
-        Grupos
-      </button>
+    <button class="btn-volver" (click)="volverAGrupos()">
+      <span class="material-symbols-rounded">arrow_back</span>
+      Grupos
+    </button>
     } @else {
-      <button class="btn-volver" (click)="volverAUsuarios()">
-        <span class="material-symbols-rounded">arrow_back</span>
-        Usuarios
-      </button>
+    <button class="btn-volver" (click)="volverAUsuarios()">
+      <span class="material-symbols-rounded">arrow_back</span>
+      Usuarios
+    </button>
     }
 
     <h1>
       @if (vistaActual() === 'grupos') {
-        Gestionar Reservas
+      Gestionar Reservas
       } @else if (vistaActual() === 'usuarios') {
-        Grupo {{ getNombreGrupo() }}
+      Grupo {{ getNombreGrupo() }}
       } @else {
-        {{ usuarioSeleccionado()?.nombre }}
+      {{ usuarioSeleccionado()?.nombre }}
       }
     </h1>
   </header>
@@ -44,231 +44,202 @@
 
   <!-- Mensajes -->
   @if (mensajeExito()) {
-    <div class="mensaje-exito">
-      <span class="material-symbols-rounded">check_circle</span>
-      {{ mensajeExito() }}
-    </div>
+  <div class="mensaje-exito">
+    <span class="material-symbols-rounded">check_circle</span>
+    {{ mensajeExito() }}
+  </div>
   }
 
   @if (error()) {
-    <div class="mensaje-error">
-      <span class="material-symbols-rounded">error</span>
-      {{ error() }}
-    </div>
+  <div class="mensaje-error">
+    <span class="material-symbols-rounded">error</span>
+    {{ error() }}
+  </div>
   }
 
   <!-- Loading -->
   @if (cargando()) {
-    <div class="loading-state">
-      <div class="spinner"></div>
-      <p>Cargando...</p>
-    </div>
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando...</p>
+  </div>
   }
 
   <!-- VISTA: GRUPOS -->
   @if (!cargando() && vistaActual() === 'grupos') {
-    <div class="grupos-grid">
-      @for (grupo of grupos(); track grupo.tipo) {
-        <button
-          class="grupo-card"
-          [style.--grupo-color]="grupo.color"
-          [class.grupo-card--empty]="grupo.totalUsuarios === 0"
-          (click)="seleccionarGrupo(grupo)"
-          [disabled]="grupo.totalUsuarios === 0"
-        >
-          <div class="grupo-icon">
-            <span class="material-symbols-rounded">{{ grupo.icono }}</span>
-          </div>
-          <div class="grupo-info">
-            <span class="grupo-nombre">{{ grupo.nombre }}</span>
-            <span class="grupo-stats">
-              {{ grupo.totalUsuarios }} usuario{{ grupo.totalUsuarios !== 1 ? 's' : '' }}
-            </span>
-            <span class="grupo-reservas">
-              {{ grupo.totalReservas }} reserva{{ grupo.totalReservas !== 1 ? 's' : '' }} este mes
-            </span>
-          </div>
-          <span class="grupo-arrow material-symbols-rounded">chevron_right</span>
-        </button>
-      }
-    </div>
+  <div class="grupos-grid">
+    @for (grupo of grupos(); track grupo.tipo) {
+    <button class="grupo-card" [style.--grupo-color]="grupo.color" [class.grupo-card--empty]="grupo.totalUsuarios === 0"
+      (click)="seleccionarGrupo(grupo)" [disabled]="grupo.totalUsuarios === 0">
+      <div class="grupo-icon">
+        <span class="material-symbols-rounded">{{ grupo.icono }}</span>
+      </div>
+      <div class="grupo-info">
+        <span class="grupo-nombre">{{ grupo.nombre }}</span>
+        <span class="grupo-stats">
+          {{ grupo.totalUsuarios }} usuario{{ grupo.totalUsuarios !== 1 ? 's' : '' }}
+        </span>
+        <span class="grupo-reservas">
+          {{ grupo.totalReservas }} reserva{{ grupo.totalReservas !== 1 ? 's' : '' }} este mes
+        </span>
+      </div>
+      <span class="grupo-arrow material-symbols-rounded">chevron_right</span>
+    </button>
+    }
+  </div>
   }
 
   <!-- VISTA: USUARIOS DEL GRUPO -->
   @if (!cargando() && vistaActual() === 'usuarios') {
-    <div class="usuarios-list">
-      @for (usuario of usuariosGrupo(); track usuario.id) {
-        <button class="usuario-card" (click)="seleccionarUsuario(usuario)">
-          <div class="usuario-avatar">
-            <span class="material-symbols-rounded">person</span>
-          </div>
-          <div class="usuario-info">
-            <span class="usuario-nombre">{{ usuario.nombre }}</span>
-            <span class="usuario-telefono">{{ usuario.telefono }}</span>
-          </div>
-          <span class="usuario-arrow material-symbols-rounded">chevron_right</span>
-        </button>
-      } @empty {
-        <div class="empty-state">
-          <span class="material-symbols-rounded">person_off</span>
-          <p>No hay usuarios en este grupo</p>
-        </div>
-      }
+  <div class="usuarios-list">
+    @for (usuario of usuariosGrupo(); track usuario.id) {
+    <button class="usuario-card" (click)="seleccionarUsuario(usuario)">
+      <div class="usuario-info">
+        <span class="usuario-nombre">{{ usuario.nombre }}</span>
+        <span class="usuario-telefono">{{ usuario.telefono }}</span>
+      </div>
+      <span class="usuario-arrow material-symbols-rounded">chevron_right</span>
+    </button>
+    } @empty {
+    <div class="empty-state">
+      <span class="material-symbols-rounded">person_off</span>
+      <p>No hay usuarios en este grupo</p>
     </div>
+    }
+  </div>
   }
 
   <!-- VISTA: RESERVAS DEL USUARIO -->
   @if (!cargando() && vistaActual() === 'reservas') {
-    <div class="reservas-list">
-      @for (reserva of reservasUsuario(); track reserva.id) {
-        <div
-          class="reserva-card"
-          [class.reserva-focus]="reserva.modalidad === 'focus'"
-          [class.reserva-reducido]="reserva.modalidad === 'reducido'"
-        >
-          <div class="reserva-info">
-            <span class="reserva-fecha">{{ reserva.fecha }}</span>
-            <span class="reserva-hora">{{ reserva.hora }}</span>
-            <div class="reserva-meta">
-              <span class="reserva-modalidad">{{ reserva.modalidad | titlecase }}</span>
-              @if (reserva.es_recuperacion) {
-                <span class="reserva-badge">Recuperación</span>
-              }
-            </div>
-          </div>
-          <div class="reserva-acciones">
-            <button class="btn-mover" title="Mover reserva" (click)="abrirModalMover(reserva)">
-              <span class="material-symbols-rounded">swap_horiz</span>
-            </button>
-            <button
-              class="btn-eliminar"
-              title="Eliminar reserva"
-              (click)="abrirModalEliminar(reserva)"
-            >
-              <span class="material-symbols-rounded">delete</span>
-            </button>
-          </div>
+  <div class="reservas-list">
+    @for (reserva of reservasUsuario(); track reserva.id) {
+    <div class="reserva-card" [class.reserva-focus]="reserva.modalidad === 'focus'"
+      [class.reserva-reducido]="reserva.modalidad === 'reducido'">
+      <div class="reserva-info">
+        <span class="reserva-fecha">{{ reserva.fecha }}</span>
+        <span class="reserva-hora">{{ reserva.hora }}</span>
+        <div class="reserva-meta">
+          <span class="reserva-modalidad">{{ reserva.modalidad | titlecase }}</span>
+          @if (reserva.es_recuperacion) {
+          <span class="reserva-badge">Recuperación</span>
+          }
         </div>
-      } @empty {
-        <div class="empty-state">
-          <span class="material-symbols-rounded">event_busy</span>
-          <p>No hay reservas este mes</p>
-        </div>
-      }
+      </div>
+      <div class="reserva-acciones">
+        <button class="btn-mover" title="Mover reserva" (click)="abrirModalMover(reserva)">
+          <span class="material-symbols-rounded">swap_horiz</span>
+        </button>
+        <button class="btn-eliminar" title="Eliminar reserva" (click)="abrirModalEliminar(reserva)">
+          <span class="material-symbols-rounded">delete</span>
+        </button>
+      </div>
     </div>
+    } @empty {
+    <div class="empty-state">
+      <span class="material-symbols-rounded">event_busy</span>
+      <p>No hay reservas este mes</p>
+    </div>
+    }
+  </div>
   }
 </main>
 
 <!-- Modal Mover Reserva -->
 @if (mostrarModalMover()) {
-  <div class="modal-overlay" role="dialog" aria-modal="true">
-    <button class="modal-backdrop" (click)="cerrarModalMover()" aria-label="Cerrar modal">
-      <span class="sr-only">Cerrar</span>
-    </button>
+<div class="modal-overlay" role="dialog" aria-modal="true">
+  <button class="modal-backdrop" (click)="cerrarModalMover()" aria-label="Cerrar modal">
+    <span class="sr-only">Cerrar</span>
+  </button>
 
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Mover Reserva</h2>
-        <button class="btn-cerrar" (click)="cerrarModalMover()">
-          <span class="material-symbols-rounded">close</span>
-        </button>
-      </div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Mover Reserva</h2>
+      <button class="btn-cerrar" (click)="cerrarModalMover()">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
 
-      <div class="modal-body">
-        <p class="modal-descripcion">
-          Reserva actual: <strong>{{ reservaAMover()?.fecha }}</strong> a las
-          <strong>{{ reservaAMover()?.hora }}</strong>
-        </p>
+    <div class="modal-body">
+      <p class="modal-descripcion">
+        Reserva actual: <strong>{{ reservaAMover()?.fecha }}</strong> a las
+        <strong>{{ reservaAMover()?.hora }}</strong>
+      </p>
 
-        <p class="select-label">Selecciona nueva sesión:</p>
+      <p class="select-label">Selecciona nueva sesión:</p>
 
-        @if (sesionesDisponibles().length > 0) {
-          <div class="sesiones-lista">
-            @for (sesion of sesionesDisponibles(); track sesion.id) {
-              <label class="sesion-option" [class.selected]="sesionDestino() === sesion.id">
-                <input
-                  type="radio"
-                  name="sesion"
-                  [value]="sesion.id"
-                  [checked]="sesionDestino() === sesion.id"
-                  (change)="sesionDestino.set(sesion.id)"
-                />
-                <span class="sesion-info">
-                  <span class="sesion-fecha">{{ sesion.fecha }}</span>
-                  <span class="sesion-hora">{{ sesion.hora }}</span>
-                </span>
-                <span class="sesion-plazas">{{ sesion.plazas_disponibles }} plazas</span>
-              </label>
-            }
-          </div>
-        } @else {
-          <div class="no-sesiones">
-            <p>No hay otras sesiones disponibles de {{ reservaAMover()?.modalidad }} este mes.</p>
-          </div>
+      @if (sesionesDisponibles().length > 0) {
+      <div class="sesiones-lista">
+        @for (sesion of sesionesDisponibles(); track sesion.id) {
+        <label class="sesion-option" [class.selected]="sesionDestino() === sesion.id">
+          <input type="radio" name="sesion" [value]="sesion.id" [checked]="sesionDestino() === sesion.id"
+            (change)="sesionDestino.set(sesion.id)" />
+          <span class="sesion-info">
+            <span class="sesion-fecha">{{ sesion.fecha }}</span>
+            <span class="sesion-hora">{{ sesion.hora }}</span>
+          </span>
+          <span class="sesion-plazas">{{ sesion.plazas_disponibles }} plazas</span>
+        </label>
         }
       </div>
-
-      <div class="modal-footer">
-        <button class="btn-cancelar" (click)="cerrarModalMover()">Cancelar</button>
-        <button
-          class="btn-confirmar"
-          (click)="confirmarMover()"
-          [disabled]="!sesionDestino() || moviendo()"
-        >
-          @if (moviendo()) {
-            <span class="spinner-small"></span>
-          } @else {
-            <span class="material-symbols-rounded">check</span>
-          }
-          {{ moviendo() ? 'Moviendo...' : 'Confirmar' }}
-        </button>
+      } @else {
+      <div class="no-sesiones">
+        <p>No hay otras sesiones disponibles de {{ reservaAMover()?.modalidad }} este mes.</p>
       </div>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancelar" (click)="cerrarModalMover()">Cancelar</button>
+      <button class="btn-confirmar" (click)="confirmarMover()" [disabled]="!sesionDestino() || moviendo()">
+        @if (moviendo()) {
+        <span class="spinner-small"></span>
+        } @else {
+        <span class="material-symbols-rounded">check</span>
+        }
+        {{ moviendo() ? 'Moviendo...' : 'Confirmar' }}
+      </button>
     </div>
   </div>
+</div>
 }
 
 <!-- Modal Eliminar Reserva -->
 @if (mostrarModalEliminar()) {
-  <div class="modal-overlay modal-overlay--danger" role="dialog" aria-modal="true">
-    <button class="modal-backdrop" (click)="cerrarModalEliminar()" aria-label="Cerrar modal">
-      <span class="sr-only">Cerrar</span>
-    </button>
+<div class="modal-overlay modal-overlay--danger" role="dialog" aria-modal="true">
+  <button class="modal-backdrop" (click)="cerrarModalEliminar()" aria-label="Cerrar modal">
+    <span class="sr-only">Cerrar</span>
+  </button>
 
-    <div class="modal-content modal-content--small">
-      <div class="modal-header modal-header--danger">
-        <h2>Eliminar Reserva</h2>
-        <button class="btn-cerrar" (click)="cerrarModalEliminar()">
-          <span class="material-symbols-rounded">close</span>
-        </button>
-      </div>
+  <div class="modal-content modal-content--small">
+    <div class="modal-header modal-header--danger">
+      <h2>Eliminar Reserva</h2>
+      <button class="btn-cerrar" (click)="cerrarModalEliminar()">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
 
-      <div class="modal-body">
-        <div class="eliminar-warning">
-          <span class="material-symbols-rounded">warning</span>
-          <p>
-            ¿Eliminar la reserva del <strong>{{ reservaAEliminar()?.fecha }}</strong> a las
-            <strong>{{ reservaAEliminar()?.hora }}</strong
-            >?
-          </p>
-          <p class="eliminar-hint">Esta acción cancelará la reserva del usuario.</p>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-cancelar" (click)="cerrarModalEliminar()">Cancelar</button>
-        <button
-          class="btn-eliminar-confirmar"
-          (click)="confirmarEliminar()"
-          [disabled]="eliminando()"
-        >
-          @if (eliminando()) {
-            <span class="spinner-small"></span>
-          } @else {
-            <span class="material-symbols-rounded">delete</span>
-          }
-          {{ eliminando() ? 'Eliminando...' : 'Sí, eliminar' }}
-        </button>
+    <div class="modal-body">
+      <div class="eliminar-warning">
+        <span class="material-symbols-rounded">warning</span>
+        <p>
+          ¿Eliminar la reserva del <strong>{{ reservaAEliminar()?.fecha }}</strong> a las
+          <strong>{{ reservaAEliminar()?.hora }}</strong>?
+        </p>
+        <p class="eliminar-hint">Esta acción cancelará la reserva del usuario.</p>
       </div>
     </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancelar" (click)="cerrarModalEliminar()">Cancelar</button>
+      <button class="btn-eliminar-confirmar" (click)="confirmarEliminar()" [disabled]="eliminando()">
+        @if (eliminando()) {
+        <span class="spinner-small"></span>
+        } @else {
+        <span class="material-symbols-rounded">delete</span>
+        }
+        {{ eliminando() ? 'Eliminando...' : 'Sí, eliminar' }}
+      </button>
+    </div>
   </div>
+</div>
 }
