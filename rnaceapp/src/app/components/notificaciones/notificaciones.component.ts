@@ -36,14 +36,56 @@ export class NotificacionesComponent implements OnInit {
   // Datos
   notificaciones = signal<Notificacion[]>([]);
 
+  // Filtro activo: 'todas' | 'no_leidas' | 'leidas'
+  filtroActivo = signal<'todas' | 'no_leidas' | 'leidas'>('todas');
+  
+  // Filtro por tipo (categoría)
+  filtroTipo = signal<string>('todos');
+
+  // Modal Detalle
+  modalAbierto = signal(false);
+  notificacionSeleccionada = signal<Notificacion | null>(null);
+
   // Computed
   userId = computed(() => this.auth.userId());
   esAdmin = computed(() => this.auth.getRol() === 'admin');
 
   noLeidas = computed(() => this.notificaciones().filter((n) => !n.leida).length);
+  leidas = computed(() => this.notificaciones().filter((n) => n.leida).length);
+
+  // Notificaciones filtradas según el filtro activo
+  notificacionesFiltradas = computed(() => {
+    const todas = this.notificaciones();
+    const filtro = this.filtroActivo();
+    
+    const filtroLeida = this.filtroActivo();
+    const filtroCategoria = this.filtroTipo();
+    
+    let resultado = todas;
+
+    // 1. Filtrar por estado (leída/no leída)
+    if (filtroLeida === 'no_leidas') {
+      resultado = resultado.filter((n) => !n.leida);
+    } else if (filtroLeida === 'leidas') {
+      resultado = resultado.filter((n) => n.leida);
+    }
+
+    // 2. Filtrar por tipo
+    if (filtroCategoria !== 'todos') {
+      if (filtroCategoria === 'avisos') {
+        resultado = resultado.filter(n => n.tipo.startsWith('admin_'));
+      } else if (filtroCategoria === 'clases') {
+        resultado = resultado.filter(n => ['hueco_disponible', 'plaza_disponible', 'plaza_asignada', 'cancelacion', 'recuperacion', 'lista_espera', 'recordatorio'].includes(n.tipo));
+      } else if (filtroCategoria === 'festivos') {
+        resultado = resultado.filter(n => n.tipo === 'festivo');
+      }
+    }
+
+    return resultado;
+  });
 
   notificacionesAgrupadas = computed(() => {
-    const todas = this.notificaciones();
+    const todas = this.notificacionesFiltradas();
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
@@ -137,6 +179,14 @@ export class NotificacionesComponent implements OnInit {
     });
   }
 
+  formatearFechaCompleta(fecha: string): string {
+    const d = new Date(fecha);
+    const fechaStr = d.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const horaStr = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    // Capitalize first letter
+    return (fechaStr.charAt(0).toUpperCase() + fechaStr.slice(1)) + ' - ' + horaStr;
+  }
+
   async marcarComoLeida(notificacion: Notificacion) {
     if (notificacion.leida) return;
 
@@ -177,43 +227,30 @@ export class NotificacionesComponent implements OnInit {
     }
   }
 
-  async eliminarNotificacion(notificacion: Notificacion, event: Event) {
-    event.stopPropagation();
-
-    try {
-      const { error } = await supabase().from('notificaciones').delete().eq('id', notificacion.id);
-
-      if (!error) {
-        this.notificaciones.update((lista) => lista.filter((n) => n.id !== notificacion.id));
-      }
-    } catch (err) {
-      console.error('Error eliminando:', err);
-    }
+  cambiarFiltro(filtro: 'todas' | 'no_leidas' | 'leidas') {
+    this.filtroActivo.set(filtro);
   }
 
-  async eliminarTodas() {
-    if (!confirm('¿Eliminar todas las notificaciones?')) return;
-
-    const uid = this.userId();
-    if (!uid) return;
-
-    try {
-      const { error } = await supabase().from('notificaciones').delete().eq('usuario_id', uid);
-
-      if (!error) {
-        this.notificaciones.set([]);
-        this.mensajeExito.set('Notificaciones eliminadas');
-        setTimeout(() => this.mensajeExito.set(null), 3000);
-      }
-    } catch (err) {
-      console.error('Error:', err);
-    }
+  cambiarFiltroTipo(tipo: string) {
+    this.filtroTipo.set(tipo);
   }
 
   onClickNotificacion(notificacion: Notificacion) {
     this.marcarComoLeida(notificacion);
+    // Abrir modal en lugar de navegar directamente si no es una acción inmediata
+    // Pero el usuario pidió "cuando pulse... se despliegue un modal"
+    this.notificacionSeleccionada.set(notificacion);
+    this.modalAbierto.set(true);
+  }
 
+  cerrarModal() {
+    this.modalAbierto.set(false);
+    this.notificacionSeleccionada.set(null);
+  }
+
+  ejecutarAccion(notificacion: Notificacion) {
     if (notificacion.accion_url) {
+      this.cerrarModal();
       this.router.navigateByUrl(notificacion.accion_url);
     }
   }
@@ -221,6 +258,7 @@ export class NotificacionesComponent implements OnInit {
   getIcono(tipo: string): string {
     switch (tipo) {
       case 'hueco_disponible':
+      case 'plaza_disponible':
         return 'event_available';
       case 'festivo':
         return 'event_busy';
@@ -232,6 +270,16 @@ export class NotificacionesComponent implements OnInit {
         return 'replay';
       case 'lista_espera':
         return 'hourglass_top';
+      case 'plaza_asignada':
+        return 'check_circle';
+      case 'admin_info':
+        return 'info';
+      case 'admin_warning':
+        return 'warning';
+      case 'admin_urgent':
+        return 'report';
+      case 'admin_promo':
+        return 'celebration';
       default:
         return 'notifications';
     }
@@ -240,6 +288,8 @@ export class NotificacionesComponent implements OnInit {
   getClaseTipo(tipo: string): string {
     switch (tipo) {
       case 'hueco_disponible':
+      case 'plaza_disponible':
+      case 'plaza_asignada':
         return 'tipo-disponible';
       case 'festivo':
         return 'tipo-festivo';
@@ -247,9 +297,18 @@ export class NotificacionesComponent implements OnInit {
         return 'tipo-cancelacion';
       case 'recuperacion':
         return 'tipo-recuperacion';
+      case 'admin_info':
+      case 'admin_warning':
+      case 'admin_urgent':
+      case 'admin_promo':
+        return tipo; // Usamos el mismo nombre como clase
       default:
         return 'tipo-default';
     }
+  }
+
+  irAEnviarAviso() {
+    this.router.navigateByUrl('/admin-avisos');
   }
 
   volver() {

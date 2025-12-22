@@ -37,7 +37,7 @@ $color-default: #a78bfa;
 .notificaciones-page {
   min-height: 100vh;
   padding: 72px 1rem 2rem;
-  background: $bg-page;
+  // background: $bg-page; // Removed to use global gradient
 }
 
 .notificaciones-container {
@@ -103,6 +103,125 @@ $color-default: #a78bfa;
   gap: 0.5rem;
 }
 
+// Filtros
+.filtros-nav {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+
+  // Hide scrollbar
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.filtro-btn {
+  @include button-reset;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid $border-color;
+  border-radius: 20px;
+  color: $text-secondary;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: $text-primary;
+    border-color: $border-hover;
+  }
+
+  &--activo {
+    background: $text-primary;
+    color: $bg-dark;
+    border-color: $text-primary;
+
+    &:hover {
+      background: $text-primary;
+      color: $bg-dark;
+    }
+
+    .filtro-count {
+      background: rgba($bg-dark, 0.2);
+      color: $bg-dark;
+    }
+  }
+}
+
+// Chips Filter
+.filtros-chips {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chip {
+    @include button-reset;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.8rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid transparent;
+    border-radius: 99px;
+    color: $text-secondary;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: $text-primary;
+    }
+
+    &.active {
+      background: $text-primary;
+      color: $bg-dark;
+      font-weight: 600;
+    }
+
+    .material-symbols-rounded {
+      font-size: 1.1rem;
+    }
+  }
+}
+
+.filtro-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  font-size: 0.75rem;
+  color: $text-secondary;
+  transition: all 0.2s ease;
+
+  &--activo {
+    background: $accent;
+    color: $bg-dark;
+  }
+}
+
 .btn-icon {
   @include button-reset;
   display: flex;
@@ -127,6 +246,34 @@ $color-default: #a78bfa;
   &--danger:hover:not(:disabled) {
     background: rgba($color-cancelacion, 0.15);
     color: $color-cancelacion;
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.25rem;
+  }
+}
+
+.btn-broadcast {
+  @include button-reset;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: $accent;
+  color: $bg-dark;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    filter: brightness(1.1);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 
   .material-symbols-rounded {
@@ -307,6 +454,27 @@ $color-default: #a78bfa;
     color: $color-recuperacion;
   }
 
+  // Admin Broadcast Types
+  &.admin_info {
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+  }
+
+  &.admin_warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+  }
+
+  &.admin_urgent {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+  }
+
+  &.admin_promo {
+    background: rgba(167, 139, 250, 0.15);
+    color: #a78bfa;
+  }
+
   &.tipo-default {
     background: rgba($color-default, 0.15);
     color: $color-default;
@@ -366,31 +534,7 @@ $color-default: #a78bfa;
   }
 }
 
-.btn-eliminar {
-  @include button-reset;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  color: $text-muted;
-  opacity: 0;
-  transition: all 0.15s ease;
 
-  .notificacion-item:hover & {
-    opacity: 1;
-  }
-
-  &:hover {
-    background: rgba($color-cancelacion, 0.15);
-    color: $color-cancelacion;
-  }
-
-  .material-symbols-rounded {
-    font-size: 1rem;
-  }
-}
 
 // Responsive
 @media (max-width: 600px) {
@@ -435,5 +579,198 @@ $color-default: #a78bfa;
 
   .btn-eliminar {
     opacity: 1;
+  }
+}
+
+// Modal Detalle Styles
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-detail {
+  background: #2a2a2a; // Solid darker grey
+  width: 100%;
+  max-width: 500px;
+  border-radius: 24px;
+  padding: 2rem 1.5rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &.admin_info {
+    border-color: rgba(96, 165, 250, 0.2);
+    // Gradient removed or very subtle, relying on solid bg
+  }
+
+  &.admin_warning {
+    border-color: rgba(245, 158, 11, 0.2);
+  }
+
+  &.admin_urgent {
+    border-color: rgba(239, 68, 68, 0.2);
+  }
+
+  &.admin_promo {
+    border-color: rgba(167, 139, 250, 0.2);
+  }
+
+  .btn-close-modal {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: none;
+    color: $text-secondary;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.4);
+      color: white;
+    }
+  }
+
+  .modal-header-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+
+    span {
+      font-size: 2.5rem;
+    }
+
+    background: rgba(255, 255, 255, 0.05);
+    color: $text-primary;
+
+    // Colores más suaves (pastel) y menos saturados
+    &.tipo-festivo {
+      color: #fbbf24; // Amber 400
+      background: rgba(#fbbf24, 0.1);
+    }
+
+    &.admin_info {
+      color: #93c5fd; // Blue 300
+      background: rgba(#93c5fd, 0.1);
+    }
+
+    &.admin_warning {
+      color: #fcd34d; // Amber 300
+      background: rgba(#fcd34d, 0.1);
+    }
+
+    &.admin_urgent {
+      color: #fca5a5; // Red 300
+      background: rgba(#fca5a5, 0.1);
+    }
+
+    &.admin_promo {
+      color: #c4b5fd; // Violet 300
+      background: rgba(#c4b5fd, 0.1);
+    }
+  }
+
+  .modal-body {
+    margin-bottom: 2rem;
+    width: 100%;
+
+    .modal-date {
+      display: block;
+      font-size: 0.85rem;
+      color: $text-muted;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .modal-title {
+      margin: 0 0 1rem;
+      font-size: 1.4rem;
+      color: $text-primary;
+      line-height: 1.3;
+    }
+
+    .modal-message {
+      margin: 0;
+      color: $text-secondary;
+      line-height: 1.6;
+      font-size: 1rem;
+    }
+  }
+
+  .modal-footer {
+    width: 100%;
+
+    .btn-action {
+      width: 100%;
+      padding: 1rem;
+      border-radius: 12px;
+      border: none;
+      background: $text-primary;
+      color: $bg-dark;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: transform 0.1s;
+
+      &:hover {
+        transform: scale(1.02);
+      }
+
+      &:active {
+        transform: scale(0.98);
+      }
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

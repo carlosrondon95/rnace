@@ -247,35 +247,86 @@
           </div>
           } @else {
           @if (esAdmin()) {
-          <!-- VISTA ADMIN: Lista de reservas existentes -->
-          @if (reservasDiaSeleccionadoOrdenadas().length > 0) {
-          <div class="lista-reservas-detalle">
-            @for (reserva of reservasDiaSeleccionadoOrdenadas(); track reserva.id) {
-            <div class="reserva-detalle-card" [class.reserva-focus]="reserva.modalidad === 'focus'"
-              [class.reserva-reducido]="reserva.modalidad === 'reducido'">
+          @if (pasoModalDetalle() === 'tipo') {
+          <!-- PASO 1: Selección de Tipo de Grupo -->
+          <div class="seleccion-grupo-container">
+            <button class="btn-tipo-grupo btn-focus" (click)="seleccionarTipoGrupo('focus')">
+              <div class="tipo-header">
+                <span class="material-symbols-rounded">fitness_center</span>
+                <h4>Grupo Focus</h4>
+              </div>
+              <div class="tipo-stats">
+                <span class="count">{{ getReservasCount(diaSeleccionado()!, 'focus') }}</span>
+                <span class="label">reservas</span>
+              </div>
+              <span class="material-symbols-rounded arrow-icon">arrow_forward</span>
+            </button>
 
-              <div class="reserva-contenido">
-                <div class="reserva-hora-destacada">{{ reserva.hora }}</div>
+            <button class="btn-tipo-grupo btn-reducido" (click)="seleccionarTipoGrupo('reducido')">
+              <div class="tipo-header">
+                <span class="material-symbols-rounded">groups</span>
+                <h4>Grupo Reducido</h4>
+              </div>
+              <div class="tipo-stats">
+                <span class="count">{{ getReservasCount(diaSeleccionado()!, 'reducido') }}</span>
+                <span class="label">reservas</span>
+              </div>
+              <span class="material-symbols-rounded arrow-icon">arrow_forward</span>
+            </button>
+          </div>
+          } @else {
+          <!-- PASO 2: Lista de reservas filtradas -->
+          <div class="lista-header-nav">
+            <button class="btn-volver-modal" (click)="volverASeleccionTipo()">
+              <span class="material-symbols-rounded">arrow_back</span>
+              Volver a grupos
+            </button>
+            <span class="filtro-actual bubble" [class.bubble-focus]="tipoGrupoSeleccionado() === 'focus'"
+              [class.bubble-reducido]="tipoGrupoSeleccionado() === 'reducido'">
+              {{ tipoGrupoSeleccionado() | titlecase }}
+            </span>
+          </div>
 
-                <div class="reserva-tipo-grupo">
-                  <span class="modalidad-icono material-symbols-rounded">
-                    {{ reserva.modalidad === 'focus' ? 'fitness_center' : 'groups' }}
-                  </span>
-                  <span class="modalidad-nombre">Grupo {{ reserva.modalidad === 'focus' ? 'Focus' : 'Reducido' }}</span>
+          @if (reservasAgrupadasPorHora().length > 0) {
+          <div class="lista-reservas-detalle animate-fade-in">
+            @for (grupo of reservasAgrupadasPorHora(); track grupo.hora) {
+            <div class="hora-group">
+              <div class="hora-header">
+                <span class="material-symbols-rounded">schedule</span>
+                {{ grupo.hora }}
+              </div>
+
+              <div class="reservas-hora-list">
+                @for (reserva of grupo.reservas; track reserva.id) {
+                <div class="reserva-detalle-card" [class.reserva-focus]="reserva.modalidad === 'focus'"
+                  [class.reserva-reducido]="reserva.modalidad === 'reducido'">
+
+                  <div class="reserva-contenido">
+                    <!-- Hora eliminada de aquí porque está en el header -->
+
+                    <div class="reserva-usuario-info">
+                      <span class="usuario-nombre">{{ reserva.usuario_nombre }}</span>
+                      @if (reserva.usuario_telefono) {
+                      <span class="usuario-telefono">{{ reserva.usuario_telefono }}</span>
+                      }
+                    </div>
+
+                    <div class="reserva-tipo-grupo-mini">
+                      <span class="modalidad-nombre">{{ reserva.modalidad | titlecase }}</span>
+                    </div>
+                  </div>
                 </div>
-
-                <div class="reserva-usuario-info">
-                  <span class="usuario-nombre">{{ reserva.usuario_nombre }}</span>
-                  @if (reserva.usuario_telefono) {
-                  <span class="usuario-telefono">{{ reserva.usuario_telefono }}</span>
-                  }
-                </div>
+                }
               </div>
             </div>
             }
           </div>
           } @else {
-          <p class="no-reservas">No hay reservas para este día.</p>
+          <div class="empty-state-modal">
+            <span class="material-symbols-rounded">event_busy</span>
+            <p>No hay reservas de grupo {{ tipoGrupoSeleccionado() }} para este día.</p>
+          </div>
+          }
           }
           } @else {
           <!-- VISTA CLIENTE: Todas las sesiones del día con opciones -->

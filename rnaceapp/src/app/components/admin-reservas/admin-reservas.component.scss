@@ -3,7 +3,7 @@
 .admin-reservas-page {
   min-height: 100vh;
   padding: 72px 1.5rem 2rem;
-  background: radial-gradient(circle at top, #55574f 0, #494b46 45%, #32332f 100%);
+  // background: radial-gradient(circle at top, #55574f 0, #494b46 45%, #32332f 100%); // Removed to use global gradient
 }
 
 .page-header {
@@ -12,6 +12,9 @@
   gap: 1rem;
   margin-bottom: 1rem;
   padding-top: 1rem;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
 
   h1 {
     margin: 0;
@@ -242,34 +245,34 @@
 
 // Vista Usuarios
 .usuarios-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 600px;
+  margin: 0 auto;
   padding: 0.5rem 0;
 }
 
 .usuario-card {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 1rem;
-  padding: 2rem 1.5rem;
-  background: linear-gradient(145deg, #3a3b37 0%, #343531 100%);
-  border: 1px solid rgba(232, 233, 227, 0.08);
-  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  text-align: center;
+  transition: all var(--transition-base);
+  text-align: left;
 
   &:hover {
-    transform: translateY(-4px);
-    border-color: rgba(232, 233, 227, 0.2);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+    transform: translateY(-2px);
+    border-color: var(--color-border-hover);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 
-    .usuario-avatar {
-      transform: scale(1.1);
-      background: rgba(184, 178, 158, 0.15);
-      color: #ebe9e3;
+    .usuario-arrow {
+      transform: translateX(4px);
+      color: var(--color-accent);
     }
   }
 }
@@ -305,17 +308,13 @@
 }
 
 .usuario-telefono {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: rgba(235, 233, 227, 0.5);
-  background: rgba(0, 0, 0, 0.15);
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  align-self: center;
-  letter-spacing: 0.5px;
 }
 
 .usuario-arrow {
-  display: none;
+  color: var(--color-text-muted);
+  transition: all var(--transition-fast);
 }
 
 // Vista Reservas
@@ -323,6 +322,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .reserva-card {

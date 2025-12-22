@@ -4,7 +4,7 @@
 :host {
   display: block;
   min-height: 100vh;
-  background: var(--color-bg-main);
+  // background: var(--color-bg-main); // Removed to use global gradient
   padding: var(--navbar-height) var(--space-md) calc(var(--space-xl) + 80px);
 }
 
@@ -1233,39 +1233,35 @@
 .estado-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 600;
-  margin-top: 8px;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 6px;
 
   .material-symbols-rounded {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   &.estado-tu-reserva {
     background: var(--color-success-soft);
     color: var(--color-success);
-    border: 1px solid var(--color-success-border);
   }
 
   &.estado-espera {
     background: var(--color-warning-soft);
     color: var(--color-warning);
-    border: 1px solid var(--color-warning-border);
   }
 
   &.estado-lleno {
     background: var(--color-danger-soft);
     color: var(--color-danger);
-    border: 1px solid var(--color-danger-border);
   }
 
   &.estado-libre {
     background: var(--color-accent-soft);
     color: var(--color-accent);
-    border: 1px solid var(--color-accent);
   }
 }
 
@@ -1358,22 +1354,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 10px 16px;
-  background: var(--color-bg-elevated);
-  color: #3b82f6;
-  border: 1px solid #3b82f6;
-  border-radius: 8px;
-  font-weight: 600;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--color-focus);
+  border: 1px solid var(--color-focus-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 8px;
+  transition: all var(--transition-fast);
+  margin-top: 6px;
 
   &:hover:not(:disabled) {
-    background: rgba(59, 130, 246, 0.1);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    background: var(--color-focus-soft);
+    border-color: var(--color-focus);
   }
 
   &:disabled {
@@ -1386,23 +1382,304 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px;
-  background: rgba(34, 197, 94, 0.1);
-  /* var(--color-success) con opacidad */
-  border-radius: 8px;
-  border: 1px solid var(--color-success-border);
+  gap: 6px;
+  padding: 8px;
+  background: var(--color-success-soft);
+  border-radius: var(--radius-md);
   width: 100%;
 
   .check-icon {
     color: var(--color-success);
-    font-size: 1.4rem;
+    font-size: 1.2rem;
+  }
+}
+
+.info-texto-destacado {
+  color: var(--color-success);
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+// ============ NUEVOS ESTILOS MODAL ADMIN (GRUPOS) ============
+
+.seleccion-grupo-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-xs);
+}
+
+.btn-tipo-grupo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  /* Fallback */
+  cursor: pointer;
+  transition: all var(--transition-base);
+  width: 100%;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
   }
 
-  .info-texto-destacado {
-    color: var(--color-success);
-    font-weight: 700;
-    font-size: 0.95rem;
+  &.btn-focus {
+    border-color: var(--color-focus-border);
+
+    .material-symbols-rounded {
+      color: var(--color-focus);
+      opacity: 0.8;
+      transition: all var(--transition-fast);
+    }
+
+    &:hover {
+      border-color: var(--color-focus);
+      background: var(--color-focus-soft);
+
+      .material-symbols-rounded {
+        opacity: 1;
+        transform: scale(1.05);
+      }
+    }
+  }
+
+  &.btn-reducido {
+    border-color: var(--color-reducido-border);
+
+    .material-symbols-rounded {
+      color: var(--color-reducido);
+      opacity: 0.8;
+      transition: all var(--transition-fast);
+    }
+
+    &:hover {
+      border-color: var(--color-reducido);
+      background: var(--color-reducido-soft);
+
+      .material-symbols-rounded {
+        opacity: 1;
+        transform: scale(1.05);
+      }
+    }
+  }
+}
+
+.tipo-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+
+  .material-symbols-rounded {
+    font-size: 1.8rem;
+    /* Slightly smaller */
+  }
+
+  h4 {
     margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    /* Less bold */
+    color: var(--color-text-primary);
+  }
+}
+
+.tipo-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  /* Align right */
+  margin: 0 var(--space-md);
+  min-width: 80px;
+
+  .count {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.arrow-icon {
+  color: var(--color-text-muted);
+  font-size: 1.25rem !important;
+  opacity: 0.5;
+}
+
+// Header de navegación en lista
+.lista-header-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.btn-volver-modal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    color: var(--color-accent);
+  }
+}
+
+.filtro-actual.bubble {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+
+  &.bubble-focus {
+    background: var(--color-focus-soft);
+    color: var(--color-focus);
+  }
+
+  &.bubble-reducido {
+    background: var(--color-reducido-soft);
+    color: var(--color-reducido);
+  }
+}
+
+.empty-state-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  color: var(--color-text-muted);
+  text-align: center;
+
+  .material-symbols-rounded {
+    font-size: 3rem;
+    margin-bottom: var(--space-sm);
+    opacity: 0.5;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Agrupación por horas
+.hora-group {
+  margin-bottom: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+}
+
+.hora-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  padding-bottom: var(--space-2xs);
+  border-bottom: 1px dashed var(--color-border);
+  width: 100%;
+  margin-bottom: var(--space-xs);
+
+  .material-symbols-rounded {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+  }
+}
+
+.reservas-hora-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-sm);
+}
+
+// Modificar card para que se vea mejor en grid
+.reserva-detalle-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  border: 1px solid transparent;
+  text-align: center;
+  margin-bottom: 0;
+  transition: all var(--transition-fast);
+
+  &.reserva-focus {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+
+    &:hover {
+      border-color: var(--color-focus);
+      background: var(--color-focus-soft);
+    }
+  }
+
+  &.reserva-reducido {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+
+    &:hover {
+      border-color: var(--color-reducido);
+      background: var(--color-reducido-soft);
+    }
+  }
+}
+
+.reserva-tipo-grupo-mini {
+  display: none;
+}
+
+// ... existente usuario-info ...
+.reserva-usuario-info {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+
+  .usuario-nombre {
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+  }
+
+  .usuario-telefono {
+    font-size: 10px;
   }
 }

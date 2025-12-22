@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
 import { supabase } from '../../core/supabase.client';
 
 interface DiaCalendario {
@@ -121,6 +122,7 @@ export class CalendarioComponent implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private confirmation = inject(ConfirmationService);
 
   // Estado
   cargando = signal(true);
@@ -153,10 +155,41 @@ export class CalendarioComponent implements OnInit {
   diaSeleccionado = signal<DiaCalendario | null>(null);
   sesionesDiaSeleccionado = signal<SesionDia[]>([]); // Para vista cliente
 
+  // Nuevo estado para el flujo de dos pasos en admin
+  pasoModalDetalle = signal<'tipo' | 'lista'>('tipo');
+  tipoGrupoSeleccionado = signal<'focus' | 'reducido' | null>(null);
+
   reservasDiaSeleccionadoOrdenadas = computed(() => {
     const dia = this.diaSeleccionado();
+    const tipo = this.tipoGrupoSeleccionado();
+
     if (!dia) return [];
-    return [...dia.reservas].sort((a, b) => a.hora.localeCompare(b.hora));
+
+    let reservas = [...dia.reservas];
+
+    // Si estamos en modo admin y hemos seleccionado un tipo, filtramos
+    if (this.esAdmin() && tipo) {
+      reservas = reservas.filter(r => r.modalidad === tipo);
+    }
+
+    return reservas.sort((a, b) => a.hora.localeCompare(b.hora));
+  });
+
+  reservasAgrupadasPorHora = computed(() => {
+    const reservas = this.reservasDiaSeleccionadoOrdenadas();
+    const grupos = new Map<string, ReservaCalendario[]>();
+
+    reservas.forEach(r => {
+      if (!grupos.has(r.hora)) {
+        grupos.set(r.hora, []);
+      }
+      grupos.get(r.hora)!.push(r);
+    });
+
+    return Array.from(grupos.entries()).map(([hora, reservas]) => ({
+      hora,
+      reservas
+    }));
   });
 
   // Computed
@@ -204,13 +237,27 @@ export class CalendarioComponent implements OnInit {
       return;
     }
     if (this.esAdmin()) {
-      if (dia.reservas.length > 0) this.diaSeleccionado.set(dia);
+      if (dia.reservas.length > 0) {
+        this.pasoModalDetalle.set('tipo');
+        this.tipoGrupoSeleccionado.set(null);
+        this.diaSeleccionado.set(dia);
+      }
       return;
     }
     if (dia.esDelMes && dia.esLaborable && !dia.esFestivo) {
       this.diaSeleccionado.set(dia);
       await this.cargarSesionesDia(dia.fecha);
     }
+  }
+
+  seleccionarTipoGrupo(tipo: 'focus' | 'reducido') {
+    this.tipoGrupoSeleccionado.set(tipo);
+    this.pasoModalDetalle.set('lista');
+  }
+
+  volverASeleccionTipo() {
+    this.pasoModalDetalle.set('tipo');
+    this.tipoGrupoSeleccionado.set(null);
   }
 
   async cargarSesionesDia(fecha: string) {
@@ -262,7 +309,12 @@ export class CalendarioComponent implements OnInit {
   async cambiarTurno(reservaId: number, nuevaSesionId: number) {
     const uid = this.userId();
     if (!uid) return;
-    if (!confirm('¿Seguro que quieres cambiar tu clase a este nuevo horario?')) return;
+    if (!await this.confirmation.confirm({
+      titulo: 'Cambiar turno',
+      mensaje: '¿Seguro que quieres cambiar tu clase a este nuevo horario?',
+      tipo: 'info',
+      textoConfirmar: 'Cambiar'
+    })) return;
     this.guardando.set(true);
 
     try {
@@ -860,7 +912,12 @@ export class CalendarioComponent implements OnInit {
     if (!this.esAdmin()) return;
 
     if (
-      !confirm('¿Estás seguro de cerrar este mes? Los usuarios no podrán hacer nuevas reservas.')
+      !await this.confirmation.confirm({
+        titulo: 'Cerrar mes',
+        mensaje: '¿Estás seguro de cerrar este mes? Los usuarios no podrán hacer nuevas reservas.',
+        tipo: 'warning',
+        textoConfirmar: 'Cerrar Mes'
+      })
     ) {
       return;
     }
@@ -950,7 +1007,13 @@ export class CalendarioComponent implements OnInit {
   }
 
   async cancelarReserva(reservaId: number) {
-    if (!confirm('¿Estás seguro de cancelar esta reserva?')) {
+    if (!await this.confirmation.confirm({
+      titulo: 'Cancelar reserva',
+      mensaje: '¿Estás seguro de cancelar esta reserva?',
+      tipo: 'danger',
+      textoConfirmar: 'Sí, cancelar',
+      textoCancelar: 'No'
+    })) {
       return;
     }
 
@@ -1003,7 +1066,12 @@ export class CalendarioComponent implements OnInit {
 
   // Cancelar reserva desde el modal y recargar datos
   async cancelarReservaDesdeModal(reservaId: number) {
-    if (!confirm('¿Estás seguro de cancelar esta clase? Se generará una recuperación si corresponde.')) {
+    if (!await this.confirmation.confirm({
+      titulo: 'Cancelar clase',
+      mensaje: '¿Estás seguro de cancelar esta clase? Se generará una recuperación si corresponde.',
+      tipo: 'danger',
+      textoConfirmar: 'Cancelar clase'
+    })) {
       return;
     }
 

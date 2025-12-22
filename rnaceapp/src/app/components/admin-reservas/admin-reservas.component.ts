@@ -46,8 +46,8 @@ interface ReservaSupabaseResponse {
   sesion_id: number;
   es_recuperacion: boolean;
   sesiones:
-  | { fecha: string; modalidad: string }
-  | { fecha: string; modalidad: string }[];
+  | { fecha: string; hora: string; modalidad: string }
+  | { fecha: string; hora: string; modalidad: string }[];
 }
 
 @Component({
@@ -269,7 +269,7 @@ export class AdminReservasComponent implements OnInit {
           id,
           sesion_id,
           es_recuperacion,
-          sesiones!inner(fecha, modalidad)
+          sesiones!inner(fecha, hora, modalidad)
         `,
         )
         .eq('usuario_id', usuario.id)
@@ -290,10 +290,7 @@ export class AdminReservasComponent implements OnInit {
             day: 'numeric',
             month: 'long',
           }),
-          hora: fechaInicio.toLocaleTimeString('es-ES', {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
+          hora: sesion.hora?.slice(0, 5) || '--:--',
           modalidad: sesion.modalidad,
           es_recuperacion: r.es_recuperacion || false,
         };

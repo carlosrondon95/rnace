@@ -91,6 +91,16 @@ export const routes: Routes = [
     canActivate: [authGuard, adminGuard],
   },
 
+  // Avisos generales (admin)
+  {
+    path: 'admin-avisos',
+    loadComponent: () =>
+      import('./components/admin-avisos/admin-avisos.component').then(
+        (m) => m.AdminAvisosComponent,
+      ),
+    canActivate: [authGuard, adminGuard],
+  },
+
   // Ruta catch-all
   {
     path: '**',

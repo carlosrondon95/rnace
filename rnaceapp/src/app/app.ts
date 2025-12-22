@@ -3,15 +3,17 @@ import { Component, inject, signal } from '@angular/core';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NavbarComponent } from './shared/navbar/navbar.component';
+import { ConfirmationModalComponent } from './shared/confirmation-modal/confirmation-modal.component';
 import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NavbarComponent, CommonModule],
+  imports: [RouterOutlet, NavbarComponent, CommonModule, ConfirmationModalComponent],
   template: `
     <app-navbar *ngIf="mostrarNavbar()" />
     <router-outlet />
+    <app-confirmation-modal />
   `,
   styles: [`
     :host {
