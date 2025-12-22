@@ -379,22 +379,22 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
 
   private setupSubscriptions(): void {
     this.subscriptions.push(
-      this.installService.canInstall$.subscribe(can => {
+      this.installService.canInstall$.subscribe((can: boolean) => {
         this.showInstallPrompt.set(can && !this.isDismissed('install'));
       }),
-      this.installService.isInstalled$.subscribe(installed => {
+      this.installService.isInstalled$.subscribe((installed: boolean) => {
         this.isInstalled.set(installed);
       }),
-      this.installService.isIOS$.subscribe(ios => {
+      this.installService.isIOS$.subscribe((ios: boolean) => {
         this.isIOS.set(ios);
         if (ios && !this.installService.isInstalled() && !this.isDismissed('ios')) {
           this.showIOSInstructions.set(true);
         }
       }),
-      this.pushService.isSupported$.subscribe(supported => {
+      this.pushService.isSupported$.subscribe((supported: boolean) => {
         this.isSupported.set(supported);
       }),
-      this.pushService.permissionStatus$.subscribe(status => {
+      this.pushService.permissionStatus$.subscribe((status: NotificationPermission) => {
         this.permissionGranted.set(status === 'granted');
         this.permissionDenied.set(status === 'denied');
         this.showNotificationPrompt.set(
