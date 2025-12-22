@@ -2,6 +2,7 @@
 import { Injectable, signal, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { supabase } from './supabase.client';
+import { PushNotificationService } from './push-notification.service';
 import * as bcrypt from 'bcryptjs';
 
 export interface Usuario {
@@ -17,6 +18,7 @@ export interface Usuario {
 })
 export class AuthService {
   private platformId = inject(PLATFORM_ID);
+  private pushService = inject(PushNotificationService);
   private usuarioActual = signal<Usuario | null>(null);
 
   constructor() {
@@ -106,7 +108,10 @@ export class AuthService {
     }
   }
 
-  logout() {
+  async logout() {
+    // Eliminar token FCM antes de cerrar sesión
+    await this.pushService.removeToken();
+
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('rnace_usuario');
     }

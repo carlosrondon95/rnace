@@ -38,12 +38,12 @@ export class PushNotificationService {
   }
 
   private checkSupport(): void {
-    const isSupported = 
+    const isSupported =
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
       'PushManager' in window &&
       'Notification' in window;
-    
+
     this._isSupported.next(isSupported);
   }
 
@@ -115,22 +115,45 @@ export class PushNotificationService {
     }
   }
 
+  // Obtener userId desde localStorage (tu sistema de auth)
+  private getUserId(): string | null {
+    try {
+      const guardado = localStorage.getItem('rnace_usuario');
+      if (guardado) {
+        const usuario = JSON.parse(guardado);
+        return usuario.id || null;
+      }
+    } catch (error) {
+      console.error('[Push] Error obteniendo userId:', error);
+    }
+    return null;
+  }
+
   private async saveTokenToSupabase(token: string): Promise<void> {
     try {
-      const { data: { user } } = await supabase().auth.getUser();
-      if (!user) return;
+      const userId = this.getUserId();
+      if (!userId) {
+        console.warn('[Push] Usuario no autenticado, no se guarda token');
+        return;
+      }
 
       const deviceInfo = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'iOS' :
-                        /Android/.test(navigator.userAgent) ? 'Android' : 'Web';
+        /Android/.test(navigator.userAgent) ? 'Android' : 'Web';
 
-      await supabase()
+      const { error } = await supabase()
         .from('fcm_tokens')
         .upsert({
-          user_id: user.id,
+          user_id: userId,
           token: token,
           device_info: deviceInfo,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id,token' });
+
+      if (error) {
+        console.error('[Push] Error en upsert:', error);
+      } else {
+        console.log('[Push] Token guardado correctamente');
+      }
 
     } catch (error) {
       console.error('[Push] Error guardando token:', error);
@@ -141,6 +164,8 @@ export class PushNotificationService {
     if (!this.messaging) return;
 
     onMessage(this.messaging, (payload) => {
+      console.log('[Push] Notificación en foreground:', payload);
+
       const notification: PushNotification = {
         tipo: payload.data?.['tipo'] || 'default',
         titulo: payload.notification?.title || 'RNACE',
@@ -166,12 +191,18 @@ export class PushNotificationService {
     if (!token) return;
 
     try {
-      const { data: { user } } = await supabase().auth.getUser();
-      if (user) {
-        await supabase()
+      const userId = this.getUserId();
+      if (userId) {
+        const { error } = await supabase()
           .from('fcm_tokens')
           .delete()
-          .match({ user_id: user.id, token: token });
+          .match({ user_id: userId, token: token });
+
+        if (error) {
+          console.error('[Push] Error eliminando token:', error);
+        } else {
+          console.log('[Push] Token eliminado correctamente');
+        }
       }
       this._currentToken.next(null);
     } catch (error) {
