@@ -1060,60 +1060,76 @@
 .modal-content {
   padding: var(--space-lg);
   overflow-y: auto;
+
+  .section-title {
+    margin: 0 0 var(--space-md) 0;
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    text-align: center;
+  }
 }
 
 .lista-reservas-detalle {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-sm);
+  max-width: 450px;
+  margin: 0 auto;
 }
 
-// Nueva card de reserva centrada
+// Redesigned session cards - compact row layout
 .reserva-detalle-card {
   display: flex;
-  flex-direction: column;
-  padding: var(--space-lg);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-main);
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
-  text-align: center;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    border-color: var(--color-border-hover);
+  }
 
   &.reserva-focus {
-    border-top: 3px solid var(--color-focus);
+    border-left: 3px solid var(--color-focus);
   }
 
   &.reserva-reducido {
-    border-top: 3px solid var(--color-reducido);
+    border-left: 3px solid var(--color-reducido);
+  }
+
+  &.sesion-llena {
+    opacity: 0.7;
   }
 }
 
 .reserva-contenido {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: var(--space-sm);
+  flex: 1;
+  min-width: 0;
 }
 
 .reserva-hora-destacada {
-  font-size: var(--font-size-2xl);
-  font-weight: 700;
+  font-size: var(--font-size-md);
+  font-weight: 600;
   font-family: monospace;
-  color: var(--color-accent);
-  background: var(--color-accent-soft);
-  padding: var(--space-sm) var(--space-lg);
-  border-radius: var(--radius-md);
-  letter-spacing: 1px;
+  color: var(--color-text-primary);
+  min-width: 50px;
 }
 
 .reserva-tipo-grupo {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  margin-top: var(--space-xs);
+  gap: 4px;
+  color: var(--color-text-secondary);
 
   .modalidad-icono {
-    font-size: 1.3rem;
+    font-size: 0.9rem;
 
     .reserva-focus & {
       color: var(--color-focus);
@@ -1125,9 +1141,7 @@
   }
 
   .modalidad-nombre {
-    font-size: var(--font-size-md);
-    font-weight: 600;
-    color: var(--color-text-primary);
+    font-size: var(--font-size-xs);
   }
 }
 
@@ -1153,12 +1167,21 @@
   }
 }
 
-// Acciones de reserva (botón cancelar para clientes)
+// Acciones de reserva (horizontal layout)
 .reserva-acciones {
-  margin-top: var(--space-md);
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--color-border);
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+// Compact button modifier for horizontal layout
+.btn-compact {
+  padding: 6px 12px !important;
+  font-size: var(--font-size-xs) !important;
+  gap: 4px !important;
+  width: auto !important;
+  margin-top: 0 !important;
 }
 
 .btn-cancelar-clase {

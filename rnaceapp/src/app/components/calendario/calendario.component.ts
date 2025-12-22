@@ -159,6 +159,37 @@ export class CalendarioComponent implements OnInit {
   pasoModalDetalle = signal<'tipo' | 'lista'>('tipo');
   tipoGrupoSeleccionado = signal<'focus' | 'reducido' | null>(null);
 
+  // Tipo de grupo del usuario actual (para restricciones de cambio)
+  tipoGrupoUsuario = signal<'focus' | 'reducido' | 'hibrido' | null>(null);
+
+  // Sesiones filtradas por tipo de grupo del usuario
+  sesionesFiltradasPorGrupo = computed(() => {
+    const sesiones = this.sesionesDiaSeleccionado();
+    
+    // Si es admin, esta propiedad no debería usarse en la vista restringida, 
+    // pero por si acaso devolvemos todo o vacío según la lógica de UI
+    if (this.esAdmin()) return sesiones;
+
+    const tipoGrupo = this.tipoGrupoUsuario();
+    console.log('Filtrando sesiones. Usuario:', this.userId(), 'Tipo Grupo:', tipoGrupo, 'Sesiones:', sesiones.length);
+
+    // Si no se ha cargado el tipo de grupo, NO MOSTRAR NADA por seguridad
+    if (!tipoGrupo) {
+      console.warn('Tipo de grupo no cargado, ocultando sesiones por seguridad');
+      return [];
+    }
+    
+    // Si es híbrido, mostrar todas
+    if (tipoGrupo === 'hibrido') {
+      return sesiones;
+    }
+    
+    // Filtrar solo las sesiones del tipo de grupo del usuario
+    const filtradas = sesiones.filter(s => s.modalidad?.toLowerCase() === tipoGrupo?.toLowerCase());
+    console.log(`Filtrando para ${tipoGrupo}: ${sesiones.length} -> ${filtradas.length}`);
+    return filtradas;
+  });
+
   reservasDiaSeleccionadoOrdenadas = computed(() => {
     const dia = this.diaSeleccionado();
     const tipo = this.tipoGrupoSeleccionado();
@@ -260,11 +291,37 @@ export class CalendarioComponent implements OnInit {
     this.tipoGrupoSeleccionado.set(null);
   }
 
+  // Método para verificar si el usuario puede cambiar a una sesión de cierta modalidad
+  puedeCambiarA(modalidadSesion: 'focus' | 'reducido'): boolean {
+    const tipo = this.tipoGrupoUsuario();
+    // Los híbridos pueden cambiar a cualquier modalidad
+    if (tipo === 'hibrido') return true;
+    // Focus solo puede cambiar a Focus, Reducido solo a Reducido
+    return tipo === modalidadSesion;
+  }
+
   async cargarSesionesDia(fecha: string) {
     const uid = this.userId();
     if (!uid) return;
     this.cargando.set(true);
     try {
+      // Asegurar que tenemos el tipo de grupo cargado
+      if (!this.tipoGrupoUsuario()) {
+        try {
+          const { data: planData } = await supabase()
+            .from('plan_usuario')
+            .select('tipo_grupo')
+            .eq('usuario_id', uid)
+            .maybeSingle();
+          if (planData?.tipo_grupo) {
+            console.log('Cargando tipo grupo en dialogo:', planData.tipo_grupo);
+            this.tipoGrupoUsuario.set(planData.tipo_grupo.toLowerCase() as 'focus' | 'reducido' | 'hibrido');
+          }
+        } catch (e) {
+          console.error('Error cargando plan en dialogo:', e);
+        }
+      }
+
       const { data: sesiones, error } = await supabase()
         .from('sesiones').select('*').eq('fecha', fecha).eq('cancelada', false).order('hora');
       if (error) throw error;
@@ -360,16 +417,35 @@ export class CalendarioComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.cargarCalendario().then(() => {
-      // Verificar si hay una sesión específica para abrir (desde notificación)
-      this.route.queryParams.subscribe(async params => {
-        const sesionId = params['sesion'];
-        if (sesionId) {
-          await this.abrirDiaDeSesion(Number(sesionId));
+  this.cargarCalendario().then(async () => {
+    // Cargar tipo de grupo del usuario (para restricciones de cambio)
+    if (!this.esAdmin()) {
+      const uid = this.userId();
+      if (uid) {
+        try {
+          const { data } = await supabase()
+            .from('plan_usuario')
+            .select('tipo_grupo')
+            .eq('usuario_id', uid)
+            .maybeSingle();
+          if (data?.tipo_grupo) {
+            this.tipoGrupoUsuario.set(data.tipo_grupo.toLowerCase() as 'focus' | 'reducido' | 'hibrido');
+          }
+        } catch (err) {
+          console.warn('Error cargando tipo de grupo:', err);
         }
-      });
+      }
+    }
+
+    // Verificar si hay una sesión específica para abrir (desde notificación)
+    this.route.queryParams.subscribe(async params => {
+      const sesionId = params['sesion'];
+      if (sesionId) {
+        await this.abrirDiaDeSesion(Number(sesionId));
+      }
     });
-  }
+  });
+}
 
   async abrirDiaDeSesion(sesionId: number) {
     try {
@@ -554,6 +630,20 @@ export class CalendarioComponent implements OnInit {
                 usuario_nombre: this.auth.usuario()?.nombre || 'Tú',
                 usuario_telefono: this.auth.usuario()?.telefono || '',
               }));
+            }
+
+            // Cargar tipo de grupo del usuario
+            try {
+              const { data: planData } = await client
+                .from('planes')
+                .select('tipo_grupo')
+                .eq('usuario_id', uid)
+                .maybeSingle();
+              if (planData?.tipo_grupo) {
+                this.tipoGrupoUsuario.set(planData.tipo_grupo as 'focus' | 'reducido' | 'hibrido');
+              }
+            } catch (err) {
+              console.warn('Error cargando tipo de grupo:', err);
             }
           }
         }
