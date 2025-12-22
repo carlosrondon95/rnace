@@ -1,0 +1,126 @@
+importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
+
+// ⚠️ REEMPLAZA con tus valores de Firebase
+firebase.initializeApp({
+  apiKey: 'AIzaSyBqgXG6XpZG6XpZG6XpZG6XpZG6XpZG6Xp',
+  authDomain: 'rnace-50c31.firebaseapp.com',
+  projectId: 'rnace-50c31',
+  storageBucket: 'rnace-50c31.appspot.com',
+  messagingSenderId: '626137220500',
+  appId: '1:626137220500:web:33bfa04ed535711ec0bb81'
+});
+
+const messaging = firebase.messaging();
+
+// Configuración por tipo de notificación
+const NOTIFICATION_CONFIG = {
+  reserva_confirmada: {
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-72x72.png',
+    vibrate: [200, 100, 200],
+    actions: [
+      { action: 'ver', title: '📅 Ver reserva' },
+      { action: 'calendario', title: '🗓️ Calendario' }
+    ]
+  },
+  reserva_cancelada: {
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-72x72.png',
+    vibrate: [300, 100, 300, 100, 300],
+    requireInteraction: true,
+    actions: [
+      { action: 'nueva', title: '➕ Nueva reserva' }
+    ]
+  },
+  recordatorio: {
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-72x72.png',
+    vibrate: [100, 50, 100],
+    actions: [
+      { action: 'ver', title: '👀 Ver detalles' }
+    ]
+  },
+  lista_espera: {
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-72x72.png',
+    vibrate: [200, 100, 200, 100, 200],
+    requireInteraction: true,
+    actions: [
+      { action: 'confirmar', title: '✅ Confirmar' },
+      { action: 'rechazar', title: '❌ Rechazar' }
+    ]
+  },
+  default: {
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-72x72.png',
+    vibrate: [100]
+  }
+};
+
+// Notificaciones en background
+messaging.onBackgroundMessage((payload) => {
+  console.log('[SW] Notificación recibida:', payload);
+
+  const tipo = payload.data?.tipo || 'default';
+  const config = NOTIFICATION_CONFIG[tipo] || NOTIFICATION_CONFIG.default;
+
+  const title = payload.notification?.title || payload.data?.titulo || 'RNACE';
+  
+  const options = {
+    body: payload.notification?.body || payload.data?.mensaje || '',
+    icon: config.icon,
+    badge: config.badge,
+    vibrate: config.vibrate,
+    tag: payload.data?.tag || `${tipo}-${Date.now()}`,
+    renotify: true,
+    requireInteraction: config.requireInteraction || false,
+    actions: config.actions || [],
+    data: {
+      tipo: tipo,
+      url: payload.data?.url || '/',
+      ...payload.data
+    }
+  };
+
+  return self.registration.showNotification(title, options);
+});
+
+// Click en notificación
+self.addEventListener('notificationclick', (event) => {
+  const notification = event.notification;
+  const action = event.action;
+  const data = notification.data || {};
+
+  notification.close();
+
+  let url = '/';
+  switch (action) {
+    case 'ver':
+    case 'confirmar':
+      url = data.url || '/';
+      break;
+    case 'calendario':
+      url = '/calendario';
+      break;
+    case 'nueva':
+      url = '/reserva-cita';
+      break;
+    case 'rechazar':
+      return;
+    default:
+      url = data.url || '/';
+  }
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        for (const client of windowClients) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            return client.focus().then(c => c.navigate && c.navigate(url));
+          }
+        }
+        return clients.openWindow(url);
+      })
+  );
+});
