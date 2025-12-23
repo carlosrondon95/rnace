@@ -336,7 +336,70 @@
           }
           }
           } @else {
-          <!-- VISTA CLIENTE: Todas las sesiones del día con opciones -->
+          <!-- VISTA CLIENTE -->
+          
+          @if (modoCambio()) {
+          <!-- MODO CAMBIO: Muestra todas las sesiones disponibles del mes -->
+          <div class="modo-cambio-header">
+            <button class="btn-volver-modal" (click)="cancelarModoCambio()">
+              <span class="material-symbols-rounded">arrow_back</span>
+              Volver
+            </button>
+            <div class="cambio-info">
+              <span class="material-symbols-rounded">sync_alt</span>
+              Cambiando clase del {{ formatearFechaCambio(reservaACambiar()!.fecha) }} - {{ reservaACambiar()!.hora }}
+            </div>
+          </div>
+
+          <h3 class="section-title">Selecciona el nuevo horario</h3>
+          
+          @if (cargandoCambio()) {
+          <div class="loading-state">
+            <span class="spinner-small"></span>
+            <p>Cargando sesiones disponibles...</p>
+          </div>
+          } @else if (sesionesDisponiblesCambio().length > 0) {
+          <div class="lista-cambio-sesiones">
+            @for (sesion of sesionesDisponiblesCambio(); track sesion.id) {
+            <div class="cambio-sesion-card" 
+                 [class.sesion-llena]="sesion.plazas_disponibles === 0"
+                 [class.es-misma-sesion]="sesion.id === reservaACambiar()!.sesion_id">
+              
+              <div class="cambio-sesion-info">
+                <div class="cambio-fecha">{{ formatearFechaCambio(sesion.fecha!) }}</div>
+                <div class="cambio-hora">{{ sesion.hora }}</div>
+              </div>
+
+              <div class="cambio-sesion-acciones">
+                @if (sesion.id === reservaACambiar()!.sesion_id) {
+                <span class="badge-actual">Sesión actual</span>
+                } @else if (sesion.tiene_reserva) {
+                <span class="badge-ya-tienes">Ya tienes clase</span>
+                } @else if (sesion.plazas_disponibles > 0) {
+                <button class="btn-seleccionar-cambio" [disabled]="guardando()"
+                        (click)="confirmarCambioTurno(sesion.id)">
+                  <span class="material-symbols-rounded">check_circle</span>
+                  Cambiar aquí
+                </button>
+                } @else {
+                <button class="btn-primario-espera btn-compact" [disabled]="guardando()"
+                        (click)="apuntarseListaEspera(sesion.id)">
+                  Avisar hueco
+                </button>
+                }
+              </div>
+            </div>
+            }
+          </div>
+          } @else {
+          <div class="empty-state-modal">
+            <span class="material-symbols-rounded">event_busy</span>
+            <p>No hay sesiones disponibles para cambiar.</p>
+          </div>
+          }
+
+          } @else {
+          <!-- VISTA NORMAL: Sesiones del día -->
           <h3 class="section-title">Sesiones del día</h3>
           @if (sesionesFiltradasPorGrupo().length > 0) {
           <div class="lista-reservas-detalle">
@@ -359,9 +422,23 @@
               <!-- Right: Status/Action -->
               <div class="reserva-acciones">
                 @if (sesion.tiene_reserva) {
-                <div class="estado-badge estado-tu-reserva">
-                  <span class="material-symbols-rounded">check_circle</span>
-                  Tu clase
+                <div class="tu-clase-acciones">
+                  <div class="estado-badge estado-tu-reserva">
+                    <span class="material-symbols-rounded">check_circle</span>
+                    Tu clase
+                  </div>
+                  <div class="tu-clase-botones">
+                    <button class="btn-cambiar-clase" [disabled]="guardando()"
+                      (click)="iniciarCambio({ id: sesion.mi_reserva_id!, sesion_id: sesion.id, hora: sesion.hora }, diaSeleccionado()!.fecha, sesion.modalidad)">
+                      <span class="material-symbols-rounded">sync_alt</span>
+                      Cambiar
+                    </button>
+                    <button class="btn-cancelar-clase" [disabled]="guardando()"
+                      (click)="cancelarReservaDesdeModal(sesion.mi_reserva_id!)">
+                      <span class="material-symbols-rounded">cancel</span>
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
                 } @else if (sesion.en_lista_espera) {
                 <button class="btn-secundario-danger btn-compact" [disabled]="guardando()"
@@ -372,12 +449,6 @@
                 <button class="btn-primario-espera btn-compact" [disabled]="guardando()"
                   (click)="apuntarseListaEspera(sesion.id)">
                   Avisar hueco
-                </button>
-                } @else if (misReservasDelDia().length > 0) {
-                <button class="btn-cambio-turno btn-compact" [disabled]="guardando()"
-                  (click)="cambiarTurno(misReservasDelDia()[0].id, sesion.id)">
-                  <span class="material-symbols-rounded">sync_alt</span>
-                  Cambiar
                 </button>
                 } @else {
                 <div class="estado-badge estado-libre">
@@ -391,15 +462,8 @@
           } @else {
           <div class="empty-state-modal">
             <p class="no-reservas">No hay sesiones programadas para este día.</p>
-            <!-- DEBUG INFO -->
-            <div
-              style="margin-top: 10px; font-size: 0.75rem; color: #999; padding: 10px; background: #eee; border-radius: 4px;">
-              <p>Debug Info (Captura esto si hay error):</p>
-              <p>Usuario: {{ userId() || 'No ID' }}</p>
-              <p>Grupo detectado: {{ tipoGrupoUsuario() || 'Ninguno (NULL)' }}</p>
-              <p>Sesiones totales día: {{ sesionesDiaSeleccionado().length }}</p>
-            </div>
           </div>
+          }
           }
           }
           }

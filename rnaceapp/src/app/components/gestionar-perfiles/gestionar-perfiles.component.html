@@ -311,6 +311,44 @@
               </select>
             </div>
 
+            <!-- Configuración híbrida: número de clases por grupo -->
+            @if (formulario().tipoGrupo === 'hibrido') {
+            <div class="config-hibrido">
+              <span class="form-label">Clases por semana *</span>
+              <div class="hibrido-selectores">
+                <div class="hibrido-grupo">
+                  <label for="clases-focus" class="hibrido-label">Focus:</label>
+                  <select
+                    id="clases-focus"
+                    class="form-select hibrido-select"
+                    [value]="formulario().clasesFocus"
+                    (change)="actualizarCampo('clasesFocus', +$any($event.target).value)"
+                  >
+                    <option [value]="1">1</option>
+                    <option [value]="2">2</option>
+                  </select>
+                </div>
+                <span class="hibrido-separador">+</span>
+                <div class="hibrido-grupo">
+                  <label for="clases-reducido" class="hibrido-label">Reducido:</label>
+                  <select
+                    id="clases-reducido"
+                    class="form-select hibrido-select"
+                    [value]="formulario().clasesReducido"
+                    (change)="actualizarCampo('clasesReducido', +$any($event.target).value)"
+                  >
+                    <option [value]="1">1</option>
+                    <option [value]="2">2</option>
+                  </select>
+                </div>
+              </div>
+              <p class="hibrido-resumen">
+                Configuración: {{ formulario().clasesFocus }}+{{ formulario().clasesReducido }} 
+                ({{ formulario().clasesFocus }} Focus + {{ formulario().clasesReducido }} Reducido)
+              </p>
+            </div>
+            }
+
             <!-- Selector de horarios -->
             <div class="horarios-selector">
               <span class="form-label" id="horarios-label">Horarios fijos *</span>

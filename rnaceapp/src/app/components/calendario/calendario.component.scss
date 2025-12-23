@@ -1706,3 +1706,196 @@
     font-size: 10px;
   }
 }
+
+// ============ MODO CAMBIO DE CITA ============
+.modo-cambio-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+}
+
+.cambio-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-accent);
+  
+  .material-symbols-rounded {
+    font-size: 1.1rem;
+  }
+}
+
+.lista-cambio-sesiones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: var(--space-xs);
+}
+
+.cambio-sesion-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  
+  &:hover:not(.sesion-llena):not(.es-misma-sesion) {
+    border-color: var(--color-accent);
+    background: var(--color-bg-elevated);
+  }
+  
+  &.sesion-llena {
+    opacity: 0.6;
+  }
+  
+  &.es-misma-sesion {
+    border-color: var(--color-border);
+    background: var(--color-bg-main);
+    opacity: 0.7;
+  }
+}
+
+.cambio-sesion-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.cambio-fecha {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-transform: capitalize;
+}
+
+.cambio-hora {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.cambio-sesion-acciones {
+  flex-shrink: 0;
+}
+
+.badge-actual,
+.badge-ya-tienes {
+  display: inline-block;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-main);
+  color: var(--color-text-muted);
+}
+
+.btn-seleccionar-cambio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-bg-deep);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  
+  .material-symbols-rounded {
+    font-size: 1rem;
+  }
+  
+  &:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Tu clase con botones cambiar y cancelar
+.tu-clase-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.tu-clase-botones {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.btn-cambiar-clase {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: transparent;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  
+  .material-symbols-rounded {
+    font-size: 0.9rem;
+  }
+  
+  &:hover:not(:disabled) {
+    background: var(--color-accent-soft);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-cancelar-clase {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: transparent;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  
+  .material-symbols-rounded {
+    font-size: 0.9rem;
+  }
+  
+  &:hover:not(:disabled) {
+    background: var(--color-danger-soft);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
