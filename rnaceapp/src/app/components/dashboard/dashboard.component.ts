@@ -9,6 +9,7 @@ interface ProximaClase {
   id: number;
   sesion_id: number;
   fecha: string;
+  fecha_raw: string; // Para calcular días hasta
   hora: string;
   modalidad: 'focus' | 'reducido';
   dia_nombre: string;
@@ -60,6 +61,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   recuperaciones = signal<Recuperacion[]>([]);
   notificacionesNoLeidas = signal(0);
 
+  // Stack de cards (cliente)
+  activeStackIndex = signal(0);
+  stackExpanded = signal(false);
+
   // Admin
   estadisticas = signal<EstadisticasAdmin>({
     clases_hoy: 0,
@@ -68,6 +73,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     en_lista_espera: 0,
   });
   clasesHoy = signal<ClaseHoy[]>([]);
+  expandedClaseIndex = signal<number | null>(null);
 
   // Computed
   nombreUsuario = computed(() => this.auth.usuario()?.nombre || 'Usuario');
@@ -209,6 +215,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
             day: 'numeric',
             month: 'short',
           }),
+          fecha_raw: sesion.fecha,
           hora: sesion.hora.substring(0, 5),
           modalidad: sesion.modalidad as 'focus' | 'reducido',
           dia_nombre: fechaObj.toLocaleDateString('es-ES', { weekday: 'long' }),
@@ -360,7 +367,51 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Helpers
+  // ============ MÉTODOS STACK DE CARDS (CLIENTE) ============
+
+  toggleStack() {
+    this.stackExpanded.update((v) => !v);
+  }
+
+  setActiveStackIndex(index: number) {
+    this.activeStackIndex.set(index);
+  }
+
+  getDiasHasta(clase: ProximaClase): string {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const fechaClase = new Date(clase.fecha_raw);
+    fechaClase.setHours(0, 0, 0, 0);
+
+    const diffTime = fechaClase.getTime() - hoy.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'hoy';
+    if (diffDays === 1) return 'mañana';
+    if (diffDays < 7) return `${diffDays} días`;
+
+    const semanas = Math.floor(diffDays / 7);
+    return semanas === 1 ? '1 semana' : `${semanas} semanas`;
+  }
+
+  // ============ MÉTODOS CARDS EXPANDIBLES (ADMIN) ============
+
+  toggleClaseExpand(index: number) {
+    if (this.expandedClaseIndex() === index) {
+      this.expandedClaseIndex.set(null);
+    } else {
+      this.expandedClaseIndex.set(index);
+    }
+  }
+
+  getOcupacionPercent(clase: ClaseHoy): number {
+    if (clase.capacidad === 0) return 0;
+    return Math.round((clase.reservas_count / clase.capacidad) * 100);
+  }
+
+  // ============ HELPERS GENERALES ============
+
   getRoleLabel(): string {
     const rol = this.auth.usuario()?.rol;
 
@@ -411,7 +462,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   esRecuperacionFutura(recup: Recuperacion): boolean {
     const ahora = new Date();
-    const mesActual = ahora.getMonth() + 1; // 1-12
+    const mesActual = ahora.getMonth() + 1;
     const anioActual = ahora.getFullYear();
 
     if (recup.anio_origen > anioActual) return true;
@@ -421,13 +472,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getUltimoDiaHabil(mes: number, anio: number): number {
-    // Obtener último día del mes: día 0 del siguiente mes en JS es el último del anterior
-    // Ojo: en JS los meses en Constructor Date son 0-11, pero día 0 funciona como "último día del mes anterior" (si le paso mes tal cual, es el siguiente)
-    // Ejemplo: mes 1 (Enero). Date(anio, 1, 0) -> Último día de Enero.
     const ultimoDia = new Date(anio, mes, 0);
-    const diaSemana = ultimoDia.getDay(); // 0 Dom, 6 Sab
+    const diaSemana = ultimoDia.getDay();
 
-    // Si es Sabado (6), restar 1 día. Si es Domingo (0), restar 2 días.
     if (diaSemana === 6) {
       return ultimoDia.getDate() - 1;
     } else if (diaSemana === 0) {
@@ -438,19 +485,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getTextoValidez(recup: Recuperacion): string {
-    // 1. Caso Futura
     if (this.esRecuperacionFutura(recup)) {
       const nombreMes = this.getNombreMes(recup.mes_origen);
       const mesCap = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
       return `Disponible a partir de ${mesCap}`;
     }
 
-    // 2. Caso Válida solo mes en curso (origen == limite)
     if (recup.mes_limite === recup.mes_origen && recup.anio_limite === recup.anio_origen) {
       return 'Válida para el mes en curso';
     }
 
-    // 3. Caso Válida hasta el siguiente mes
     const dia = this.getUltimoDiaHabil(recup.mes_limite, recup.anio_limite);
     const nombreMes = this.getNombreMes(recup.mes_limite);
     const mesCap = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);

@@ -27,7 +27,7 @@
 
     <!-- ==================== CLIENTE ==================== -->
     @if (isCliente()) {
-    <!-- Próximas clases -->
+    <!-- Próximas clases - STACK CARDS -->
     <section class="section">
       <div class="section-header">
         <h2>
@@ -48,23 +48,70 @@
         <p>No tienes clases programadas</p>
       </div>
       } @else {
-      <div class="clases-lista">
-        @for (clase of proximasClases(); track trackByClaseId($index, clase)) {
-        <div class="clase-card" [class.clase-card--recuperacion]="clase.es_recuperacion">
-          <div class="clase-fecha">
-            <span class="clase-dia">{{ clase.dia_nombre }}</span>
-            <span class="clase-fecha-num">{{ clase.fecha }}</span>
-          </div>
-          <div class="clase-info">
-            <span class="clase-hora">{{ clase.hora }}</span>
-            <span class="clase-modalidad" [class]="'modalidad--' + clase.modalidad">
-              {{ clase.modalidad }}
-            </span>
-            @if (clase.es_recuperacion) {
-            <span class="tag-recuperacion">Recuperación</span>
-            }
-          </div>
+      <!-- Stack de cards -->
+      <div class="stack-container">
+        <div class="stack-wrapper" [class.stack-expanded]="stackExpanded()" (click)="toggleStack()">
+
+          @for (clase of proximasClases(); track trackByClaseId($index, clase); let i = $index) {
+          <article class="stack-card" [class.stack-card--active]="i === activeStackIndex()"
+            [class.stack-card--recuperacion]="clase.es_recuperacion" [style.--stack-index]="i"
+            [attr.aria-hidden]="i !== activeStackIndex()">
+
+            <!-- Indicador temporal -->
+            <div class="stack-card__temporal">
+              @if (i === 0) {
+              <span class="temporal-badge temporal-badge--next">Próxima</span>
+              } @else {
+              <span class="temporal-badge">En {{ getDiasHasta(clase) }}</span>
+              }
+            </div>
+
+            <!-- Contenido principal -->
+            <div class="stack-card__content">
+              <div class="stack-card__date">
+                <span class="date-day">{{ clase.dia_nombre }}</span>
+                <span class="date-number">{{ clase.fecha }}</span>
+              </div>
+
+              <div class="stack-card__time">
+                <span class="material-symbols-rounded">schedule</span>
+                {{ clase.hora }}
+              </div>
+            </div>
+
+            <!-- Footer con modalidad -->
+            <div class="stack-card__footer">
+              <span class="modalidad-pill" [class]="'modalidad-pill--' + clase.modalidad">
+                {{ clase.modalidad }}
+              </span>
+              @if (clase.es_recuperacion) {
+              <span class="tag-recuperacion">
+                <span class="material-symbols-rounded">replay</span>
+                Recuperación
+              </span>
+              }
+            </div>
+          </article>
+          }
         </div>
+
+        <!-- Indicadores de posición -->
+        @if (proximasClases().length > 1) {
+        <div class="stack-indicators">
+          @for (clase of proximasClases(); track trackByClaseId($index, clase); let i = $index) {
+          <button type="button" class="stack-dot" [class.stack-dot--active]="i === activeStackIndex()"
+            (click)="setActiveStackIndex(i); $event.stopPropagation()" [attr.aria-label]="'Ver clase ' + (i + 1)">
+          </button>
+          }
+        </div>
+        }
+
+        <!-- Hint de navegación -->
+        @if (proximasClases().length > 1 && !stackExpanded()) {
+        <p class="stack-hint">
+          <span class="material-symbols-rounded">touch_app</span>
+          Toca para ver todas
+        </p>
         }
       </div>
       }
@@ -92,7 +139,8 @@
             </span>
           </div>
           @if (esRecuperacionFutura(recup)) {
-          <a [routerLink]="['/recuperar-clase']" [queryParams]="{ mes: recup.mes_origen, anio: recup.anio_origen }" class="btn-usar">
+          <a [routerLink]="['/recuperar-clase']" [queryParams]="{ mes: recup.mes_origen, anio: recup.anio_origen }"
+            class="btn-usar">
             Usar
             <span class="material-symbols-rounded">arrow_forward</span>
           </a>
@@ -175,7 +223,7 @@
       </div>
     </section>
 
-    <!-- Clases de hoy -->
+    <!-- Clases de hoy - CARDS EXPANDIBLES CON BARRA DE PROGRESO -->
     @if (clasesHoy().length > 0) {
     <section class="section">
       <div class="section-header">
@@ -185,29 +233,74 @@
         </h2>
       </div>
 
-      <div class="clases-admin-lista">
-        @for (clase of clasesHoy(); track trackByClaseId($index, clase)) {
-        <div class="clase-admin-card">
-          <div class="clase-admin-header">
-            <span class="clase-admin-hora">{{ clase.hora }}</span>
-            <span class="clase-admin-modalidad" [class]="'modalidad--' + clase.modalidad">
+      <div class="clases-timeline">
+        @for (clase of clasesHoy(); track trackByClaseId($index, clase); let i = $index) {
+        <article class="timeline-card" [class.timeline-card--expanded]="expandedClaseIndex() === i"
+          [class.timeline-card--full]="clase.reservas_count >= clase.capacidad" (click)="toggleClaseExpand(i)">
+
+          <!-- Header compacto -->
+          <div class="timeline-card__header">
+            <div class="timeline-card__time">
+              <span class="material-symbols-rounded">schedule</span>
+              {{ clase.hora }}
+            </div>
+
+            <span class="modalidad-chip" [class]="'modalidad-chip--' + clase.modalidad">
               {{ clase.modalidad }}
             </span>
-            <span class="clase-admin-ocupacion">
-              {{ clase.reservas_count }}/{{ clase.capacidad }}
-            </span>
+
+            <div class="timeline-card__ocupacion">
+              <span class="ocupacion-texto">{{ clase.reservas_count }}/{{ clase.capacidad }}</span>
+              <span class="material-symbols-rounded expand-icon"
+                [class.expand-icon--rotated]="expandedClaseIndex() === i">
+                expand_more
+              </span>
+            </div>
           </div>
-          @if (clase.alumnos.length > 0) {
-          <div class="clase-admin-alumnos">
-            @for (alumno of clase.alumnos; track alumno) {
-            <span class="alumno-tag">{{ alumno }}</span>
+
+          <!-- Barra de progreso -->
+          <div class="progress-container">
+            <div class="progress-bar" [class.progress-bar--low]="getOcupacionPercent(clase) < 50"
+              [class.progress-bar--medium]="getOcupacionPercent(clase) >= 50 && getOcupacionPercent(clase) < 85"
+              [class.progress-bar--high]="getOcupacionPercent(clase) >= 85"
+              [class.progress-bar--full]="clase.reservas_count >= clase.capacidad"
+              [style.--progress-width]="getOcupacionPercent(clase) + '%'">
+            </div>
+          </div>
+
+          <!-- Contenido expandible -->
+          <div class="timeline-card__body" [class.timeline-card__body--visible]="expandedClaseIndex() === i">
+            @if (clase.alumnos.length > 0) {
+            <div class="alumnos-grid">
+              @for (alumno of clase.alumnos; track alumno) {
+              <div class="alumno-item">
+                <span class="material-symbols-rounded">person</span>
+                {{ alumno }}
+              </div>
+              }
+            </div>
+            } @else {
+            <p class="no-alumnos">
+              <span class="material-symbols-rounded">event_busy</span>
+              Sin reservas aún
+            </p>
             }
           </div>
-          } @else {
-          <p class="clase-admin-vacia">Sin reservas</p>
-          }
-        </div>
+        </article>
         }
+      </div>
+    </section>
+    } @else {
+    <section class="section">
+      <div class="section-header">
+        <h2>
+          <span class="material-symbols-rounded">schedule</span>
+          Clases de hoy
+        </h2>
+      </div>
+      <div class="empty-card">
+        <span class="material-symbols-rounded">event_busy</span>
+        <p>No hay clases programadas para hoy</p>
       </div>
     </section>
     }
@@ -249,8 +342,6 @@
         </div>
         <span class="action-arrow material-symbols-rounded">arrow_forward</span>
       </a>
-
-
     </section>
     }
 
