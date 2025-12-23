@@ -349,6 +349,30 @@
             </div>
             }
 
+            <!-- Configuración ESPECIAL: número de clases por mes -->
+            @if (formulario().tipoGrupo === 'especial') {
+              <div class="config-hibrido">
+                <span class="form-label">Configuración Especial *</span>
+                <div class="form-group" style="margin-top: 8px;">
+                  <label class="form-label" for="clases-por-mes">Nº de Clases al Mes</label>
+                  <input
+                    type="number"
+                    id="clases-por-mes"
+                    class="form-input"
+                    placeholder="Ej: 2, 4..."
+                    min="1"
+                    max="31"
+                    [value]="formulario().clasesPorMes"
+                    (input)="actualizarCampo('clasesPorMes', +$any($event.target).value)"
+                  />
+                  <p class="hibrido-resumen">
+                     El usuario podrá recuperar hasta {{ formulario().clasesPorMes || 'infinitas' }} clases/mes. 
+                     (Si es 0, se considera ilimitado/manual).
+                  </p>
+                </div>
+              </div>
+            }
+
             <!-- Selector de horarios -->
             <div class="horarios-selector">
               <span class="form-label" id="horarios-label">Horarios fijos *</span>

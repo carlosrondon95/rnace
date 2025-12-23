@@ -28,6 +28,9 @@ interface Usuario {
   activo: boolean;
   creado_en: string;
   tipo_grupo?: string;
+  clases_focus?: number;
+  clases_reducido?: number;
+  clases_por_mes?: number;
   horarios_fijos?: HorarioFijoUsuario[];
 }
 
@@ -40,6 +43,7 @@ interface FormularioUsuario {
   tipoGrupo: 'focus' | 'reducido' | 'hibrido' | 'especial';
   clasesFocus: number;  // Para híbridos: número de clases focus por semana
   clasesReducido: number; // Para híbridos: número de clases reducido por semana
+  clasesPorMes: number; // Nuevo campo para Especial
   password: string;
   horariosSeleccionados: number[];
 }
@@ -104,6 +108,7 @@ export class GestionarPerfilesComponent implements OnInit {
     tipoGrupo: 'focus',
     clasesFocus: 1,
     clasesReducido: 1,
+    clasesPorMes: 0, // Initialize new field
     password: '',
     horariosSeleccionados: [],
   });
@@ -278,12 +283,17 @@ export class GestionarPerfilesComponent implements OnInit {
 
     const { data: planesData } = await client
       .from('plan_usuario')
-      .select('usuario_id, tipo_grupo');
+      .select('usuario_id, tipo_grupo, clases_focus, clases_reducido, clases_por_mes'); // Fetch new fields
 
-    const planesMap = new Map<string, string>();
+    const planesMap = new Map<string, { tipo_grupo: string, clases_focus: number, clases_reducido: number, clases_por_mes: number }>();
     if (planesData) {
       for (const plan of planesData) {
-        planesMap.set(plan.usuario_id, plan.tipo_grupo);
+        planesMap.set(plan.usuario_id, {
+          tipo_grupo: plan.tipo_grupo,
+          clases_focus: plan.clases_focus,
+          clases_reducido: plan.clases_reducido,
+          clases_por_mes: plan.clases_por_mes,
+        });
       }
     }
 
@@ -313,16 +323,22 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
-    const usuarios: Usuario[] = (usuariosData || []).map((u) => ({
-      id: u.id,
-      telefono: u.telefono || '',
-      nombre: u.nombre || '',
-      rol: u.rol,
-      activo: u.activo,
-      creado_en: u.creado_en,
-      tipo_grupo: planesMap.get(u.id),
-      horarios_fijos: horariosMap.get(u.id) || [],
-    }));
+    const usuarios: Usuario[] = (usuariosData || []).map((u) => {
+      const plan = planesMap.get(u.id);
+      return {
+        id: u.id,
+        telefono: u.telefono || '',
+        nombre: u.nombre || '',
+        rol: u.rol,
+        activo: u.activo,
+        creado_en: u.creado_en,
+        tipo_grupo: plan?.tipo_grupo,
+        clases_focus: plan?.clases_focus,
+        clases_reducido: plan?.clases_reducido,
+        clases_por_mes: plan?.clases_por_mes,
+        horarios_fijos: horariosMap.get(u.id) || [],
+      };
+    });
 
     this.usuarios.set(usuarios);
   }
@@ -355,6 +371,7 @@ export class GestionarPerfilesComponent implements OnInit {
       tipoGrupo: 'focus',
       clasesFocus: 1,
       clasesReducido: 1,
+      clasesPorMes: 0, // Initialize new field
       password: '',
       horariosSeleccionados: [],
     });
@@ -381,8 +398,9 @@ export class GestionarPerfilesComponent implements OnInit {
       rol: usuario.rol as 'cliente' | 'profesor' | 'admin',
       activo: usuario.activo,
       tipoGrupo: (usuario.tipo_grupo as FormularioUsuario['tipoGrupo']) || 'focus',
-      clasesFocus: 1, // TODO: cargar desde BD cuando esté implementado
-      clasesReducido: 1, // TODO: cargar desde BD cuando esté implementado
+      clasesFocus: usuario.clases_focus || 1,
+      clasesReducido: usuario.clases_reducido || 1,
+      clasesPorMes: usuario.clases_por_mes || 0,
       password: '',
       horariosSeleccionados: horariosSeleccionados,
     });
@@ -628,6 +646,7 @@ export class GestionarPerfilesComponent implements OnInit {
       tipoGrupo: 'focus',
       clasesFocus: 1,
       clasesReducido: 1,
+      clasesPorMes: 0,
       password: '',
       horariosSeleccionados: [],
     });
@@ -679,6 +698,7 @@ export class GestionarPerfilesComponent implements OnInit {
             tipo_grupo: f.tipoGrupo,
             clases_focus: f.tipoGrupo === 'hibrido' ? f.clasesFocus : 0,
             clases_reducido: f.tipoGrupo === 'hibrido' ? f.clasesReducido : 0,
+            clases_por_mes: f.tipoGrupo === 'especial' ? f.clasesPorMes : 0,
           })
           .eq('usuario_id', userId);
       } else {
@@ -687,6 +707,7 @@ export class GestionarPerfilesComponent implements OnInit {
           tipo_grupo: f.tipoGrupo,
           clases_focus: f.tipoGrupo === 'hibrido' ? f.clasesFocus : 0,
           clases_reducido: f.tipoGrupo === 'hibrido' ? f.clasesReducido : 0,
+          clases_por_mes: f.tipoGrupo === 'especial' ? f.clasesPorMes : 0,
           activo: true,
         });
       }
