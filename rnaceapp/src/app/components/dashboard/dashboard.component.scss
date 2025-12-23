@@ -270,17 +270,22 @@
 }
 
 .temporal-badge {
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
   background: var(--color-bg-main);
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 
   &--next {
-    background: linear-gradient(135deg, var(--color-accent) 0%, rgba(184, 178, 158, 0.9) 100%);
-    color: var(--color-bg-deep);
-    font-weight: 600;
+    background: linear-gradient(135deg, var(--color-accent) 0%, #a39e8c 100%);
+    color: #1a1a1a; // Dark text for contrast against gold/accent
+    border: none;
+    box-shadow: 0 2px 8px rgba(212, 175, 55, 0.25); // Subtle gold shadow
+    font-weight: 700;
   }
 }
 
