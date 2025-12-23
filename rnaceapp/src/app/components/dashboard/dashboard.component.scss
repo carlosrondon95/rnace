@@ -261,9 +261,12 @@
   }
 }
 
-.stack-card__temporal {
+// Header con badges
+.stack-card__header {
   display: flex;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
 }
 
 .temporal-badge {
@@ -281,30 +284,59 @@
   }
 }
 
-.stack-card__content {
+// Body principal con layout horizontal centrado
+.stack-card__body {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  gap: var(--space-xl);
   flex: 1;
-  padding: var(--space-sm) 0;
+  padding: var(--space-md) 0;
 }
 
-.stack-card__date {
+// Fecha grande centrada
+.stack-card__date-block {
   display: flex;
   flex-direction: column;
-
-  .date-day {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-muted);
-    text-transform: capitalize;
-    margin-bottom: 2px;
-  }
+  align-items: center;
+  text-align: center;
+  min-width: 110px;
 
   .date-number {
-    font-size: var(--font-size-lg);
+    font-size: 1.75rem;
     font-weight: 700;
     color: var(--color-text-primary);
+    line-height: 1.1;
   }
+
+  .date-day {
+    font-size: var(--font-size-md);
+    color: var(--color-text-muted);
+    text-transform: capitalize;
+    margin-top: 4px;
+  }
+}
+
+// Separador vertical elegante
+.stack-card__divider {
+  width: 1px;
+  height: 56px;
+  background: linear-gradient(to bottom,
+      transparent 0%,
+      var(--color-border) 20%,
+      var(--color-border) 80%,
+      transparent 100%);
+  flex-shrink: 0;
+}
+
+// Info derecha centrada
+.stack-card__info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+  min-width: 110px;
 }
 
 .stack-card__time {
@@ -319,12 +351,6 @@
     font-size: 1.25rem;
     color: var(--color-accent);
   }
-}
-
-.stack-card__footer {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
 }
 
 .modalidad-pill {
