@@ -315,6 +315,10 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   text-transform: capitalize;
+  display: inline-block;
+  width: fit-content;
+  margin-bottom: 2px;
+  background: transparent !important; /* Ensure no background */
 }
 
 .recuperacion-expira {

@@ -420,6 +420,44 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return false;
   }
 
+  getUltimoDiaHabil(mes: number, anio: number): number {
+    // Obtener último día del mes: día 0 del siguiente mes en JS es el último del anterior
+    // Ojo: en JS los meses en Constructor Date son 0-11, pero día 0 funciona como "último día del mes anterior" (si le paso mes tal cual, es el siguiente)
+    // Ejemplo: mes 1 (Enero). Date(anio, 1, 0) -> Último día de Enero.
+    const ultimoDia = new Date(anio, mes, 0);
+    const diaSemana = ultimoDia.getDay(); // 0 Dom, 6 Sab
+
+    // Si es Sabado (6), restar 1 día. Si es Domingo (0), restar 2 días.
+    if (diaSemana === 6) {
+      return ultimoDia.getDate() - 1;
+    } else if (diaSemana === 0) {
+      return ultimoDia.getDate() - 2;
+    }
+
+    return ultimoDia.getDate();
+  }
+
+  getTextoValidez(recup: Recuperacion): string {
+    // 1. Caso Futura
+    if (this.esRecuperacionFutura(recup)) {
+      const nombreMes = this.getNombreMes(recup.mes_origen);
+      const mesCap = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+      return `Disponible a partir de ${mesCap}`;
+    }
+
+    // 2. Caso Válida solo mes en curso (origen == limite)
+    if (recup.mes_limite === recup.mes_origen && recup.anio_limite === recup.anio_origen) {
+      return 'Válida para el mes en curso';
+    }
+
+    // 3. Caso Válida hasta el siguiente mes
+    const dia = this.getUltimoDiaHabil(recup.mes_limite, recup.anio_limite);
+    const nombreMes = this.getNombreMes(recup.mes_limite);
+    const mesCap = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+
+    return `Válida hasta el día ${dia} de ${mesCap}`;
+  }
+
   irANotificaciones() {
     this.router.navigateByUrl('/notificaciones');
   }
