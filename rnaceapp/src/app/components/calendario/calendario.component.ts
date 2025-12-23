@@ -107,6 +107,7 @@ interface SesionDia {
   tiene_reserva: boolean;     // El usuario ya tiene reserva aquí
   mi_reserva_id?: number;     // ID de la reserva si la tiene
   en_lista_espera: boolean;   // El usuario está en lista de espera
+  fecha?: string;             // Fecha de la sesión (para modo cambio)
 }
 
 // ...
@@ -162,10 +163,16 @@ export class CalendarioComponent implements OnInit {
   // Tipo de grupo del usuario actual (para restricciones de cambio)
   tipoGrupoUsuario = signal<'focus' | 'reducido' | 'hibrido' | null>(null);
 
+  // === MODO CAMBIO DE CITA ===
+  modoCambio = signal(false);
+  reservaACambiar = signal<{ id: number; sesion_id: number; hora: string; fecha: string; modalidad: string } | null>(null);
+  sesionesDisponiblesCambio = signal<SesionDia[]>([]);
+  cargandoCambio = signal(false);
+
   // Sesiones filtradas por tipo de grupo del usuario
   sesionesFiltradasPorGrupo = computed(() => {
     const sesiones = this.sesionesDiaSeleccionado();
-    
+
     // Si es admin, esta propiedad no debería usarse en la vista restringida, 
     // pero por si acaso devolvemos todo o vacío según la lógica de UI
     if (this.esAdmin()) return sesiones;
@@ -178,12 +185,12 @@ export class CalendarioComponent implements OnInit {
       console.warn('Tipo de grupo no cargado, ocultando sesiones por seguridad');
       return [];
     }
-    
+
     // Si es híbrido, mostrar todas
     if (tipoGrupo === 'hibrido') {
       return sesiones;
     }
-    
+
     // Filtrar solo las sesiones del tipo de grupo del usuario
     const filtradas = sesiones.filter(s => s.modalidad?.toLowerCase() === tipoGrupo?.toLowerCase());
     console.log(`Filtrando para ${tipoGrupo}: ${sesiones.length} -> ${filtradas.length}`);
@@ -417,35 +424,35 @@ export class CalendarioComponent implements OnInit {
   }
 
   ngOnInit() {
-  this.cargarCalendario().then(async () => {
-    // Cargar tipo de grupo del usuario (para restricciones de cambio)
-    if (!this.esAdmin()) {
-      const uid = this.userId();
-      if (uid) {
-        try {
-          const { data } = await supabase()
-            .from('plan_usuario')
-            .select('tipo_grupo')
-            .eq('usuario_id', uid)
-            .maybeSingle();
-          if (data?.tipo_grupo) {
-            this.tipoGrupoUsuario.set(data.tipo_grupo.toLowerCase() as 'focus' | 'reducido' | 'hibrido');
+    this.cargarCalendario().then(async () => {
+      // Cargar tipo de grupo del usuario (para restricciones de cambio)
+      if (!this.esAdmin()) {
+        const uid = this.userId();
+        if (uid) {
+          try {
+            const { data } = await supabase()
+              .from('plan_usuario')
+              .select('tipo_grupo')
+              .eq('usuario_id', uid)
+              .maybeSingle();
+            if (data?.tipo_grupo) {
+              this.tipoGrupoUsuario.set(data.tipo_grupo.toLowerCase() as 'focus' | 'reducido' | 'hibrido');
+            }
+          } catch (err) {
+            console.warn('Error cargando tipo de grupo:', err);
           }
-        } catch (err) {
-          console.warn('Error cargando tipo de grupo:', err);
         }
       }
-    }
 
-    // Verificar si hay una sesión específica para abrir (desde notificación)
-    this.route.queryParams.subscribe(async params => {
-      const sesionId = params['sesion'];
-      if (sesionId) {
-        await this.abrirDiaDeSesion(Number(sesionId));
-      }
+      // Verificar si hay una sesión específica para abrir (desde notificación)
+      this.route.queryParams.subscribe(async params => {
+        const sesionId = params['sesion'];
+        if (sesionId) {
+          await this.abrirDiaDeSesion(Number(sesionId));
+        }
+      });
     });
-  });
-}
+  }
 
   async abrirDiaDeSesion(sesionId: number) {
     try {
@@ -1090,10 +1097,191 @@ export class CalendarioComponent implements OnInit {
     this.sesionesDiaSeleccionado.set([]);
     this.mensajeExito.set(null);
     this.error.set(null);
+    // Reset modo cambio
+    this.modoCambio.set(false);
+    this.reservaACambiar.set(null);
+    this.sesionesDisponiblesCambio.set([]);
   }
 
   getReservasCount(dia: DiaCalendario, tipo: 'focus' | 'reducido'): number {
     return dia.reservas.filter((r) => r.modalidad === tipo).length;
+  }
+
+  // === FUNCIONES MODO CAMBIO DE CITA ===
+
+  /**
+   * Inicia el modo cambio: guarda la reserva a cambiar y carga sesiones disponibles
+   */
+  async iniciarCambio(reserva: { id: number; sesion_id: number; hora: string }, fecha: string, modalidad: string) {
+    this.reservaACambiar.set({ ...reserva, fecha, modalidad });
+    this.modoCambio.set(true);
+    await this.cargarSesionesParaCambio(modalidad);
+  }
+
+  /**
+   * Cancela el modo cambio y vuelve a la vista normal del día
+   */
+  cancelarModoCambio() {
+    this.modoCambio.set(false);
+    this.reservaACambiar.set(null);
+    this.sesionesDisponiblesCambio.set([]);
+  }
+
+  /**
+   * Carga todas las sesiones futuras de la modalidad del usuario para el cambio
+   */
+  async cargarSesionesParaCambio(modalidad: string) {
+    const uid = this.userId();
+    if (!uid) return;
+
+    this.cargandoCambio.set(true);
+
+    try {
+      const ahora = new Date();
+      const hoyStr = ahora.toISOString().split('T')[0];
+      const { anio, mes } = { anio: this.anioActual(), mes: this.mesActual() };
+
+      // Obtener todas las sesiones del mes de la modalidad
+      const primerDia = `${anio}-${mes.toString().padStart(2, '0')}-01`;
+      const ultimoDiaMes = new Date(anio, mes, 0).getDate();
+      const ultimoDia = `${anio}-${mes.toString().padStart(2, '0')}-${ultimoDiaMes.toString().padStart(2, '0')}`;
+
+      const { data: sesiones, error } = await supabase()
+        .from('sesiones')
+        .select('*')
+        .eq('modalidad', modalidad)
+        .eq('cancelada', false)
+        .gte('fecha', hoyStr)
+        .lte('fecha', ultimoDia)
+        .order('fecha')
+        .order('hora');
+
+      if (error) throw error;
+      if (!sesiones || sesiones.length === 0) {
+        this.sesionesDisponiblesCambio.set([]);
+        return;
+      }
+
+      // Filtrar sesiones que ya han comenzado
+      const ahoras = ahora.getTime();
+      const sesionesFuturas = sesiones.filter(s => {
+        const fechaHoraSesion = new Date(`${s.fecha}T${s.hora}`).getTime();
+        return fechaHoraSesion > ahoras;
+      });
+
+      // Obtener reservas activas del usuario en estas sesiones
+      const { data: reservas } = await supabase()
+        .from('reservas')
+        .select('sesion_id')
+        .eq('usuario_id', uid)
+        .eq('estado', 'activa')
+        .in('sesion_id', sesionesFuturas.map(s => s.id));
+
+      const tieneReservaSet = new Set(reservas?.map(r => r.sesion_id) || []);
+
+      // Obtener lista de espera
+      const { data: espera } = await supabase()
+        .from('lista_espera')
+        .select('sesion_id')
+        .eq('usuario_id', uid)
+        .in('sesion_id', sesionesFuturas.map(s => s.id));
+
+      const esperaSet = new Set(espera?.map(e => e.sesion_id) || []);
+
+      // Obtener disponibilidad
+      const { data: disponibilidad } = await supabase()
+        .from('vista_sesiones_disponibilidad')
+        .select('sesion_id, plazas_ocupadas, plazas_disponibles')
+        .in('sesion_id', sesionesFuturas.map(s => s.id));
+
+      const dispMap = new Map(disponibilidad?.map(d => [d.sesion_id, d]) || []);
+
+      // Construir lista de sesiones
+      const sesionesParaCambio: SesionDia[] = sesionesFuturas.map(s => {
+        const disp = dispMap.get(s.id);
+        return {
+          id: s.id,
+          hora: s.hora.slice(0, 5),
+          modalidad: s.modalidad,
+          capacidad: s.capacidad,
+          plazas_ocupadas: disp?.plazas_ocupadas || 0,
+          plazas_disponibles: disp?.plazas_disponibles || s.capacidad,
+          tiene_reserva: tieneReservaSet.has(s.id),
+          en_lista_espera: esperaSet.has(s.id),
+          // Campo extra para mostrar fecha en el cambio
+          fecha: s.fecha
+        };
+      });
+
+      this.sesionesDisponiblesCambio.set(sesionesParaCambio);
+
+    } catch (err) {
+      console.error('Error cargando sesiones para cambio:', err);
+      this.error.set('Error al cargar sesiones disponibles.');
+    } finally {
+      this.cargandoCambio.set(false);
+    }
+  }
+
+  /**
+   * Confirma el cambio de turno llamando a la función SQL
+   */
+  async confirmarCambioTurno(nuevaSesionId: number) {
+    const uid = this.userId();
+    const reserva = this.reservaACambiar();
+    if (!uid || !reserva) return;
+
+    if (!await this.confirmation.confirm({
+      titulo: 'Confirmar cambio de clase',
+      mensaje: '¿Estás seguro de cambiar tu clase a este nuevo horario?',
+      tipo: 'info',
+      textoConfirmar: 'Sí, cambiar'
+    })) {
+      return;
+    }
+
+    this.guardando.set(true);
+    this.error.set(null);
+
+    try {
+      const { data, error } = await supabase().rpc('cambiar_turno', {
+        p_usuario_id: uid,
+        p_reserva_id: reserva.id,
+        p_nueva_sesion_id: nuevaSesionId
+      });
+
+      if (error) throw error;
+
+      if (data && data[0]?.ok) {
+        this.mensajeExito.set(data[0].mensaje);
+        this.cerrarDetalleDia();
+        await this.cargarCalendario();
+      } else {
+        this.error.set(data?.[0]?.mensaje || 'No se pudo realizar el cambio.');
+      }
+
+    } catch (err: any) {
+      console.error('Error cambiando turno:', err);
+      this.error.set(err.message || 'Error al cambiar el turno.');
+    } finally {
+      this.guardando.set(false);
+    }
+  }
+
+  /**
+   * Obtiene el nombre del día de la semana
+   */
+  getNombreDia(fecha: string): string {
+    const d = new Date(fecha + 'T12:00:00');
+    return d.toLocaleDateString('es-ES', { weekday: 'long' });
+  }
+
+  /**
+   * Formatea una fecha para mostrar
+   */
+  formatearFechaCambio(fecha: string): string {
+    const d = new Date(fecha + 'T12:00:00');
+    return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
   }
 
   async cancelarReserva(reservaId: number) {

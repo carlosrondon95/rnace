@@ -135,7 +135,8 @@
             </div>
 
             <div class="notificacion-acciones">
-              <span class="material-symbols-rounded accion-ir">visibility</span>
+              <span class="material-symbols-rounded accion-ir" title="Ver detalle">visibility</span>
+              <span class="material-symbols-rounded accion-borrar" (click)="eliminarNotificacion(notif, $event)" title="Eliminar" role="button" tabindex="0">delete</span>
             </div>
           </article>
           }
@@ -171,6 +172,14 @@
           <span class="material-symbols-rounded">arrow_forward</span>
         </button>
       </div>
+      } @else {
+        <!-- Footer solo con borrar si no hay acción -->
+        <div class="modal-footer">
+          <button class="btn-action btn-danger" (click)="eliminarNotificacion(notif)">
+            Eliminar
+            <span class="material-symbols-rounded">delete</span>
+          </button>
+        </div>
       }
     </div>
   </div>

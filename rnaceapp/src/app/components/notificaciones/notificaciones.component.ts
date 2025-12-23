@@ -4,6 +4,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
+import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
 
 interface Notificacion {
   id: number;
@@ -27,6 +28,7 @@ interface Notificacion {
 export class NotificacionesComponent implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private confirmation = inject(ConfirmationService);
 
   // Estado
   cargando = signal(true);
@@ -35,10 +37,64 @@ export class NotificacionesComponent implements OnInit {
 
   // Datos
   notificaciones = signal<Notificacion[]>([]);
+  // ... (unchanged code) ...
+
+  // (Jump directly to existing eliminarNotificacion content, replacing it)
+  async eliminarNotificacion(notificacion: Notificacion, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    const confirmado = await this.confirmation.confirm({
+      titulo: 'Eliminar notificación',
+      mensaje: '¿Estás seguro de que deseas eliminar esta notificación?',
+      tipo: 'danger',
+      textoConfirmar: 'Eliminar',
+      textoCancelar: 'Cancelar',
+    });
+
+    if (!confirmado) {
+      return;
+    }
+
+    const uid = this.userId();
+    if (!uid) return;
+
+    // ... (rest of the function is the same, just keeping it consistent)
+    try {
+      const { data, error } = await supabase().rpc('eliminar_notificacion', {
+        p_notificacion_id: notificacion.id,
+      });
+
+      if (error) {
+        console.error('Error eliminando notificación:', error);
+        this.error.set('Error al eliminar la notificación');
+        return;
+      }
+
+      if (data && data[0]?.ok) {
+        // Eliminar de la lista local
+        this.notificaciones.update((lista) => lista.filter((n) => n.id !== notificacion.id));
+        this.mensajeExito.set('Notificación eliminada');
+
+        // Si estaba abierta en el modal, cerrarlo
+        if (this.modalAbierto() && this.notificacionSeleccionada()?.id === notificacion.id) {
+          this.cerrarModal();
+        }
+
+        setTimeout(() => this.mensajeExito.set(null), 3000);
+      } else {
+        this.error.set(data?.[0]?.mensaje || 'No se pudo eliminar');
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      this.error.set('Error inesperado al eliminar');
+    }
+  }
 
   // Filtro activo: 'todas' | 'no_leidas' | 'leidas'
   filtroActivo = signal<'todas' | 'no_leidas' | 'leidas'>('todas');
-  
+
   // Filtro por tipo (categoría)
   filtroTipo = signal<string>('todos');
 
@@ -57,10 +113,10 @@ export class NotificacionesComponent implements OnInit {
   notificacionesFiltradas = computed(() => {
     const todas = this.notificaciones();
     const filtro = this.filtroActivo();
-    
+
     const filtroLeida = this.filtroActivo();
     const filtroCategoria = this.filtroTipo();
-    
+
     let resultado = todas;
 
     // 1. Filtrar por estado (leída/no leída)
@@ -322,4 +378,6 @@ export class NotificacionesComponent implements OnInit {
   trackByTitulo(_index: number, grupo: { titulo: string }): string {
     return grupo.titulo;
   }
+
+
 }

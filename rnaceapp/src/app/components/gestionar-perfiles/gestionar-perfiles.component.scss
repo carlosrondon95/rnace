@@ -1026,3 +1026,51 @@
     transform: scale(1);
   }
 }
+
+// ============ CONFIGURACIÓN HÍBRIDA ============
+.config-hibrido {
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.hibrido-selectores {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.hibrido-grupo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.hibrido-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.hibrido-select {
+  width: 70px;
+}
+
+.hibrido-separador {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.hibrido-resumen {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

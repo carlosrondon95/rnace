@@ -774,3 +774,25 @@ $color-default: #a78bfa;
     transform: translateY(0) scale(1);
   }
 }
+
+.accion-borrar {
+  font-size: 1.25rem;
+  color: #ef4444; /* Rojo */
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+}
+
+.btn-danger {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
+  
+  &:hover {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+  }
+}

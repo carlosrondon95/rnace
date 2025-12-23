@@ -38,6 +38,8 @@ interface FormularioUsuario {
   rol: 'cliente' | 'profesor' | 'admin';
   activo: boolean;
   tipoGrupo: 'focus' | 'reducido' | 'hibrido' | 'especial';
+  clasesFocus: number;  // Para híbridos: número de clases focus por semana
+  clasesReducido: number; // Para híbridos: número de clases reducido por semana
   password: string;
   horariosSeleccionados: number[];
 }
@@ -96,6 +98,8 @@ export class GestionarPerfilesComponent implements OnInit {
     rol: 'cliente',
     activo: true,
     tipoGrupo: 'focus',
+    clasesFocus: 1,
+    clasesReducido: 1,
     password: '',
     horariosSeleccionados: [],
   });
@@ -345,6 +349,8 @@ export class GestionarPerfilesComponent implements OnInit {
       rol: 'cliente',
       activo: true,
       tipoGrupo: 'focus',
+      clasesFocus: 1,
+      clasesReducido: 1,
       password: '',
       horariosSeleccionados: [],
     });
@@ -371,6 +377,8 @@ export class GestionarPerfilesComponent implements OnInit {
       rol: usuario.rol as 'cliente' | 'profesor' | 'admin',
       activo: usuario.activo,
       tipoGrupo: (usuario.tipo_grupo as FormularioUsuario['tipoGrupo']) || 'focus',
+      clasesFocus: 1, // TODO: cargar desde BD cuando esté implementado
+      clasesReducido: 1, // TODO: cargar desde BD cuando esté implementado
       password: '',
       horariosSeleccionados: horariosSeleccionados,
     });
@@ -569,6 +577,8 @@ export class GestionarPerfilesComponent implements OnInit {
       await client.from('plan_usuario').insert({
         usuario_id: userId,
         tipo_grupo: f.tipoGrupo,
+        clases_focus: f.tipoGrupo === 'hibrido' ? f.clasesFocus : 0,
+        clases_reducido: f.tipoGrupo === 'hibrido' ? f.clasesReducido : 0,
         activo: true,
       });
 
@@ -633,12 +643,18 @@ export class GestionarPerfilesComponent implements OnInit {
       if (planExistente) {
         await client
           .from('plan_usuario')
-          .update({ tipo_grupo: f.tipoGrupo })
+          .update({
+            tipo_grupo: f.tipoGrupo,
+            clases_focus: f.tipoGrupo === 'hibrido' ? f.clasesFocus : 0,
+            clases_reducido: f.tipoGrupo === 'hibrido' ? f.clasesReducido : 0,
+          })
           .eq('usuario_id', userId);
       } else {
         await client.from('plan_usuario').insert({
           usuario_id: userId,
           tipo_grupo: f.tipoGrupo,
+          clases_focus: f.tipoGrupo === 'hibrido' ? f.clasesFocus : 0,
+          clases_reducido: f.tipoGrupo === 'hibrido' ? f.clasesReducido : 0,
           activo: true,
         });
       }
