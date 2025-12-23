@@ -375,43 +375,112 @@
 
             <!-- Selector de horarios -->
             <div class="horarios-selector">
-              <span class="form-label" id="horarios-label">Horarios fijos *</span>
-              <p class="horarios-help">
-                Selecciona los días y horas en que el alumno asistirá regularmente
-              </p>
+              <span class="form-label" id="horarios-label">Asignación de Clases *</span>
+              
+              <!-- Toggle Vista (Solo para Especial o todos) -->
+              @if (formulario().tipoGrupo === 'especial') {
+                <div class="vista-toggle">
+                  <button type="button" class="btn-toggle" [class.activo]="vistaAsignacion() === 'semana'" (click)="vistaAsignacion.set('semana')">
+                    Semanal (Fijo)
+                  </button>
+                  <button type="button" class="btn-toggle" [class.activo]="vistaAsignacion() === 'mes'" (click)="vistaAsignacion.set('mes'); cargarSesionesMes()">
+                    Mensual (Días Sueltos)
+                  </button>
+                </div>
+              }
 
-              <div class="horarios-grid" role="group" aria-labelledby="horarios-label">
-                @for (dia of horariosParaMostrar(); track dia.dia) {
-                  <div class="dia-column">
-                    <div class="dia-header">{{ dia.diaNombre }}</div>
-                    <div class="horarios-dia">
-                      @for (horario of dia.horarios; track horario.id) {
-                        <button
-                          type="button"
-                          class="horario-chip"
-                          [class.seleccionado]="isHorarioSeleccionado(horario.id)"
-                          [class.chip-focus]="horario.modalidad === 'focus'"
-                          [class.chip-reducido]="horario.modalidad === 'reducido'"
-                          (click)="toggleHorario(horario.id)"
-                          [attr.aria-pressed]="isHorarioSeleccionado(horario.id)"
-                          [attr.aria-label]="dia.diaNombre + ' ' + formatHora(horario.hora) + ' ' + horario.modalidad"
-                        >
-                          <span class="horario-hora">{{ formatHora(horario.hora) }}</span>
-                          @if (formulario().tipoGrupo === 'hibrido' || formulario().tipoGrupo === 'especial') {
-                            <span class="horario-tipo">{{ horario.modalidad === 'focus' ? 'F' : 'R' }}</span>
-                          }
-                        </button>
-                      }
+              @if (vistaAsignacion() === 'semana') {
+                <p class="horarios-help">
+                  Selecciona los días y horas en que el alumno asistirá regularmente
+                </p>
+
+                <div class="horarios-grid" role="group" aria-labelledby="horarios-label">
+                  @for (dia of horariosParaMostrar(); track dia.dia) {
+                    <div class="dia-column">
+                      <div class="dia-header">{{ dia.diaNombre }}</div>
+                      <div class="horarios-dia">
+                        @for (horario of dia.horarios; track horario.id) {
+                          <button
+                            type="button"
+                            class="horario-chip"
+                            [class.seleccionado]="isHorarioSeleccionado(horario.id)"
+                            [class.chip-focus]="horario.modalidad === 'focus'"
+                            [class.chip-reducido]="horario.modalidad === 'reducido'"
+                            (click)="toggleHorario(horario.id)"
+                            [attr.aria-pressed]="isHorarioSeleccionado(horario.id)"
+                            [attr.aria-label]="dia.diaNombre + ' ' + formatHora(horario.hora) + ' ' + horario.modalidad"
+                          >
+                            <span class="horario-hora">{{ formatHora(horario.hora) }}</span>
+                            @if (formulario().tipoGrupo === 'hibrido' || formulario().tipoGrupo === 'especial') {
+                              <span class="horario-tipo">{{ horario.modalidad === 'focus' ? 'F' : 'R' }}</span>
+                            }
+                          </button>
+                        }
+                      </div>
                     </div>
-                  </div>
-                }
-              </div>
+                  }
+                </div>
 
-              <!-- Resumen de selección -->
-              <div class="horarios-resumen">
-                <span class="material-symbols-rounded">event</span>
-                <span>{{ getResumenHorarios() }}</span>
-              </div>
+                <!-- Resumen de selección -->
+                <div class="horarios-resumen">
+                  <span class="material-symbols-rounded">event</span>
+                  <span>{{ getResumenHorarios() }}</span>
+                </div>
+              } @else {
+                <!-- VISTA MENSUAL (CALENDARIO) -->
+                 <div class="calendario-asignacion">
+                    <div class="calendario-header">
+                      <button type="button" class="btn-nav" (click)="cambiarMes(-1)">
+                        <span class="material-symbols-rounded">chevron_left</span>
+                      </button>
+                      <span class="mes-titulo">
+                        {{ fechaCalendario() | date:'MMMM yyyy':'':'es' | titlecase }}
+                      </span>
+                      <button type="button" class="btn-nav" (click)="cambiarMes(1)">
+                        <span class="material-symbols-rounded">chevron_right</span>
+                      </button>
+                    </div>
+
+                    <!-- Filtro Modalidad para Calendario -->
+                    <div class="filtro-modalidad">
+                       <label>Mostrar:</label>
+                       <select [value]="modalidadClasesEspecial()" (change)="modalidadClasesEspecial.set($any($event.target).value)">
+                         <option value="focus">Clases Focus</option>
+                         <option value="reducido">Clases Reducido</option>
+                       </select>
+                    </div>
+
+                    @if (cargandoSesiones()) {
+                      <div class="spinner-container">
+                        <div class="spinner"></div>
+                      </div>
+                    } @else {
+                      <div class="calendario-grid">
+                        <div class="dias-header">
+                          <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+                        </div>
+                        <div class="dias-body">
+                          @for (dia of diasCalendario(); track dia.fecha) {
+                            <div class="dia-cell" [class.pasado]="dia.esPasado" [class.vacio]="!dia.esDelMes">
+                              <span class="dia-numero">{{ dia.dia }}</span>
+                              <div class="sesiones-list">
+                                @for (sesion of dia.sesiones; track sesion.id) {
+                                  <button type="button" 
+                                    class="sesion-pill" 
+                                    [class.seleccionado]="isReservaSeleccionada(sesion.id)"
+                                    (click)="toggleReserva(sesion.id)">
+                                    {{ sesion.hora.slice(0,5) }}
+                                  </button>
+                                }
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+                 </div>
+              }
+
             </div>
           </div>
         }

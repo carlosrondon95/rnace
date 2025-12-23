@@ -5,6 +5,25 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, isBefore, startOfDay, addMonths, subMonths } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+interface SesionCalendario {
+  id: number;
+  fecha: string;
+  hora: string;
+  modalidad: 'focus' | 'reducido';
+  capacidad: number;
+  ocupadas: number; // calculated from reservas count
+}
+
+interface DiaAsignacion {
+  fecha: Date;
+  dia: number;
+  esDelMes: boolean;
+  esPasado: boolean;
+  sesiones: SesionCalendario[];
+}
 
 interface HorarioDisponible {
   id: number;
@@ -98,6 +117,42 @@ export class GestionarPerfilesComponent implements OnInit {
   // Feedback global
   mostrarFeedback = signal(false);
   mensajeFeedback = signal('');
+
+  // Lógica de Asignación por Mes (Especial)
+  vistaAsignacion = signal<'semana' | 'mes'>('semana');
+  fechaCalendario = signal(new Date());
+  modalidadClasesEspecial = signal<'focus' | 'reducido'>('focus');
+  sesionesMes = signal<SesionCalendario[]>([]);
+  reservasSeleccionadas = signal<Set<number>>(new Set()); // Set of session IDs
+  cargandoSesiones = signal(false);
+
+  // Computed days for calendar
+  diasCalendario = computed(() => {
+    const fecha = this.fechaCalendario();
+    const start = startOfMonth(fecha);
+    const end = endOfMonth(fecha);
+    const days = eachDayOfInterval({ start, end });
+    const hoy = startOfDay(new Date());
+
+    // Padding start cells
+    const startDayOfWeek = getDay(start); // 0=Sun, 1=Mon...
+    // Adjust for Monday start (1=Mon ... 7=Sun)
+    const paddingCount = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+    const paddedDays: DiaAsignacion[] = [];
+
+    // Add empty slots/padding if needed (optional, or just handle in UI)
+    // actually, let's just return actual days for now and handle padding in grid via style or nulls
+    // Simple approach: Array of days.
+
+    return days.map(day => ({
+      fecha: day,
+      dia: day.getDate(),
+      esDelMes: true,
+      esPasado: isBefore(day, hoy),
+      sesiones: this.sesionesMes().filter(s => isSameDay(new Date(s.fecha), day) && s.modalidad === this.modalidadClasesEspecial())
+    }));
+  });
 
   formulario = signal<FormularioUsuario>({
     nombre: '',
@@ -378,6 +433,13 @@ export class GestionarPerfilesComponent implements OnInit {
     this.errorModal.set(null);
     this.exitoModal.set(null);
     this.passwordCopiada.set(false);
+
+    // Reset Calendar State
+    this.vistaAsignacion.set('semana');
+    this.fechaCalendario.set(new Date());
+    this.reservasSeleccionadas.set(new Set());
+    this.cargarSesionesMes(); // Load just in case user switches
+
     this.mostrarModal.set(true);
   }
 
@@ -542,6 +604,74 @@ export class GestionarPerfilesComponent implements OnInit {
     }, 3000);
   }
 
+  // Métodos del Calendario de Asignación
+  async cargarSesionesMes() {
+    this.cargandoSesiones.set(true);
+    const client = supabase();
+    const fecha = this.fechaCalendario();
+    const start = format(startOfMonth(fecha), 'yyyy-MM-dd');
+    const end = format(endOfMonth(fecha), 'yyyy-MM-dd');
+
+    const { data, error } = await client
+      .from('sesiones')
+      .select('id, fecha, hora, modalidad, capacidad')
+      .gte('fecha', start)
+      .lte('fecha', end)
+      .eq('cancelada', false);
+
+    if (error) {
+      console.error('Error cargando sesiones:', error);
+    } else {
+      const sesionIds = data.map(s => s.id);
+      let countsMap = new Map<number, number>();
+
+      if (sesionIds.length > 0) {
+        const { data: reservas } = await client
+          .from('reservas')
+          .select('sesion_id')
+          .in('sesion_id', sesionIds)
+          .eq('estado', 'activa');
+
+        if (reservas) {
+          for (const r of reservas) {
+            countsMap.set(r.sesion_id, (countsMap.get(r.sesion_id) || 0) + 1);
+          }
+        }
+      }
+
+      this.sesionesMes.set(data.map(s => ({
+        id: s.id,
+        fecha: s.fecha,
+        hora: s.hora,
+        modalidad: s.modalidad as 'focus' | 'reducido',
+        capacidad: s.capacidad,
+        ocupadas: countsMap.get(s.id) || 0
+      })));
+    }
+    this.cargandoSesiones.set(false);
+  }
+
+  cambiarMes(delta: number) {
+    this.fechaCalendario.update(d => delta > 0 ? addMonths(d, delta) : subMonths(d, Math.abs(delta)));
+    this.cargarSesionesMes();
+  }
+
+  toggleReserva(sesionId: number) {
+    this.reservasSeleccionadas.update(set => {
+      const newSet = new Set(set);
+      if (newSet.has(sesionId)) {
+        newSet.delete(sesionId);
+      } else {
+        newSet.add(sesionId);
+      }
+      return newSet;
+    });
+  }
+
+  isReservaSeleccionada(sesionId: number): boolean {
+    return this.reservasSeleccionadas().has(sesionId);
+  }
+
   formularioValido(): boolean {
     const f = this.formulario();
     const tieneNombre = f.nombre.trim().length > 0;
@@ -630,6 +760,27 @@ export class GestionarPerfilesComponent implements OnInit {
 
         if (horariosError) {
           console.error('Error creando horarios fijos:', horariosError);
+        }
+      }
+
+      // 4. Crear Reservas Manuales (si hay seleccionadas en Vista Mes)
+      const reservasIds = Array.from(this.reservasSeleccionadas());
+      if (reservasIds.length > 0) {
+        const reservasInsert = reservasIds.map(sesionId => ({
+          sesion_id: sesionId,
+          usuario_id: userId,
+          estado: 'activa',
+          es_recuperacion: false,
+          es_desde_horario_fijo: false
+        }));
+
+        const { error: reservasError } = await client
+          .from('reservas')
+          .insert(reservasInsert);
+
+        if (reservasError) {
+          console.error('Error creando reservas manuales:', reservasError);
+          // Warning modal? Or just log.
         }
       }
     }
