@@ -541,6 +541,41 @@ export class ReservaCitaComponent implements OnInit {
     return false;
   }
 
+  getUltimoDiaHabil(mes: number, anio: number): number {
+    const ultimoDia = new Date(anio, mes, 0);
+    const diaSemana = ultimoDia.getDay(); // 0 Dom, 6 Sab
+    if (diaSemana === 6) return ultimoDia.getDate() - 1;
+    if (diaSemana === 0) return ultimoDia.getDate() - 2;
+    return ultimoDia.getDate();
+  }
+
+  getTextoValidez(recup: Recuperacion): string {
+    // 1. Futura
+    if (this.esFuturaParaMesActual(recup)) {
+      const nombreMes = this.formatearMesRecuperacion(recup.mes_origen, recup.anio_origen);
+      return `Disponible a partir de ${nombreMes}`; // "Enero 2024" part comes from helper
+    }
+
+    // 2. Caducada check handled by UI logic, but for text:
+    const { anio, mes } = this.mesActual();
+    if (anio > recup.anio_limite || (anio === recup.anio_limite && mes > recup.mes_limite)) {
+      return 'Caducada';
+    }
+
+    // 3. Válida solo 1 mes (origen == limite)
+    if (recup.mes_limite === recup.mes_origen && recup.anio_limite === recup.anio_origen) {
+      return 'Válida para este mes';
+    }
+
+    // 4. Válida hasta siguiente (limite > origen)
+    // Mostramos siempre la fecha límite real
+    const dia = this.getUltimoDiaHabil(recup.mes_limite, recup.anio_limite);
+    const nombreMes = new Date(recup.anio_limite, recup.mes_limite - 1).toLocaleDateString('es-ES', { month: 'long' });
+    const mesCap = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+
+    return `Válida hasta el día ${dia} de ${mesCap}`;
+  }
+
   // Modal methods
   deseleccionarSesion() {
     this.sesionSeleccionada.set(null);
