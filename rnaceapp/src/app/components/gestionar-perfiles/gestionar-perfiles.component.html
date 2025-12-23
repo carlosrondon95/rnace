@@ -472,4 +472,17 @@
       </div>
     </div>
   </div>
+
+}
+
+<!-- Feedback Overlay (Global) -->
+@if (mostrarFeedback()) {
+  <div class="feedback-overlay" role="status" aria-live="polite">
+    <div class="feedback-card">
+      <div class="feedback-icon">
+        <span class="material-symbols-rounded">check</span>
+      </div>
+      <span class="feedback-message">{{ mensajeFeedback() }}</span>
+    </div>
+  </div>
 }

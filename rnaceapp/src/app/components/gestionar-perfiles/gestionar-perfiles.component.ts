@@ -91,6 +91,10 @@ export class GestionarPerfilesComponent implements OnInit {
   usuarioAEliminar = signal<Usuario | null>(null);
   eliminando = signal(false);
 
+  // Feedback global
+  mostrarFeedback = signal(false);
+  mensajeFeedback = signal('');
+
   formulario = signal<FormularioUsuario>({
     nombre: '',
     apellidos: '',
@@ -419,6 +423,7 @@ export class GestionarPerfilesComponent implements OnInit {
       }
 
       this.cerrarModalEliminar();
+      this.mostrarExitoGlobal(`Usuario ${usuario.nombre} eliminado`);
       await this.cargarUsuarios();
     } catch (err) {
       console.error('Error:', err);
@@ -505,6 +510,18 @@ export class GestionarPerfilesComponent implements OnInit {
     } catch (err) {
       console.error('Error copiando:', err);
     }
+  }
+
+
+  // Helper para mostrar feedback global
+  private mostrarExitoGlobal(mensaje: string) {
+    this.mensajeFeedback.set(mensaje);
+    this.mostrarFeedback.set(true);
+
+    // Auto-cerrar a los 3 segundos
+    setTimeout(() => {
+      this.mostrarFeedback.set(false);
+    }, 3000);
   }
 
   formularioValido(): boolean {
@@ -599,8 +616,23 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
-    this.exitoModal.set(`Usuario creado. Teléfono: ${telefono}`);
-    this.guardando.set(true);
+    this.mostrarExitoGlobal(`Usuario creado: ${nombre}`);
+
+    // Limpiar formulario pero mantener modal abierto
+    this.formulario.set({
+      nombre: '',
+      apellidos: '',
+      telefono: '',
+      rol: 'cliente',
+      activo: true,
+      tipoGrupo: 'focus',
+      clasesFocus: 1,
+      clasesReducido: 1,
+      password: '',
+      horariosSeleccionados: [],
+    });
+    this.passwordCopiada.set(false);
+
     try {
       await this.sincronizarReservasUsuario(userId);
     } catch (err) {
@@ -693,7 +725,10 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
-    this.exitoModal.set('Usuario actualizado correctamente.');
+    // Mostrar feedback y cerrar modal
+    this.mostrarExitoGlobal('Usuario actualizado correctamente');
+    this.cerrarModal();
+
     await this.cargarUsuarios();
   }
 
