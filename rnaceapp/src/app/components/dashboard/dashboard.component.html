@@ -90,11 +90,23 @@
             <span class="recuperacion-expira">
               Válida hasta {{ getNombreMes(recup.mes_limite) }} {{ recup.anio_limite }}
             </span>
+            @if (esRecuperacionFutura(recup)) {
+            <span class="recuperacion-futura-info">
+              (Disponible desde {{ getNombreMes(recup.mes_origen) }})
+            </span>
+            }
           </div>
+          @if (esRecuperacionFutura(recup)) {
+          <a [routerLink]="['/recuperar-clase']" [queryParams]="{ mes: recup.mes_origen, anio: recup.anio_origen }" class="btn-usar">
+            Usar
+            <span class="material-symbols-rounded">arrow_forward</span>
+          </a>
+          } @else {
           <a routerLink="/recuperar-clase" class="btn-usar">
             Usar
             <span class="material-symbols-rounded">arrow_forward</span>
           </a>
+          }
         </div>
         }
       </div>

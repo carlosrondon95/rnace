@@ -1355,9 +1355,27 @@ export class CalendarioComponent implements OnInit {
 
     this.guardando.set(true);
     this.error.set(null);
-    this.mensajeExito.set(null);
 
     try {
+      // VALIDACIÓN LOCAL: Verificar si falta menos de 1 hora
+      const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
+      const dia = this.diaSeleccionado();
+
+      if (sesion && dia) {
+        const fechaHoraReserva = new Date(`${dia.fecha}T${sesion.hora}:00`);
+        const ahora = new Date();
+        const diferenciaMs = fechaHoraReserva.getTime() - ahora.getTime();
+        const unaHoraMs = 60 * 60 * 1000;
+
+        if (diferenciaMs < unaHoraMs) {
+          this.error.set('No se puede cancelar con menos de 1 hora de antelación.');
+          return;
+        }
+      }
+
+      this.guardando.set(true);
+      this.error.set(null);
+
       const uid = this.userId();
       if (!uid) return;
 
@@ -1374,8 +1392,15 @@ export class CalendarioComponent implements OnInit {
       if (data && data.length > 0) {
         const resultado = data[0];
         if (resultado.ok) {
-          this.mensajeExito.set(resultado.mensaje);
-          // Cerrar modal y recargar calendario
+          // ÉXITO: Mostrar Modal de Feedback en lugar de mensaje plano
+          await this.confirmation.confirm({
+            titulo: 'Clase cancelada',
+            mensaje: resultado.mensaje || 'Reserva cancelada correctamente. Se ha generado una recuperación.',
+            tipo: 'info',
+            textoConfirmar: 'Entendido',
+            textoCancelar: '' // Esto oculta el botón de cancelar
+          });
+
           this.diaSeleccionado.set(null);
           await this.cargarCalendario();
         } else {

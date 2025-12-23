@@ -64,11 +64,13 @@
             </span>
             {{ recup.modalidad === 'focus' ? 'Focus' : 'Reducido' }}
           </div>
-          <div class="recup-validez">
+            <div class="recup-validez">
             @if (esValidaParaMesActual(recup)) {
             Válida hasta {{ formatearMesRecuperacion(recup.mes_limite, recup.anio_limite) }}
+            } @else if (esFuturaParaMesActual(recup)) {
+            <span class="texto-futura">Disponible desde {{ formatearMesRecuperacion(recup.mes_origen, recup.anio_origen) }}</span>
             } @else {
-            <span class="texto-invalida">No válida para este mes</span>
+            <span class="texto-invalida">Caducada</span>
             }
           </div>
           @if (recup.motivo === 'festivo') {

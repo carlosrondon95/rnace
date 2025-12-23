@@ -4,7 +4,7 @@
 
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
@@ -55,6 +55,7 @@ interface SemanaAgrupada {
 })
 export class ReservaCitaComponent implements OnInit {
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private auth = inject(AuthService);
 
   cargando = signal(true);
@@ -188,6 +189,18 @@ export class ReservaCitaComponent implements OnInit {
       this.router.navigateByUrl('/dashboard');
       return;
     }
+
+    // Leer query params para navegación inicial
+    this.route.queryParams.subscribe(params => {
+      if (params['mes'] && params['anio']) {
+        const mes = parseInt(params['mes'], 10);
+        const anio = parseInt(params['anio'], 10);
+        if (!isNaN(mes) && !isNaN(anio)) {
+          this.mesActual.set({ anio, mes });
+        }
+      }
+    });
+
     this.cargarDatos();
   }
 
@@ -509,8 +522,22 @@ export class ReservaCitaComponent implements OnInit {
 
   esValidaParaMesActual(recup: Recuperacion): boolean {
     const { anio, mes } = this.mesActual();
-    if (recup.anio_limite > anio) return true;
-    if (recup.anio_limite === anio && recup.mes_limite >= mes) return true;
+
+    // 1. Validar que NO sea futura respecto al mes visto
+    if (anio < recup.anio_origen) return false;
+    if (anio === recup.anio_origen && mes < recup.mes_origen) return false;
+
+    // 2. Validar que NO esté caducada respecto al mes visto
+    if (anio > recup.anio_limite) return false;
+    if (anio === recup.anio_limite && mes > recup.mes_limite) return false;
+
+    return true;
+  }
+
+  esFuturaParaMesActual(recup: Recuperacion): boolean {
+    const { anio, mes } = this.mesActual();
+    if (anio < recup.anio_origen) return true;
+    if (anio === recup.anio_origen && mes < recup.mes_origen) return true;
     return false;
   }
 

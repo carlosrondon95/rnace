@@ -20,6 +20,8 @@ interface Recuperacion {
   modalidad: string;
   mes_limite: number;
   anio_limite: number;
+  mes_origen: number;
+  anio_origen: number;
 }
 
 interface ClaseHoy {
@@ -405,6 +407,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
       'diciembre',
     ];
     return meses[mes - 1] || '';
+  }
+
+  esRecuperacionFutura(recup: Recuperacion): boolean {
+    const ahora = new Date();
+    const mesActual = ahora.getMonth() + 1; // 1-12
+    const anioActual = ahora.getFullYear();
+
+    if (recup.anio_origen > anioActual) return true;
+    if (recup.anio_origen === anioActual && recup.mes_origen > mesActual) return true;
+
+    return false;
   }
 
   irANotificaciones() {

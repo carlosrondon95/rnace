@@ -24,9 +24,11 @@ import { ConfirmationService } from './confirmation.service';
           <p class="modal-body">{{ state().options?.mensaje }}</p>
 
           <div class="modal-actions">
+            @if (state().options?.textoCancelar) {
             <button type="button" class="btn-cancel" (click)="cancel()">
               {{ state().options?.textoCancelar }}
             </button>
+            }
             <button type="button" class="btn-confirm" (click)="confirm()">
               {{ state().options?.textoConfirmar }}
             </button>
