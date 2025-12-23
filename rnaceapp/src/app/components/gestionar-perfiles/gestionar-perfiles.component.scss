@@ -860,6 +860,202 @@
   }
 }
 
+// ============ VISTA TOGGLE (Especial) ============
+.vista-toggle {
+  display: flex;
+  gap: var(--space-xs);
+  margin: var(--space-md) 0;
+  padding: 4px;
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  width: fit-content;
+}
+
+.btn-toggle {
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    color: var(--color-text-primary);
+  }
+
+  &.activo {
+    background: var(--color-accent);
+    color: var(--color-bg-deep);
+  }
+}
+
+// ============ CALENDARIO ASIGNACIÓN ============
+.calendario-asignacion {
+  margin-top: var(--space-md);
+}
+
+.calendario-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.mes-titulo {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.btn-nav {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.2rem;
+  }
+}
+
+.filtro-modalidad {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+
+  select {
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-accent);
+    }
+  }
+}
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-xl);
+}
+
+.calendario-grid {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.dias-header {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  background: var(--color-bg-main);
+  border-bottom: 1px solid var(--color-border);
+
+  span {
+    padding: var(--space-sm);
+    text-align: center;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+  }
+}
+
+.dias-body {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.dia-cell {
+  min-height: 80px;
+  padding: var(--space-xs);
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  transition: background var(--transition-fast);
+
+  &:nth-child(7n) {
+    border-right: none;
+  }
+
+  &:hover:not(.pasado):not(.vacio) {
+    background: var(--color-bg-main);
+  }
+
+  &.pasado {
+    background: var(--color-bg-main);
+    opacity: 0.5;
+  }
+
+  &.vacio {
+    background: var(--color-bg-main);
+  }
+}
+
+.dia-numero {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.sesiones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sesion-pill {
+  width: 100%;
+  padding: 4px 6px;
+  background: var(--color-bg-main);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+
+  &:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  &.seleccionado {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-bg-deep);
+  }
+}
+
 // ============ CHECKBOX ============
 .form-check {
   display: flex;
@@ -1093,12 +1289,12 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); // Sombra suave
   padding: 12px 24px; // Padding reducido
   border-radius: var(--radius-full); // Bordes totalmente redondeados
-  
+
   display: flex;
   flex-direction: row; // Horizontal
   align-items: center;
   gap: 12px;
-  
+
   min-width: auto; // Sin ancho mínimo forzado
   animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: auto;
@@ -1134,6 +1330,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);

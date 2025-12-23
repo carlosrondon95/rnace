@@ -131,26 +131,21 @@ export class GestionarPerfilesComponent implements OnInit {
     const fecha = this.fechaCalendario();
     const start = startOfMonth(fecha);
     const end = endOfMonth(fecha);
-    const days = eachDayOfInterval({ start, end });
+    const allDays = eachDayOfInterval({ start, end });
     const hoy = startOfDay(new Date());
 
-    // Padding start cells
-    const startDayOfWeek = getDay(start); // 0=Sun, 1=Mon...
-    // Adjust for Monday start (1=Mon ... 7=Sun)
-    const paddingCount = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+    // Filter out weekends (Saturday = 6, Sunday = 0)
+    const weekdays = allDays.filter((day: Date) => {
+      const dayOfWeek = getDay(day);
+      return dayOfWeek !== 0 && dayOfWeek !== 6;
+    });
 
-    const paddedDays: DiaAsignacion[] = [];
-
-    // Add empty slots/padding if needed (optional, or just handle in UI)
-    // actually, let's just return actual days for now and handle padding in grid via style or nulls
-    // Simple approach: Array of days.
-
-    return days.map(day => ({
+    return weekdays.map((day: Date) => ({
       fecha: day,
       dia: day.getDate(),
       esDelMes: true,
       esPasado: isBefore(day, hoy),
-      sesiones: this.sesionesMes().filter(s => isSameDay(new Date(s.fecha), day) && s.modalidad === this.modalidadClasesEspecial())
+      sesiones: this.sesionesMes().filter(s => isSameDay(new Date(s.fecha), day))
     }));
   });
 
@@ -518,6 +513,9 @@ export class GestionarPerfilesComponent implements OnInit {
 
     if (campo === 'tipoGrupo') {
       this.formulario.update((f) => ({ ...f, horariosSeleccionados: [] }));
+      // Reset vista to weekly view and clear calendar selections
+      this.vistaAsignacion.set('semana');
+      this.reservasSeleccionadas.set(new Set());
     }
   }
 
@@ -1020,6 +1018,11 @@ export class GestionarPerfilesComponent implements OnInit {
     if (tipo === 'especial') return `Especial (${numHorarios} clases/sem)`;
 
     return 'Sin plan';
+  }
+
+  getMesActual(): string {
+    const fecha = this.fechaCalendario();
+    return format(fecha, 'MMMM yyyy', { locale: es });
   }
 
   obtenerHorariosTexto(usuario: Usuario): string {

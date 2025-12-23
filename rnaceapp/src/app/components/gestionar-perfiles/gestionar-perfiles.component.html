@@ -12,570 +12,476 @@
 
   <!-- Error global -->
   @if (error()) {
-    <div class="mensaje-error" role="alert">
-      <span class="material-symbols-rounded">error</span>
-      {{ error() }}
-    </div>
+  <div class="mensaje-error" role="alert">
+    <span class="material-symbols-rounded">error</span>
+    {{ error() }}
+  </div>
   }
 
   <!-- Loading -->
   @if (cargando()) {
-    <div class="loading-state">
-      <div class="spinner"></div>
-      <p>Cargando usuarios...</p>
-    </div>
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando usuarios...</p>
+  </div>
   }
 
   @if (!cargando()) {
-    <!-- Barra de acciones -->
-    <div class="acciones-bar">
-      <div class="busqueda-container">
-        <span class="material-symbols-rounded search-icon">search</span>
-        <input
-          type="text"
-          id="busqueda-usuarios"
-          class="input-busqueda"
-          placeholder="Buscar por nombre o teléfono..."
-          [value]="busqueda()"
-          (input)="busqueda.set($any($event.target).value)"
-        />
-      </div>
-
-      <button class="btn-nuevo" (click)="abrirModalNuevo()">
-        <span class="material-symbols-rounded">person_add</span>
-        Nuevo usuario
-      </button>
+  <!-- Barra de acciones -->
+  <div class="acciones-bar">
+    <div class="busqueda-container">
+      <span class="material-symbols-rounded search-icon">search</span>
+      <input type="text" id="busqueda-usuarios" class="input-busqueda" placeholder="Buscar por nombre o teléfono..."
+        [value]="busqueda()" (input)="busqueda.set($any($event.target).value)" />
     </div>
 
-    <!-- Filtros -->
-    <div class="filtros-bar">
-      <div class="filtro-group">
-        <label class="filtro-label" for="filtro-grupo">Grupo:</label>
-        <select
-          id="filtro-grupo"
-          class="filtro-select"
-          [value]="filtros().tipoGrupo"
-          (change)="actualizarFiltro('tipoGrupo', $any($event.target).value)"
-        >
-          <option value="todos">Todos</option>
-          <option value="focus">Focus</option>
-          <option value="reducido">Reducido</option>
-          <option value="hibrido">Híbrido</option>
-          <option value="especial">Especial</option>
-        </select>
+    <button class="btn-nuevo" (click)="abrirModalNuevo()">
+      <span class="material-symbols-rounded">person_add</span>
+      Nuevo usuario
+    </button>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtros-bar">
+    <div class="filtro-group">
+      <label class="filtro-label" for="filtro-grupo">Grupo:</label>
+      <select id="filtro-grupo" class="filtro-select" [value]="filtros().tipoGrupo"
+        (change)="actualizarFiltro('tipoGrupo', $any($event.target).value)">
+        <option value="todos">Todos</option>
+        <option value="focus">Focus</option>
+        <option value="reducido">Reducido</option>
+        <option value="hibrido">Híbrido</option>
+        <option value="especial">Especial</option>
+      </select>
+    </div>
+
+    <div class="filtro-group">
+      <label class="filtro-label" for="filtro-rol">Rol:</label>
+      <select id="filtro-rol" class="filtro-select" [value]="filtros().rol"
+        (change)="actualizarFiltro('rol', $any($event.target).value)">
+        <option value="todos">Todos</option>
+        <option value="cliente">Clientes</option>
+        <option value="profesor">Profesores</option>
+        <option value="admin">Admins</option>
+      </select>
+    </div>
+
+    <div class="filtro-group">
+      <label class="filtro-label" for="filtro-estado">Estado:</label>
+      <select id="filtro-estado" class="filtro-select" [value]="filtros().activo"
+        (change)="actualizarFiltro('activo', $any($event.target).value)">
+        <option value="todos">Todos</option>
+        <option value="activo">Activos</option>
+        <option value="inactivo">Inactivos</option>
+      </select>
+    </div>
+
+    @if (hayFiltrosActivos()) {
+    <button class="btn-limpiar-filtros" (click)="limpiarFiltros()">
+      <span class="material-symbols-rounded">filter_alt_off</span>
+      Limpiar
+    </button>
+    }
+
+    <span class="resultados-count">{{ usuariosFiltrados().length }} usuarios</span>
+  </div>
+
+  <!-- Lista de usuarios -->
+  <div class="usuarios-lista">
+    @for (usuario of usuariosFiltrados(); track usuario.id) {
+    <div class="usuario-card" [class.usuario-inactivo]="!usuario.activo">
+      <div class="usuario-avatar" [class]="obtenerClaseGrupo(usuario.tipo_grupo)">
+        <span class="material-symbols-rounded">person</span>
       </div>
 
-      <div class="filtro-group">
-        <label class="filtro-label" for="filtro-rol">Rol:</label>
-        <select
-          id="filtro-rol"
-          class="filtro-select"
-          [value]="filtros().rol"
-          (change)="actualizarFiltro('rol', $any($event.target).value)"
-        >
-          <option value="todos">Todos</option>
-          <option value="cliente">Clientes</option>
-          <option value="profesor">Profesores</option>
-          <option value="admin">Admins</option>
-        </select>
+      <div class="usuario-info">
+        <div class="usuario-header">
+          <span class="usuario-nombre">{{ usuario.nombre || 'Sin nombre' }}</span>
+          <span class="usuario-rol" [class]="obtenerClaseRol(usuario.rol)">
+            {{ usuario.rol | titlecase }}
+          </span>
+          @if (!usuario.activo) {
+          <span class="badge-inactivo">Inactivo</span>
+          }
+        </div>
+        <div class="usuario-telefono">
+          <span class="material-symbols-rounded">phone</span>
+          {{ usuario.telefono }}
+        </div>
+        @if (usuario.rol === 'cliente' && usuario.tipo_grupo) {
+        <div class="usuario-plan">
+          <span class="plan-badge" [class]="obtenerClaseGrupo(usuario.tipo_grupo)">
+            {{ obtenerEtiquetaGrupo(usuario) }}
+          </span>
+        </div>
+        @if (obtenerHorariosTexto(usuario)) {
+        <div class="usuario-horarios">
+          <span class="material-symbols-rounded">schedule</span>
+          {{ obtenerHorariosTexto(usuario) }}
+        </div>
+        }
+        }
       </div>
 
-      <div class="filtro-group">
-        <label class="filtro-label" for="filtro-estado">Estado:</label>
-        <select
-          id="filtro-estado"
-          class="filtro-select"
-          [value]="filtros().activo"
-          (change)="actualizarFiltro('activo', $any($event.target).value)"
-        >
-          <option value="todos">Todos</option>
-          <option value="activo">Activos</option>
-          <option value="inactivo">Inactivos</option>
-        </select>
-      </div>
-
-      @if (hayFiltrosActivos()) {
-        <button class="btn-limpiar-filtros" (click)="limpiarFiltros()">
-          <span class="material-symbols-rounded">filter_alt_off</span>
-          Limpiar
+      <div class="usuario-acciones">
+        <button class="btn-accion btn-editar" (click)="abrirModalEditar(usuario)"
+          [attr.aria-label]="'Editar usuario ' + usuario.nombre">
+          <span class="material-symbols-rounded">edit</span>
         </button>
-      }
-
-      <span class="resultados-count">{{ usuariosFiltrados().length }} usuarios</span>
+        <button class="btn-accion btn-eliminar" (click)="abrirModalEliminar(usuario)"
+          [attr.aria-label]="'Eliminar usuario ' + usuario.nombre">
+          <span class="material-symbols-rounded">delete</span>
+        </button>
+      </div>
     </div>
-
-    <!-- Lista de usuarios -->
-    <div class="usuarios-lista">
-      @for (usuario of usuariosFiltrados(); track usuario.id) {
-        <div class="usuario-card" [class.usuario-inactivo]="!usuario.activo">
-          <div class="usuario-avatar" [class]="obtenerClaseGrupo(usuario.tipo_grupo)">
-            <span class="material-symbols-rounded">person</span>
-          </div>
-
-          <div class="usuario-info">
-            <div class="usuario-header">
-              <span class="usuario-nombre">{{ usuario.nombre || 'Sin nombre' }}</span>
-              <span class="usuario-rol" [class]="obtenerClaseRol(usuario.rol)">
-                {{ usuario.rol | titlecase }}
-              </span>
-              @if (!usuario.activo) {
-                <span class="badge-inactivo">Inactivo</span>
-              }
-            </div>
-            <div class="usuario-telefono">
-              <span class="material-symbols-rounded">phone</span>
-              {{ usuario.telefono }}
-            </div>
-            @if (usuario.rol === 'cliente' && usuario.tipo_grupo) {
-              <div class="usuario-plan">
-                <span class="plan-badge" [class]="obtenerClaseGrupo(usuario.tipo_grupo)">
-                  {{ obtenerEtiquetaGrupo(usuario) }}
-                </span>
-              </div>
-              @if (obtenerHorariosTexto(usuario)) {
-                <div class="usuario-horarios">
-                  <span class="material-symbols-rounded">schedule</span>
-                  {{ obtenerHorariosTexto(usuario) }}
-                </div>
-              }
-            }
-          </div>
-
-          <div class="usuario-acciones">
-            <button 
-              class="btn-accion btn-editar" 
-              (click)="abrirModalEditar(usuario)" 
-              [attr.aria-label]="'Editar usuario ' + usuario.nombre"
-            >
-              <span class="material-symbols-rounded">edit</span>
-            </button>
-            <button
-              class="btn-accion btn-eliminar"
-              (click)="abrirModalEliminar(usuario)"
-              [attr.aria-label]="'Eliminar usuario ' + usuario.nombre"
-            >
-              <span class="material-symbols-rounded">delete</span>
-            </button>
-          </div>
-        </div>
-      } @empty {
-        <div class="empty-state">
-          <span class="material-symbols-rounded">person_search</span>
-          <p>No se encontraron usuarios</p>
-        </div>
-      }
+    } @empty {
+    <div class="empty-state">
+      <span class="material-symbols-rounded">person_search</span>
+      <p>No se encontraron usuarios</p>
     </div>
+    }
+  </div>
   }
 </main>
 
 <!-- Modal Crear/Editar Usuario -->
 @if (mostrarModal()) {
-  <div class="modal-overlay" role="dialog" aria-modal="true" [attr.aria-label]="modoEdicion() ? 'Editar usuario' : 'Nuevo usuario'">
-    <div class="modal-backdrop" (click)="cerrarModal()" (keydown.enter)="cerrarModal()" tabindex="0" role="button" aria-label="Cerrar modal"></div>
+<div class="modal-overlay" role="dialog" aria-modal="true"
+  [attr.aria-label]="modoEdicion() ? 'Editar usuario' : 'Nuevo usuario'">
+  <div class="modal-backdrop" (click)="cerrarModal()" (keydown.enter)="cerrarModal()" tabindex="0" role="button"
+    aria-label="Cerrar modal"></div>
 
-    <div class="modal-content modal-grande">
-      <div class="modal-header">
-        <h2>{{ modoEdicion() ? 'Editar Usuario' : 'Nuevo Usuario' }}</h2>
-        <button class="btn-cerrar" (click)="cerrarModal()" aria-label="Cerrar">
-          <span class="material-symbols-rounded">close</span>
-        </button>
+  <div class="modal-content modal-grande">
+    <div class="modal-header">
+      <h2>{{ modoEdicion() ? 'Editar Usuario' : 'Nuevo Usuario' }}</h2>
+      <button class="btn-cerrar" (click)="cerrarModal()" aria-label="Cerrar">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Mensajes -->
+      @if (errorModal()) {
+      <div class="mensaje-error-modal" role="alert">
+        <span class="material-symbols-rounded">error</span>
+        {{ errorModal() }}
       </div>
+      }
 
-      <div class="modal-body">
-        <!-- Mensajes -->
-        @if (errorModal()) {
-          <div class="mensaje-error-modal" role="alert">
-            <span class="material-symbols-rounded">error</span>
-            {{ errorModal() }}
+      @if (exitoModal()) {
+      <div class="mensaje-exito-modal" role="status">
+        <span class="material-symbols-rounded">check_circle</span>
+        {{ exitoModal() }}
+      </div>
+      }
+
+      <!-- Datos básicos -->
+      <div class="form-section">
+        <h3 class="section-title">Datos personales</h3>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="input-nombre">Nombre *</label>
+            <input type="text" id="input-nombre" class="form-input" placeholder="Nombre" [value]="formulario().nombre"
+              (input)="actualizarCampo('nombre', $any($event.target).value)" />
           </div>
-        }
-
-        @if (exitoModal()) {
-          <div class="mensaje-exito-modal" role="status">
-            <span class="material-symbols-rounded">check_circle</span>
-            {{ exitoModal() }}
-          </div>
-        }
-
-        <!-- Datos básicos -->
-        <div class="form-section">
-          <h3 class="section-title">Datos personales</h3>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="input-nombre">Nombre *</label>
-              <input
-                type="text"
-                id="input-nombre"
-                class="form-input"
-                placeholder="Nombre"
-                [value]="formulario().nombre"
-                (input)="actualizarCampo('nombre', $any($event.target).value)"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="input-apellidos">Apellidos</label>
-              <input
-                type="text"
-                id="input-apellidos"
-                class="form-input"
-                placeholder="Apellidos"
-                [value]="formulario().apellidos"
-                (input)="actualizarCampo('apellidos', $any($event.target).value)"
-              />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="input-telefono">Teléfono *</label>
-              <input
-                type="tel"
-                id="input-telefono"
-                class="form-input"
-                placeholder="666123456"
-                [value]="formulario().telefono"
-                (input)="actualizarCampo('telefono', $any($event.target).value)"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="select-rol">Rol *</label>
-              <select
-                id="select-rol"
-                class="form-select"
-                [value]="formulario().rol"
-                (change)="actualizarCampo('rol', $any($event.target).value)"
-              >
-                @for (rol of roles; track rol.value) {
-                  <option [value]="rol.value">{{ rol.label }}</option>
-                }
-              </select>
-            </div>
+          <div class="form-group">
+            <label class="form-label" for="input-apellidos">Apellidos</label>
+            <input type="text" id="input-apellidos" class="form-input" placeholder="Apellidos"
+              [value]="formulario().apellidos" (input)="actualizarCampo('apellidos', $any($event.target).value)" />
           </div>
         </div>
 
-        <!-- Contraseña -->
-        <div class="form-section">
-          <h3 class="section-title">
-            {{ modoEdicion() ? 'Cambiar contraseña (opcional)' : 'Contraseña *' }}
-          </h3>
-
-          <div class="password-row">
-            <div class="form-group grow">
-              <label class="form-label visually-hidden" for="input-password">Contraseña</label>
-              <input
-                type="text"
-                id="input-password"
-                class="form-input"
-                placeholder="Contraseña (mín. 6 caracteres)"
-                [value]="formulario().password"
-                (input)="actualizarCampo('password', $any($event.target).value)"
-              />
-            </div>
-            <button type="button" class="btn-generar" (click)="generarPassword()">
-              <span class="material-symbols-rounded">casino</span>
-              Generar
-            </button>
-            @if (formulario().password) {
-              <button
-                type="button"
-                class="btn-copiar"
-                [class.copiada]="passwordCopiada()"
-                (click)="copiarPassword()"
-                [attr.aria-label]="passwordCopiada() ? 'Copiada' : 'Copiar contraseña'"
-              >
-                <span class="material-symbols-rounded">
-                  {{ passwordCopiada() ? 'check' : 'content_copy' }}
-                </span>
-              </button>
-            }
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="input-telefono">Teléfono *</label>
+            <input type="tel" id="input-telefono" class="form-input" placeholder="666123456"
+              [value]="formulario().telefono" (input)="actualizarCampo('telefono', $any($event.target).value)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="select-rol">Rol *</label>
+            <select id="select-rol" class="form-select" [value]="formulario().rol"
+              (change)="actualizarCampo('rol', $any($event.target).value)">
+              @for (rol of roles; track rol.value) {
+              <option [value]="rol.value">{{ rol.label }}</option>
+              }
+            </select>
           </div>
         </div>
-
-        <!-- Plan y horarios (solo clientes) -->
-        @if (formulario().rol === 'cliente') {
-          <div class="form-section">
-            <h3 class="section-title">Plan y horarios fijos</h3>
-
-            <div class="form-group">
-              <label class="form-label" for="select-tipo-grupo">Tipo de grupo *</label>
-              <select
-                id="select-tipo-grupo"
-                class="form-select"
-                [value]="formulario().tipoGrupo"
-                (change)="actualizarCampo('tipoGrupo', $any($event.target).value)"
-              >
-                @for (tipo of tiposGrupo; track tipo.value) {
-                  <option [value]="tipo.value">{{ tipo.label }}</option>
-                }
-              </select>
-            </div>
-
-            <!-- Configuración híbrida: número de clases por grupo -->
-            @if (formulario().tipoGrupo === 'hibrido') {
-            <div class="config-hibrido">
-              <span class="form-label">Clases por semana *</span>
-              <div class="hibrido-selectores">
-                <div class="hibrido-grupo">
-                  <label for="clases-focus" class="hibrido-label">Focus:</label>
-                  <select
-                    id="clases-focus"
-                    class="form-select hibrido-select"
-                    [value]="formulario().clasesFocus"
-                    (change)="actualizarCampo('clasesFocus', +$any($event.target).value)"
-                  >
-                    <option [value]="1">1</option>
-                    <option [value]="2">2</option>
-                  </select>
-                </div>
-                <span class="hibrido-separador">+</span>
-                <div class="hibrido-grupo">
-                  <label for="clases-reducido" class="hibrido-label">Reducido:</label>
-                  <select
-                    id="clases-reducido"
-                    class="form-select hibrido-select"
-                    [value]="formulario().clasesReducido"
-                    (change)="actualizarCampo('clasesReducido', +$any($event.target).value)"
-                  >
-                    <option [value]="1">1</option>
-                    <option [value]="2">2</option>
-                  </select>
-                </div>
-              </div>
-              <p class="hibrido-resumen">
-                Configuración: {{ formulario().clasesFocus }}+{{ formulario().clasesReducido }} 
-                ({{ formulario().clasesFocus }} Focus + {{ formulario().clasesReducido }} Reducido)
-              </p>
-            </div>
-            }
-
-            <!-- Configuración ESPECIAL: número de clases por mes -->
-            @if (formulario().tipoGrupo === 'especial') {
-              <div class="config-hibrido">
-                <span class="form-label">Configuración Especial *</span>
-                <div class="form-group" style="margin-top: 8px;">
-                  <label class="form-label" for="clases-por-mes">Nº de Clases al Mes</label>
-                  <input
-                    type="number"
-                    id="clases-por-mes"
-                    class="form-input"
-                    placeholder="Ej: 2, 4..."
-                    min="1"
-                    max="31"
-                    [value]="formulario().clasesPorMes"
-                    (input)="actualizarCampo('clasesPorMes', +$any($event.target).value)"
-                  />
-                  <p class="hibrido-resumen">
-                     El usuario podrá recuperar hasta {{ formulario().clasesPorMes || 'infinitas' }} clases/mes. 
-                     (Si es 0, se considera ilimitado/manual).
-                  </p>
-                </div>
-              </div>
-            }
-
-            <!-- Selector de horarios -->
-            <div class="horarios-selector">
-              <span class="form-label" id="horarios-label">Asignación de Clases *</span>
-              
-              <!-- Toggle Vista (Solo para Especial o todos) -->
-              @if (formulario().tipoGrupo === 'especial') {
-                <div class="vista-toggle">
-                  <button type="button" class="btn-toggle" [class.activo]="vistaAsignacion() === 'semana'" (click)="vistaAsignacion.set('semana')">
-                    Semanal (Fijo)
-                  </button>
-                  <button type="button" class="btn-toggle" [class.activo]="vistaAsignacion() === 'mes'" (click)="vistaAsignacion.set('mes'); cargarSesionesMes()">
-                    Mensual (Días Sueltos)
-                  </button>
-                </div>
-              }
-
-              @if (vistaAsignacion() === 'semana') {
-                <p class="horarios-help">
-                  Selecciona los días y horas en que el alumno asistirá regularmente
-                </p>
-
-                <div class="horarios-grid" role="group" aria-labelledby="horarios-label">
-                  @for (dia of horariosParaMostrar(); track dia.dia) {
-                    <div class="dia-column">
-                      <div class="dia-header">{{ dia.diaNombre }}</div>
-                      <div class="horarios-dia">
-                        @for (horario of dia.horarios; track horario.id) {
-                          <button
-                            type="button"
-                            class="horario-chip"
-                            [class.seleccionado]="isHorarioSeleccionado(horario.id)"
-                            [class.chip-focus]="horario.modalidad === 'focus'"
-                            [class.chip-reducido]="horario.modalidad === 'reducido'"
-                            (click)="toggleHorario(horario.id)"
-                            [attr.aria-pressed]="isHorarioSeleccionado(horario.id)"
-                            [attr.aria-label]="dia.diaNombre + ' ' + formatHora(horario.hora) + ' ' + horario.modalidad"
-                          >
-                            <span class="horario-hora">{{ formatHora(horario.hora) }}</span>
-                            @if (formulario().tipoGrupo === 'hibrido' || formulario().tipoGrupo === 'especial') {
-                              <span class="horario-tipo">{{ horario.modalidad === 'focus' ? 'F' : 'R' }}</span>
-                            }
-                          </button>
-                        }
-                      </div>
-                    </div>
-                  }
-                </div>
-
-                <!-- Resumen de selección -->
-                <div class="horarios-resumen">
-                  <span class="material-symbols-rounded">event</span>
-                  <span>{{ getResumenHorarios() }}</span>
-                </div>
-              } @else {
-                <!-- VISTA MENSUAL (CALENDARIO) -->
-                 <div class="calendario-asignacion">
-                    <div class="calendario-header">
-                      <button type="button" class="btn-nav" (click)="cambiarMes(-1)">
-                        <span class="material-symbols-rounded">chevron_left</span>
-                      </button>
-                      <span class="mes-titulo">
-                        {{ fechaCalendario() | date:'MMMM yyyy':'':'es' | titlecase }}
-                      </span>
-                      <button type="button" class="btn-nav" (click)="cambiarMes(1)">
-                        <span class="material-symbols-rounded">chevron_right</span>
-                      </button>
-                    </div>
-
-                    <!-- Filtro Modalidad para Calendario -->
-                    <div class="filtro-modalidad">
-                       <label>Mostrar:</label>
-                       <select [value]="modalidadClasesEspecial()" (change)="modalidadClasesEspecial.set($any($event.target).value)">
-                         <option value="focus">Clases Focus</option>
-                         <option value="reducido">Clases Reducido</option>
-                       </select>
-                    </div>
-
-                    @if (cargandoSesiones()) {
-                      <div class="spinner-container">
-                        <div class="spinner"></div>
-                      </div>
-                    } @else {
-                      <div class="calendario-grid">
-                        <div class="dias-header">
-                          <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
-                        </div>
-                        <div class="dias-body">
-                          @for (dia of diasCalendario(); track dia.fecha) {
-                            <div class="dia-cell" [class.pasado]="dia.esPasado" [class.vacio]="!dia.esDelMes">
-                              <span class="dia-numero">{{ dia.dia }}</span>
-                              <div class="sesiones-list">
-                                @for (sesion of dia.sesiones; track sesion.id) {
-                                  <button type="button" 
-                                    class="sesion-pill" 
-                                    [class.seleccionado]="isReservaSeleccionada(sesion.id)"
-                                    (click)="toggleReserva(sesion.id)">
-                                    {{ sesion.hora.slice(0,5) }}
-                                  </button>
-                                }
-                              </div>
-                            </div>
-                          }
-                        </div>
-                      </div>
-                    }
-                 </div>
-              }
-
-            </div>
-          </div>
-        }
-
-        <!-- Estado (solo en edición) -->
-        @if (modoEdicion()) {
-          <div class="form-section">
-            <div class="form-check">
-              <input
-                type="checkbox"
-                id="check-activo"
-                class="check-input"
-                [checked]="formulario().activo"
-                (change)="actualizarCampo('activo', $any($event.target).checked)"
-              />
-              <label for="check-activo" class="check-label">Usuario activo</label>
-            </div>
-          </div>
-        }
       </div>
 
-      <div class="modal-footer">
-        <button class="btn-cancelar" (click)="cerrarModal()" [disabled]="guardando()">
-          Cancelar
-        </button>
-        <button
-          class="btn-guardar"
-          (click)="guardarUsuario()"
-          [disabled]="guardando() || !formularioValido()"
-        >
-          @if (guardando()) {
-            <span class="spinner-small"></span>
-            Guardando...
-          } @else {
-            <span class="material-symbols-rounded">save</span>
-            {{ modoEdicion() ? 'Guardar cambios' : 'Crear usuario' }}
+      <!-- Contraseña -->
+      <div class="form-section">
+        <h3 class="section-title">
+          {{ modoEdicion() ? 'Cambiar contraseña (opcional)' : 'Contraseña *' }}
+        </h3>
+
+        <div class="password-row">
+          <div class="form-group grow">
+            <label class="form-label visually-hidden" for="input-password">Contraseña</label>
+            <input type="text" id="input-password" class="form-input" placeholder="Contraseña (mín. 6 caracteres)"
+              [value]="formulario().password" (input)="actualizarCampo('password', $any($event.target).value)" />
+          </div>
+          <button type="button" class="btn-generar" (click)="generarPassword()">
+            <span class="material-symbols-rounded">casino</span>
+            Generar
+          </button>
+          @if (formulario().password) {
+          <button type="button" class="btn-copiar" [class.copiada]="passwordCopiada()" (click)="copiarPassword()"
+            [attr.aria-label]="passwordCopiada() ? 'Copiada' : 'Copiar contraseña'">
+            <span class="material-symbols-rounded">
+              {{ passwordCopiada() ? 'check' : 'content_copy' }}
+            </span>
+          </button>
           }
-        </button>
+        </div>
       </div>
+
+      <!-- Plan y horarios (solo clientes) -->
+      @if (formulario().rol === 'cliente') {
+      <div class="form-section">
+        <h3 class="section-title">Plan y horarios fijos</h3>
+
+        <div class="form-group">
+          <label class="form-label" for="select-tipo-grupo">Tipo de grupo *</label>
+          <select id="select-tipo-grupo" class="form-select" [value]="formulario().tipoGrupo"
+            (change)="actualizarCampo('tipoGrupo', $any($event.target).value)">
+            @for (tipo of tiposGrupo; track tipo.value) {
+            <option [value]="tipo.value">{{ tipo.label }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Configuración híbrida: número de clases por grupo -->
+        @if (formulario().tipoGrupo === 'hibrido') {
+        <div class="config-hibrido">
+          <span class="form-label">Clases por semana *</span>
+          <div class="hibrido-selectores">
+            <div class="hibrido-grupo">
+              <label for="clases-focus" class="hibrido-label">Focus:</label>
+              <select id="clases-focus" class="form-select hibrido-select" [value]="formulario().clasesFocus"
+                (change)="actualizarCampo('clasesFocus', +$any($event.target).value)">
+                <option [value]="1">1</option>
+                <option [value]="2">2</option>
+              </select>
+            </div>
+            <span class="hibrido-separador">+</span>
+            <div class="hibrido-grupo">
+              <label for="clases-reducido" class="hibrido-label">Reducido:</label>
+              <select id="clases-reducido" class="form-select hibrido-select" [value]="formulario().clasesReducido"
+                (change)="actualizarCampo('clasesReducido', +$any($event.target).value)">
+                <option [value]="1">1</option>
+                <option [value]="2">2</option>
+              </select>
+            </div>
+          </div>
+          <p class="hibrido-resumen">
+            Configuración: {{ formulario().clasesFocus }}+{{ formulario().clasesReducido }}
+            ({{ formulario().clasesFocus }} Focus + {{ formulario().clasesReducido }} Reducido)
+          </p>
+        </div>
+        }
+
+        <!-- Configuración ESPECIAL: número de clases por mes -->
+        @if (formulario().tipoGrupo === 'especial') {
+        <div class="config-hibrido">
+          <span class="form-label">Configuración Especial *</span>
+          <div class="form-group" style="margin-top: 8px;">
+            <label class="form-label" for="clases-por-mes">Nº de Clases al Mes</label>
+            <input type="number" id="clases-por-mes" class="form-input" placeholder="Ej: 2, 4..." min="1" max="31"
+              [value]="formulario().clasesPorMes"
+              (input)="actualizarCampo('clasesPorMes', +$any($event.target).value)" />
+            <p class="hibrido-resumen">
+              El usuario podrá recuperar hasta {{ formulario().clasesPorMes || 'infinitas' }} clases/mes.
+              (Si es 0, se considera ilimitado/manual).
+            </p>
+          </div>
+        </div>
+        }
+
+        <!-- Selector de horarios -->
+        <div class="horarios-selector">
+          <span class="form-label" id="horarios-label">Asignación de Clases *</span>
+
+          <!-- Toggle Vista (Solo para Especial o todos) -->
+          @if (formulario().tipoGrupo === 'especial') {
+          <div class="vista-toggle">
+            <button type="button" class="btn-toggle" [class.activo]="vistaAsignacion() === 'semana'"
+              (click)="vistaAsignacion.set('semana')">
+              Semanal (Fijo)
+            </button>
+            <button type="button" class="btn-toggle" [class.activo]="vistaAsignacion() === 'mes'"
+              (click)="vistaAsignacion.set('mes'); cargarSesionesMes()">
+              Mensual (Días Sueltos)
+            </button>
+          </div>
+          }
+
+          @if (vistaAsignacion() === 'semana') {
+          <p class="horarios-help">
+            Selecciona los días y horas en que el alumno asistirá regularmente
+          </p>
+
+          <div class="horarios-grid" role="group" aria-labelledby="horarios-label">
+            @for (dia of horariosParaMostrar(); track dia.dia) {
+            <div class="dia-column">
+              <div class="dia-header">{{ dia.diaNombre }}</div>
+              <div class="horarios-dia">
+                @for (horario of dia.horarios; track horario.id) {
+                <button type="button" class="horario-chip" [class.seleccionado]="isHorarioSeleccionado(horario.id)"
+                  [class.chip-focus]="horario.modalidad === 'focus'"
+                  [class.chip-reducido]="horario.modalidad === 'reducido'" (click)="toggleHorario(horario.id)"
+                  [attr.aria-pressed]="isHorarioSeleccionado(horario.id)"
+                  [attr.aria-label]="dia.diaNombre + ' ' + formatHora(horario.hora) + ' ' + horario.modalidad">
+                  <span class="horario-hora">{{ formatHora(horario.hora) }}</span>
+                  @if (formulario().tipoGrupo === 'hibrido' || formulario().tipoGrupo === 'especial') {
+                  <span class="horario-tipo">{{ horario.modalidad === 'focus' ? 'F' : 'R' }}</span>
+                  }
+                </button>
+                }
+              </div>
+            </div>
+            }
+          </div>
+
+          <!-- Resumen de selección -->
+          <div class="horarios-resumen">
+            <span class="material-symbols-rounded">event</span>
+            <span>{{ getResumenHorarios() }}</span>
+          </div>
+          } @else {
+          <!-- VISTA MENSUAL (CALENDARIO) -->
+          <div class="calendario-asignacion">
+            <div class="calendario-header">
+              <button type="button" class="btn-nav" (click)="cambiarMes(-1)">
+                <span class="material-symbols-rounded">chevron_left</span>
+              </button>
+              <span class="mes-titulo">
+                {{ getMesActual() | titlecase }}
+              </span>
+              <button type="button" class="btn-nav" (click)="cambiarMes(1)">
+                <span class="material-symbols-rounded">chevron_right</span>
+              </button>
+            </div>
+
+
+
+            @if (cargandoSesiones()) {
+            <div class="spinner-container">
+              <div class="spinner"></div>
+            </div>
+            } @else {
+            <div class="calendario-grid">
+              <div class="dias-header">
+                <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span>
+              </div>
+              <div class="dias-body">
+                @for (dia of diasCalendario(); track dia.fecha) {
+                <div class="dia-cell" [class.pasado]="dia.esPasado" [class.vacio]="!dia.esDelMes">
+                  <span class="dia-numero">{{ dia.dia }}</span>
+                  <div class="sesiones-list">
+                    @for (sesion of dia.sesiones; track sesion.id) {
+                    <button type="button" class="sesion-pill" [class.seleccionado]="isReservaSeleccionada(sesion.id)"
+                      (click)="toggleReserva(sesion.id)">
+                      {{ sesion.hora.slice(0,5) }}
+                    </button>
+                    }
+                  </div>
+                </div>
+                }
+              </div>
+            </div>
+            }
+          </div>
+          }
+
+        </div>
+      </div>
+      }
+
+      <!-- Estado (solo en edición) -->
+      @if (modoEdicion()) {
+      <div class="form-section">
+        <div class="form-check">
+          <input type="checkbox" id="check-activo" class="check-input" [checked]="formulario().activo"
+            (change)="actualizarCampo('activo', $any($event.target).checked)" />
+          <label for="check-activo" class="check-label">Usuario activo</label>
+        </div>
+      </div>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancelar" (click)="cerrarModal()" [disabled]="guardando()">
+        Cancelar
+      </button>
+      <button class="btn-guardar" (click)="guardarUsuario()" [disabled]="guardando() || !formularioValido()">
+        @if (guardando()) {
+        <span class="spinner-small"></span>
+        Guardando...
+        } @else {
+        <span class="material-symbols-rounded">save</span>
+        {{ modoEdicion() ? 'Guardar cambios' : 'Crear usuario' }}
+        }
+      </button>
     </div>
   </div>
+</div>
 }
 
 <!-- Modal Eliminar -->
 @if (mostrarModalEliminar()) {
-  <div class="modal-overlay modal-danger" role="alertdialog" aria-modal="true" aria-labelledby="eliminar-titulo">
-    <div class="modal-backdrop" (click)="cerrarModalEliminar()" (keydown.enter)="cerrarModalEliminar()" tabindex="0" role="button" aria-label="Cerrar"></div>
+<div class="modal-overlay modal-danger" role="alertdialog" aria-modal="true" aria-labelledby="eliminar-titulo">
+  <div class="modal-backdrop" (click)="cerrarModalEliminar()" (keydown.enter)="cerrarModalEliminar()" tabindex="0"
+    role="button" aria-label="Cerrar"></div>
 
-    <div class="modal-content modal-pequeño">
-      <div class="modal-header modal-header-danger">
-        <h2 id="eliminar-titulo">Eliminar Usuario</h2>
-        <button class="btn-cerrar" (click)="cerrarModalEliminar()" aria-label="Cerrar">
-          <span class="material-symbols-rounded">close</span>
-        </button>
-      </div>
+  <div class="modal-content modal-pequeño">
+    <div class="modal-header modal-header-danger">
+      <h2 id="eliminar-titulo">Eliminar Usuario</h2>
+      <button class="btn-cerrar" (click)="cerrarModalEliminar()" aria-label="Cerrar">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
 
-      <div class="modal-body">
-        <div class="eliminar-warning">
-          <span class="material-symbols-rounded warning-icon">warning</span>
-          <p>
-            ¿Estás seguro de eliminar a <strong>{{ usuarioAEliminar()?.nombre }}</strong>?
-          </p>
-          <p class="warning-sub">
-            Se eliminarán todas sus reservas y datos asociados. Esta acción no se puede deshacer.
-          </p>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-cancelar" (click)="cerrarModalEliminar()" [disabled]="eliminando()">
-          Cancelar
-        </button>
-        <button class="btn-eliminar" (click)="confirmarEliminar()" [disabled]="eliminando()">
-          @if (eliminando()) {
-            <span class="spinner-small"></span>
-            Eliminando...
-          } @else {
-            <span class="material-symbols-rounded">delete</span>
-            Sí, eliminar
-          }
-        </button>
+    <div class="modal-body">
+      <div class="eliminar-warning">
+        <span class="material-symbols-rounded warning-icon">warning</span>
+        <p>
+          ¿Estás seguro de eliminar a <strong>{{ usuarioAEliminar()?.nombre }}</strong>?
+        </p>
+        <p class="warning-sub">
+          Se eliminarán todas sus reservas y datos asociados. Esta acción no se puede deshacer.
+        </p>
       </div>
     </div>
+
+    <div class="modal-footer">
+      <button class="btn-cancelar" (click)="cerrarModalEliminar()" [disabled]="eliminando()">
+        Cancelar
+      </button>
+      <button class="btn-eliminar" (click)="confirmarEliminar()" [disabled]="eliminando()">
+        @if (eliminando()) {
+        <span class="spinner-small"></span>
+        Eliminando...
+        } @else {
+        <span class="material-symbols-rounded">delete</span>
+        Sí, eliminar
+        }
+      </button>
+    </div>
   </div>
+</div>
 
 }
 
 <!-- Feedback Overlay (Global) -->
 @if (mostrarFeedback()) {
-  <div class="feedback-overlay" role="status" aria-live="polite">
-    <div class="feedback-card">
-      <div class="feedback-icon">
-        <span class="material-symbols-rounded">check</span>
-      </div>
-      <span class="feedback-message">{{ mensajeFeedback() }}</span>
+<div class="feedback-overlay" role="status" aria-live="polite">
+  <div class="feedback-card">
+    <div class="feedback-icon">
+      <span class="material-symbols-rounded">check</span>
     </div>
+    <span class="feedback-message">{{ mensajeFeedback() }}</span>
   </div>
+</div>
 }
