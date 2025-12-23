@@ -11,6 +11,7 @@ interface ProximaClase {
   fecha: string;
   fecha_raw: string; // Para calcular días hasta
   hora: string;
+  hora_raw: string; // Para filtrar clases terminadas
   modalidad: 'focus' | 'reducido';
   dia_nombre: string;
   es_recuperacion: boolean;
@@ -197,31 +198,48 @@ export class DashboardComponent implements OnInit, OnDestroy {
         .eq('estado', 'activa')
         .gte('sesiones.fecha', hoyDate)
         .order('sesiones(fecha)', { ascending: true })
-        .limit(3);
+        .limit(10); // Traemos más para compensar el filtrado de clases terminadas
 
       if (error) {
         console.error('Error cargando próximas clases:', error);
         return;
       }
 
-      const clases: ProximaClase[] = (data || []).map((r) => {
-        const sesion = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
-        const fechaObj = new Date(sesion.fecha + 'T' + sesion.hora);
+      const ahora = new Date();
 
-        return {
-          id: r.id,
-          sesion_id: r.sesion_id,
-          fecha: fechaObj.toLocaleDateString('es-ES', {
-            day: 'numeric',
-            month: 'short',
-          }),
-          fecha_raw: sesion.fecha,
-          hora: sesion.hora.substring(0, 5),
-          modalidad: sesion.modalidad as 'focus' | 'reducido',
-          dia_nombre: fechaObj.toLocaleDateString('es-ES', { weekday: 'long' }),
-          es_recuperacion: r.es_recuperacion || false,
-        };
-      });
+      const clases: ProximaClase[] = (data || [])
+        .map((r) => {
+          const sesion = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
+          const fechaObj = new Date(sesion.fecha + 'T' + sesion.hora);
+
+          return {
+            id: r.id,
+            sesion_id: r.sesion_id,
+            fecha: fechaObj.toLocaleDateString('es-ES', {
+              day: 'numeric',
+              month: 'short',
+            }),
+            fecha_raw: sesion.fecha,
+            hora: sesion.hora.substring(0, 5),
+            hora_raw: sesion.hora,
+            modalidad: sesion.modalidad as 'focus' | 'reducido',
+            dia_nombre: fechaObj.toLocaleDateString('es-ES', { weekday: 'long' }),
+            es_recuperacion: r.es_recuperacion || false,
+          };
+        })
+        .filter((clase) => {
+          // Filtrar clases que ya terminaron (1 hora después del inicio)
+          const inicioClase = new Date(clase.fecha_raw + 'T' + clase.hora_raw);
+          const finClase = new Date(inicioClase.getTime() + 60 * 60 * 1000); // +1 hora
+          return finClase > ahora;
+        })
+        .sort((a, b) => {
+          // Ordenar por fecha y hora
+          const fechaA = new Date(a.fecha_raw + 'T' + a.hora_raw).getTime();
+          const fechaB = new Date(b.fecha_raw + 'T' + b.hora_raw).getTime();
+          return fechaA - fechaB;
+        })
+        .slice(0, 3); // Mostrar máximo 3 próximas clases
 
       this.proximasClases.set(clases);
     } catch (err) {

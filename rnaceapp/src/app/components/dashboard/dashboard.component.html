@@ -57,39 +57,42 @@
             [class.stack-card--recuperacion]="clase.es_recuperacion" [style.--stack-index]="i"
             [attr.aria-hidden]="i !== activeStackIndex()">
 
-            <!-- Indicador temporal -->
-            <div class="stack-card__temporal">
+            <!-- Badge superior -->
+            <div class="stack-card__header">
               @if (i === 0) {
-              <span class="temporal-badge temporal-badge--next">Próxima</span>
+              <span class="temporal-badge temporal-badge--next">Próxima clase</span>
               } @else {
               <span class="temporal-badge">En {{ getDiasHasta(clase) }}</span>
               }
-            </div>
-
-            <!-- Contenido principal -->
-            <div class="stack-card__content">
-              <div class="stack-card__date">
-                <span class="date-day">{{ clase.dia_nombre }}</span>
-                <span class="date-number">{{ clase.fecha }}</span>
-              </div>
-
-              <div class="stack-card__time">
-                <span class="material-symbols-rounded">schedule</span>
-                {{ clase.hora }}
-              </div>
-            </div>
-
-            <!-- Footer con modalidad -->
-            <div class="stack-card__footer">
-              <span class="modalidad-pill" [class]="'modalidad-pill--' + clase.modalidad">
-                {{ clase.modalidad }}
-              </span>
               @if (clase.es_recuperacion) {
               <span class="tag-recuperacion">
                 <span class="material-symbols-rounded">replay</span>
                 Recuperación
               </span>
               }
+            </div>
+
+            <!-- Contenido principal con layout horizontal -->
+            <div class="stack-card__body">
+              <!-- Fecha grande a la izquierda -->
+              <div class="stack-card__date-block">
+                <span class="date-number">{{ clase.fecha }}</span>
+                <span class="date-day">{{ clase.dia_nombre }}</span>
+              </div>
+
+              <!-- Separador visual -->
+              <div class="stack-card__divider"></div>
+
+              <!-- Info derecha -->
+              <div class="stack-card__info">
+                <div class="stack-card__time">
+                  <span class="material-symbols-rounded">schedule</span>
+                  <span>{{ clase.hora }}</span>
+                </div>
+                <span class="modalidad-pill" [class]="'modalidad-pill--' + clase.modalidad">
+                  {{ clase.modalidad }}
+                </span>
+              </div>
             </div>
           </article>
           }

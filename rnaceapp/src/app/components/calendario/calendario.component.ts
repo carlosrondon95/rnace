@@ -1128,7 +1128,8 @@ export class CalendarioComponent implements OnInit {
   }
 
   /**
-   * Carga todas las sesiones futuras de la modalidad del usuario para el cambio
+   * Carga todas las sesiones futuras de la modalidad del usuario para el cambio.
+   * Solo muestra sesiones del mismo mes que la clase a cambiar.
    */
   async cargarSesionesParaCambio(modalidad: string) {
     const uid = this.userId();
@@ -1139,19 +1140,33 @@ export class CalendarioComponent implements OnInit {
     try {
       const ahora = new Date();
       const hoyStr = ahora.toISOString().split('T')[0];
-      const { anio, mes } = { anio: this.anioActual(), mes: this.mesActual() };
 
-      // Obtener todas las sesiones del mes de la modalidad
+      // Usar el mes de la reserva que se está cambiando (no el mes visualizado)
+      const reserva = this.reservaACambiar();
+      if (!reserva?.fecha) {
+        this.error.set('No se pudo determinar la fecha de la reserva.');
+        return;
+      }
+
+      const fechaReserva = new Date(reserva.fecha + 'T12:00:00');
+      const anio = fechaReserva.getFullYear();
+      const mes = fechaReserva.getMonth() + 1;
+
+      // Obtener todas las sesiones del mismo mes que la reserva a cambiar
       const primerDia = `${anio}-${mes.toString().padStart(2, '0')}-01`;
       const ultimoDiaMes = new Date(anio, mes, 0).getDate();
       const ultimoDia = `${anio}-${mes.toString().padStart(2, '0')}-${ultimoDiaMes.toString().padStart(2, '0')}`;
+
+      // Usar el mayor entre hoy y el primer día del mes para el límite inferior
+      // Esto asegura que solo se muestren sesiones futuras Y del mismo mes
+      const fechaMinima = hoyStr > primerDia ? hoyStr : primerDia;
 
       const { data: sesiones, error } = await supabase()
         .from('sesiones')
         .select('*')
         .eq('modalidad', modalidad)
         .eq('cancelada', false)
-        .gte('fecha', hoyStr)
+        .gte('fecha', fechaMinima)
         .lte('fecha', ultimoDia)
         .order('fecha')
         .order('hora');
