@@ -604,9 +604,20 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-md);
+  margin-bottom: var(--space-md);
 
   @media (max-width: 479px) {
     grid-template-columns: 1fr;
+  }
+
+  // Los form-group dentro de form-row no necesitan margin-bottom
+  // porque el gap del grid ya proporciona el espaciado
+  .form-group {
+    margin-bottom: 0;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
   }
 }
 
