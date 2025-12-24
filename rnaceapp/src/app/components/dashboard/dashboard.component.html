@@ -126,14 +126,16 @@
     <!-- Recuperaciones disponibles -->
     @if (tieneRecuperaciones()) {
     <section class="section section--highlight">
-      <div class="section-header">
+      <div class="section-header clickable" (click)="toggleRecuperacionesSection()">
         <h2>
           <span class="material-symbols-rounded">replay</span>
           Recuperaciones disponibles
         </h2>
+        <span class="material-symbols-rounded chevron" [class.rotated]="!recuperacionesExpanded()">expand_more</span>
       </div>
 
-      <div class="recuperaciones-lista">
+      @if (recuperacionesExpanded()) {
+      <div class="recuperaciones-lista collapsible-content">
         @for (recup of recuperaciones(); track trackByRecupId($index, recup)) {
         <div class="recuperacion-card">
           <div class="recuperacion-info">
@@ -159,6 +161,7 @@
         </div>
         }
       </div>
+      }
     </section>
     }
 
