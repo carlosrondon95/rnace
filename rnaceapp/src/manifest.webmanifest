@@ -1,21 +1,96 @@
 {
-    "name": "RNACE",
+    "name": "RNACE - Centro de Rehabilitación",
     "short_name": "RNACE",
+    "description": "App de gestión de citas y reservas del centro RNACE",
     "theme_color": "#1976d2",
     "background_color": "#ffffff",
     "display": "standalone",
+    "orientation": "portrait-primary",
     "scope": "/",
     "start_url": "/",
+    "id": "/",
+    "categories": [
+        "health",
+        "lifestyle",
+        "fitness"
+    ],
     "icons": [
         {
             "src": "assets/icon/logofull.JPG",
+            "sizes": "72x72",
+            "type": "image/jpeg",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/icon/logofull.JPG",
+            "sizes": "96x96",
+            "type": "image/jpeg",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/icon/logofull.JPG",
+            "sizes": "128x128",
+            "type": "image/jpeg",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/icon/logofull.JPG",
+            "sizes": "144x144",
+            "type": "image/jpeg",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/icon/logofull.JPG",
+            "sizes": "152x152",
+            "type": "image/jpeg",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/icon/logofull.JPG",
             "sizes": "192x192",
-            "type": "image/jpeg"
+            "type": "image/jpeg",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "assets/icon/logofull.JPG",
+            "sizes": "384x384",
+            "type": "image/jpeg",
+            "purpose": "any"
         },
         {
             "src": "assets/icon/logofull.JPG",
             "sizes": "512x512",
-            "type": "image/jpeg"
+            "type": "image/jpeg",
+            "purpose": "any maskable"
+        }
+    ],
+    "screenshots": [],
+    "prefer_related_applications": false,
+    "related_applications": [],
+    "shortcuts": [
+        {
+            "name": "Reservar Cita",
+            "short_name": "Reservar",
+            "description": "Reservar una nueva cita",
+            "url": "/reserva-cita",
+            "icons": [
+                {
+                    "src": "assets/icon/logofull.JPG",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "Mi Calendario",
+            "short_name": "Calendario",
+            "description": "Ver mis citas programadas",
+            "url": "/calendario",
+            "icons": [
+                {
+                    "src": "assets/icon/logofull.JPG",
+                    "sizes": "96x96"
+                }
+            ]
         }
     ]
 }

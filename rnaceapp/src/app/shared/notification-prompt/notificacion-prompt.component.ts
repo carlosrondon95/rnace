@@ -10,14 +10,14 @@ import { Subscription } from 'rxjs';
   imports: [CommonModule],
   template: `
     <!-- Prompt de instalación PWA -->
-    @if (showInstallPrompt() && !isInstalled()) {
+    @if (showInstallPrompt() && !isInstalled() && !isIOS()) {
       <div class="prompt-card">
         <div class="prompt-icon prompt-icon--install">
           <span class="material-symbols-rounded">download</span>
         </div>
         <div class="prompt-content">
-          <h4>Instalar RNACE</h4>
-          <p>Añade la app a tu pantalla de inicio</p>
+          <h4>{{ isAndroid() ? 'Instalar en Android' : 'Instalar App' }}</h4>
+          <p>{{ isAndroid() ? 'Añade la app como nativa a tu inicio' : 'Añade la app a tu pantalla de inicio' }}</p>
         </div>
         <div class="prompt-actions">
           <button class="btn-dismiss" (click)="dismissInstall()">
@@ -58,7 +58,7 @@ import { Subscription } from 'rxjs';
         </div>
         <div class="prompt-content">
           <h4>Activar notificaciones</h4>
-          <p>Recibe avisos de reservas y plazas</p>
+          <p>Recordatorios, confirmaciones y plazas libres</p>
         </div>
         <div class="prompt-actions">
           <button class="btn-dismiss" (click)="dismissNotifications()">
@@ -365,17 +365,26 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
   permissionGranted = signal(false);
   permissionDenied = signal(false);
 
+  isAndroid = signal(false);
+
   iosSteps: string[] = [];
 
   ngOnInit(): void {
+    this.checkPlatform();
     this.iosSteps = this.installService.getIOSInstructions();
     this.setupSubscriptions();
     this.checkInitialState();
   }
 
+  private checkPlatform(): void {
+    const ua = navigator.userAgent.toLowerCase();
+    this.isAndroid.set(ua.indexOf('android') > -1);
+  }
+
   ngOnDestroy(): void {
     this.subscriptions.forEach(s => s.unsubscribe());
   }
+
 
   private setupSubscriptions(): void {
     this.subscriptions.push(
@@ -398,8 +407,8 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
         this.permissionGranted.set(status === 'granted');
         this.permissionDenied.set(status === 'denied');
         this.showNotificationPrompt.set(
-          status === 'default' && 
-          this.pushService.isSupported() && 
+          status === 'default' &&
+          this.pushService.isSupported() &&
           !this.isDismissed('notification')
         );
       })

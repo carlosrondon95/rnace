@@ -43,6 +43,7 @@ export class InstallPromptService {
 
   private listenForInstallPrompt(): void {
     window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('📢 [InstallPrompt] Evento beforeinstallprompt capturado!');
       e.preventDefault();
       this.deferredPrompt = e as BeforeInstallPromptEvent;
       this._canInstall.next(true);

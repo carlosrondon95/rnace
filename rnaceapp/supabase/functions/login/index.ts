@@ -6,7 +6,7 @@ import { create, getNumericDate } from 'djwt';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const JWT_SECRET = Deno.env.get('SUPABASE_JWT_SECRET')!; // Needed for signing tokens
+const JWT_SECRET = Deno.env.get('JWT_SECRET')!; // Changed to avoid CLI restriction
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,8 +44,8 @@ serve(async (req: Request) => {
       );
     }
 
-    // 2. Verify Password
-    const passwordValida = await bcrypt.compare(password, usuario.password_hash);
+    // 2. Verify Password - usar compareSync porque Deno Deploy no soporta Workers
+    const passwordValida = bcrypt.compareSync(password, usuario.password_hash);
 
     if (!passwordValida) {
       return new Response(
