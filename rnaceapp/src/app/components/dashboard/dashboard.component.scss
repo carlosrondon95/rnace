@@ -94,6 +94,12 @@
 // ============ SECCIONES ============
 .section {
   margin-bottom: var(--space-xl);
+  animation: slideUp 0.4s ease-out both;
+
+  // Stagger animation for multiple sections
+  &:nth-child(2) { animation-delay: 0.05s; }
+  &:nth-child(3) { animation-delay: 0.1s; }
+  &:nth-child(4) { animation-delay: 0.15s; }
 
   &--highlight {
     background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0.03) 100%);
@@ -120,7 +126,7 @@
 
   .chevron {
     color: var(--color-text-muted);
-    transition: transform var(--transition-fast);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     
     &.rotated {
       transform: rotate(180deg);
@@ -140,6 +146,22 @@
       font-size: 1.25rem;
       opacity: 0.7;
     }
+  }
+}
+
+// Contenido colapsable con animación
+.collapsible-content {
+  animation: expandIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -268,10 +290,10 @@
   }
 
   &--recuperacion {
-    border-color: rgba(251, 191, 36, 0.4);
-    background: linear-gradient(135deg,
-        var(--color-bg-elevated) 0%,
-        rgba(251, 191, 36, 0.08) 100%);
+    border-color: rgba(251, 191, 36, 0.5);
+    // Fondo sólido con tinte cálido amarillo
+    background: #47443a;
+    box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.1);
   }
 
   &:hover:not(.stack-expanded .stack-card) {
@@ -560,12 +582,24 @@
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   text-decoration: none;
-  transition: all var(--transition-base);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.3s ease-out both;
+
+  // Stagger animation
+  &:nth-child(1) { animation-delay: 0.1s; }
+  &:nth-child(2) { animation-delay: 0.15s; }
+  &:nth-child(3) { animation-delay: 0.2s; }
+  &:nth-child(4) { animation-delay: 0.25s; }
 
   &:hover {
     border-color: var(--color-accent);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-3px) scale(1.01);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(0.99);
+    transition-duration: 0.1s;
   }
 
   &--primary {
@@ -587,7 +621,7 @@
 
     &:hover {
       border-color: transparent;
-      opacity: 0.95;
+      filter: brightness(1.05);
     }
   }
 }
@@ -642,6 +676,19 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
+  animation: scaleIn 0.3s ease-out both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  // Stagger animation for stat cards
+  &:nth-child(1) { animation-delay: 0.05s; }
+  &:nth-child(2) { animation-delay: 0.1s; }
+  &:nth-child(3) { animation-delay: 0.15s; }
+  &:nth-child(4) { animation-delay: 0.2s; }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
 
   &--warning {
     border-color: rgba(251, 191, 36, 0.3);
@@ -945,5 +992,37 @@
   &--profesor {
     background: rgba(167, 139, 250, 0.15);
     color: var(--color-modalidad-reducido);
+  }
+}
+
+// ============ ANIMACIONES ============
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }

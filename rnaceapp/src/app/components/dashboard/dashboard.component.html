@@ -211,7 +211,7 @@
       </div>
 
       @if (hoyExpanded()) {
-      <div class="stats-grid">
+      <div class="stats-grid collapsible-content">
         <div class="stat-card">
           <span class="stat-value">{{ estadisticas().clases_hoy }}</span>
           <span class="stat-label">Clases</span>
@@ -244,7 +244,7 @@
 
       @if (clasesHoyExpanded()) {
       @if (clasesHoy().length > 0) {
-      <div class="clases-timeline">
+      <div class="clases-timeline collapsible-content">
         @for (clase of clasesHoy(); track trackByClaseId($index, clase); let i = $index) {
         <article class="timeline-card" [class.timeline-card--expanded]="expandedClaseIndex() === i"
           [class.timeline-card--full]="clase.reservas_count >= clase.capacidad" (click)="toggleClaseExpand(i)">
