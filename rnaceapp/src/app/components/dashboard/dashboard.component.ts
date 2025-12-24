@@ -77,6 +77,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   clasesHoy = signal<ClaseHoy[]>([]);
   expandedClaseIndex = signal<number | null>(null);
 
+  // Estados de secciones admin
+  hoyExpanded = signal(false);
+  clasesHoyExpanded = signal(false);
+
   // Computed
   nombreUsuario = computed(() => this.auth.usuario()?.nombre || 'Usuario');
   userId = computed(() => this.auth.userId());
@@ -380,7 +384,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
         };
       });
 
-      this.clasesHoy.set(clases);
+      // Filtrar clases pasadas (mismo criterio que próximas clases: hasta 1h después de inicio)
+      const ahora = new Date();
+      const clasesFiltradas = clases.filter((clase) => {
+        const inicioClase = new Date(hoy + 'T' + clase.hora);
+        const finClase = new Date(inicioClase.getTime() + 60 * 60 * 1000); // +1 hora
+        return finClase > ahora;
+      });
+
+      this.clasesHoy.set(clasesFiltradas);
     } catch (err) {
       console.error('Error:', err);
     }
@@ -422,6 +434,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     } else {
       this.expandedClaseIndex.set(index);
     }
+  }
+
+  toggleHoySection() {
+    this.hoyExpanded.update((v) => !v);
+  }
+
+  toggleClasesHoySection() {
+    this.clasesHoyExpanded.update((v) => !v);
   }
 
   getOcupacionPercent(clase: ClaseHoy): number {
