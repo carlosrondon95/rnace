@@ -4,64 +4,15 @@
 :host {
   display: block;
   min-height: 100vh;
-  // background: var(--color-bg-main); // Removed to use global gradient
-  padding: var(--navbar-height) var(--space-md) calc(var(--space-xl) + 80px);
+  // Padding is now handled by .page-container in HTML
 }
 
-.lista-espera-page {
-  max-width: var(--max-width-wide);
-  margin: 0 auto;
-}
+// .page-container defined globally in styles.css
 
-.lista-espera-container {
-  padding-top: var(--space-lg);
-}
+// .lista-espera-container removed in favor of global .page-container
 
 // ============ HEADER ============
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  margin-bottom: var(--space-xl);
-}
-
-.btn-volver {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-
-  .material-symbols-rounded {
-    font-size: 1.3rem;
-  }
-
-  &:hover {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-  }
-}
-
-.header-content {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-
-  h1 {
-    font-size: var(--font-size-xl);
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0;
-  }
-}
+// Header and btn-volver styles now in global styles.css
 
 .badge-total {
   padding: var(--space-xs) var(--space-md);

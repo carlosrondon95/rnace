@@ -36,71 +36,29 @@ $color-default: #a78bfa;
 
 .notificaciones-page {
   min-height: 100vh;
-  padding: 72px 1rem 2rem;
   // background: $bg-page; // Removed to use global gradient
 }
 
-.notificaciones-container {
-  max-width: 600px;
-  margin: 0 auto;
-}
+// .page-container defined globally handles layout (max-width, padding, margin)
 
-// Header
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding: 0.5rem 0;
-}
-
-.btn-volver {
-  @include button-reset;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  color: $text-secondary;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: $text-primary;
-  }
-
-  .material-symbols-rounded {
-    font-size: 1.5rem;
-  }
-}
-
-.header-content {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-
-  h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: $text-primary;
-  }
-}
+// Header styles now in global styles.css
+// Local overrides only if needed
 
 .badge-no-leidas {
-  padding: 0.25rem 0.6rem;
-  background: rgba($accent, 0.2);
-  color: $accent;
-  border-radius: 12px;
-  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(239, 68, 68, 0.2);
+  border-radius: 10px;
+  font-size: 0.7rem;
   font-weight: 600;
+  color: #ef4444;
 }
 
-.header-actions {
+// Acciones separadas para mejor layout móvil
+.acciones-row {
   display: flex;
   gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 
 // Filtros
@@ -550,10 +508,7 @@ $color-default: #a78bfa;
     font-size: 1.25rem;
   }
 
-  .btn-volver {
-    width: 36px;
-    height: 36px;
-  }
+  // .btn-volver handled globally
 
   .notificacion-item {
     padding: 0.875rem;
@@ -616,7 +571,6 @@ $color-default: #a78bfa;
 
   &.admin_info {
     border-color: rgba(96, 165, 250, 0.2);
-    // Gradient removed or very subtle, relying on solid bg
   }
 
   &.admin_warning {
@@ -668,29 +622,28 @@ $color-default: #a78bfa;
     background: rgba(255, 255, 255, 0.05);
     color: $text-primary;
 
-    // Colores más suaves (pastel) y menos saturados
     &.tipo-festivo {
-      color: #fbbf24; // Amber 400
+      color: #fbbf24;
       background: rgba(#fbbf24, 0.1);
     }
 
     &.admin_info {
-      color: #93c5fd; // Blue 300
+      color: #93c5fd;
       background: rgba(#93c5fd, 0.1);
     }
 
     &.admin_warning {
-      color: #fcd34d; // Amber 300
+      color: #fcd34d;
       background: rgba(#fcd34d, 0.1);
     }
 
     &.admin_urgent {
-      color: #fca5a5; // Red 300
+      color: #fca5a5;
       background: rgba(#fca5a5, 0.1);
     }
 
     &.admin_promo {
-      color: #c4b5fd; // Violet 300
+      color: #c4b5fd;
       background: rgba(#c4b5fd, 0.1);
     }
   }
@@ -750,6 +703,44 @@ $color-default: #a78bfa;
         transform: scale(0.98);
       }
     }
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.accion-borrar {
+  font-size: 1.25rem;
+  color: #ef4444; 
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+}
+
+.btn-danger {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
+  
+  &:hover {
+    background-color: rgba(239, 68, 68, 0.2) !important;
   }
 }
 

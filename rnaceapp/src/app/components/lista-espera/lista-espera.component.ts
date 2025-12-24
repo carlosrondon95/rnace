@@ -1,5 +1,5 @@
 // src/app/components/lista-espera/lista-espera.component.ts
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
@@ -33,6 +33,7 @@ interface SesionAgrupada {
 export class ListaEsperaComponent implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private location = inject(Location);
   private confirmation = inject(ConfirmationService);
 
   // Estado
@@ -327,7 +328,7 @@ export class ListaEsperaComponent implements OnInit {
   }
 
   volver() {
-    this.router.navigateByUrl('/dashboard');
+    this.location.back();
   }
 
   trackBySesionId(_index: number, sesion: SesionAgrupada): number {

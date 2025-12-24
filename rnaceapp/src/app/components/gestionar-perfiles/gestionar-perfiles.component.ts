@@ -1,5 +1,5 @@
 // src/app/components/gestionar-perfiles/gestionar-perfiles.component.ts
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { Component, OnInit, inject, signal, computed, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -88,6 +88,7 @@ interface HorarioPorDia {
 })
 export class GestionarPerfilesComponent implements OnInit {
   private router = inject(Router);
+  private location = inject(Location);
   private authService = inject(AuthService);
 
   cargando = signal(true);
@@ -1066,6 +1067,6 @@ export class GestionarPerfilesComponent implements OnInit {
   }
 
   volver() {
-    this.router.navigateByUrl('/dashboard');
+    this.location.back();
   }
 }

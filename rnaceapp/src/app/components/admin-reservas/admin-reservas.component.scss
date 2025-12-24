@@ -1,56 +1,11 @@
 // src/app/components/admin-reservas/admin-reservas.component.scss
 
-.admin-reservas-page {
-  min-height: 100vh;
-  padding: 72px 1.5rem 2rem;
-  // background: radial-gradient(circle at top, #55574f 0, #494b46 45%, #32332f 100%); // Removed to use global gradient
-}
+// .admin-reservas-page replaced by .page-container globally
+// Padding handled by .page-container
 
-.page-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  padding-top: 1rem;
-  max-width: 900px;
-  margin-left: auto;
-  margin-right: auto;
+// .page-header styles handled globally in styles.css
 
-  h1 {
-    margin: 0;
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: #ebe9e3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
-.btn-volver {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.9rem;
-  background: transparent;
-  border: 1px solid rgba(232, 233, 227, 0.2);
-  border-radius: 8px;
-  color: rgba(235, 233, 227, 0.8);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.15s;
-  flex-shrink: 0;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(232, 233, 227, 0.3);
-    color: #ebe9e3;
-  }
-
-  .material-symbols-rounded {
-    font-size: 1.1rem;
-  }
-}
+// .btn-volver handled globally
 
 .mes-navegacion {
   display: flex;

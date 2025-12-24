@@ -1,32 +1,35 @@
 <!-- src/app/components/notificaciones/notificaciones.component.html -->
-<main class="notificaciones-page">
-  <div class="notificaciones-container">
+<main class="page-container">
+   <!-- Wrapper removed, page-container handles layout -->
     <!-- Header -->
     <header class="page-header">
       <button type="button" class="btn-volver" (click)="volver()" aria-label="Volver al dashboard">
         <span class="material-symbols-rounded">arrow_back</span>
+        Dashboard
       </button>
       <div class="header-content">
         <h1>Notificaciones</h1>
         @if (noLeidas() > 0) {
-        <span class="badge-no-leidas">{{ noLeidas() }} sin leer</span>
-        }
-      </div>
-      <div class="header-actions">
-        @if (esAdmin()) {
-        <button type="button" class="btn-broadcast" (click)="irAEnviarAviso()" aria-label="Enviar aviso">
-          <span class="material-symbols-rounded">campaign</span>
-          Enviar aviso
-        </button>
-        }
-        @if (notificaciones().length > 0 && noLeidas() > 0) {
-        <button type="button" class="btn-icon" (click)="marcarTodasLeidas()" aria-label="Marcar todas como leídas"
-          title="Marcar todas como leídas">
-          <span class="material-symbols-rounded">done_all</span>
-        </button>
+        <span class="badge-no-leidas">{{ noLeidas() }}</span>
         }
       </div>
     </header>
+    
+    <!-- Acciones admin (separadas del header para móvil) -->
+    <div class="acciones-row">
+      @if (esAdmin()) {
+      <button type="button" class="btn-broadcast" (click)="irAEnviarAviso()" aria-label="Enviar aviso">
+        <span class="material-symbols-rounded">campaign</span>
+        Enviar aviso
+      </button>
+      }
+      @if (notificaciones().length > 0 && noLeidas() > 0) {
+      <button type="button" class="btn-marcar-leidas" (click)="marcarTodasLeidas()" aria-label="Marcar todas como leídas">
+        <span class="material-symbols-rounded">done_all</span>
+        Marcar leídas
+      </button>
+      }
+    </div>
 
     <!-- Filtros -->
     @if (notificaciones().length > 0) {
@@ -145,9 +148,7 @@
       }
     </div>
     }
-  </div>
 
-  <!-- Modal Detalle -->
   @if (modalAbierto() && notificacionSeleccionada(); as notif) {
   <div class="modal-overlay" (click)="cerrarModal()">
     <div class="modal-detail" (click)="$event.stopPropagation()" [ngClass]="getClaseTipo(notif.tipo)">
