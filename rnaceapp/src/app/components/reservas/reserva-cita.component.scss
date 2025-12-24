@@ -4,54 +4,16 @@
 :host {
   display: block;
   min-height: 100vh;
-  background: var(--color-bg-main);
-  padding: var(--navbar-height) var(--space-md) var(--space-xl);
+  // background: var(--color-bg-main); // Removed to match global app gradient
+  // Padding is now handled by .page-container in HTML
 }
 
-.reserva-page {
-  max-width: var(--max-width-content);
-  margin: 0 auto;
-  padding-top: var(--space-lg);
-}
+// .reserva-page replaced by .page-container globally
 
 // Header
-.page-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  margin-bottom: var(--space-lg);
+// Header styles handled globally in styles.css
 
-  h1 {
-    font-size: var(--font-size-xl);
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0;
-  }
-}
-
-.btn-volver {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-md);
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  align-self: flex-start;
-
-  .material-symbols-rounded {
-    font-size: 1.1rem;
-  }
-
-  &:hover {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-  }
-}
+// .btn-volver handled globally
 
 // Navegación del mes
 .mes-navegacion {

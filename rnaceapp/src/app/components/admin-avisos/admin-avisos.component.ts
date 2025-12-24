@@ -1,8 +1,7 @@
 // src/app/components/admin-avisos/admin-avisos.component.ts
 import { Component, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
 import { supabase } from '../../core/supabase.client';
@@ -14,24 +13,15 @@ import { supabase } from '../../core/supabase.client';
   template: `
     <main class="page-container">
       <header class="page-header">
-        <button class="btn-back" (click)="router.navigateByUrl('/dashboard')">
+        <button class="btn-volver" (click)="volver()">
           <span class="material-symbols-rounded">arrow_back</span>
+          Notificaciones
         </button>
-        <h1>Enviar Aviso General</h1>
+        <h1>Enviar Aviso</h1>
       </header>
 
       <section class="form-container">
-        <!-- Preview Card -->
-        <div class="preview-card" [ngClass]="getClaseTipo(tipo())">
-            <div class="preview-icon">
-                <span class="material-symbols-rounded">{{ getIcono(tipo()) }}</span>
-            </div>
-            <div class="preview-content">
-                <h3>{{ titulo() || 'Título del aviso' }}</h3>
-                <p>{{ mensaje() || 'El mensaje aparecerá aquí...' }}</p>
-            </div>
-            <span class="preview-badge">Vista Previa</span>
-        </div>
+
 
         <form (ngSubmit)="enviarAviso()">
           <div class="form-group">
@@ -65,6 +55,39 @@ import { supabase } from '../../core/supabase.client';
                 <span class="material-symbols-rounded">celebration</span>
                 Promo
               </button>
+            </div>
+
+          </div>
+
+          <div class="form-group">
+            <label>Destinatarios</label>
+            <div class="group-selector">
+              <label class="radio-label group-all">
+                <input type="radio" name="grupoObjetivo" [value]="'todos'" [ngModel]="grupoObjetivo()" (ngModelChange)="grupoObjetivo.set($event)">
+                <span class="radio-custom"></span>
+                <span class="radio-text">
+                  <strong>Todos</strong>
+                  <small>Todos los usuarios activos</small>
+                </span>
+              </label>
+              
+              <label class="radio-label group-focus">
+                <input type="radio" name="grupoObjetivo" [value]="'focus'" [ngModel]="grupoObjetivo()" (ngModelChange)="grupoObjetivo.set($event)">
+                <span class="radio-custom"></span>
+                <span class="radio-text">
+                  <strong>Grupo Focus</strong>
+                  <small>Incluye usuarios Híbridos</small>
+                </span>
+              </label>
+              
+              <label class="radio-label group-reducido">
+                <input type="radio" name="grupoObjetivo" [value]="'reducido'" [ngModel]="grupoObjetivo()" (ngModelChange)="grupoObjetivo.set($event)">
+                <span class="radio-custom"></span>
+                <span class="radio-text">
+                  <strong>Grupo Reducido</strong>
+                  <small>Incluye usuarios Híbridos</small>
+                </span>
+              </label>
             </div>
           </div>
 
@@ -114,8 +137,7 @@ import { supabase } from '../../core/supabase.client';
               <span class="spinner"></span>
               Enviando...
             } @else {
-              <span class="material-symbols-rounded">send</span>
-              Enviar a todos los usuarios
+              Enviar
             }
           </button>
         </form>
@@ -125,19 +147,24 @@ import { supabase } from '../../core/supabase.client';
   styleUrl: './admin-avisos.component.scss'
 })
 export class AdminAvisosComponent {
-  router = inject(Router);
+  private location = inject(Location);
   auth = inject(AuthService);
   private confirmation = inject(ConfirmationService);
-  
+
   // Form Data
   titulo = signal('');
   mensaje = signal('');
   tipo = signal<'admin_info' | 'admin_warning' | 'admin_urgent' | 'admin_promo'>('admin_info');
-  
+  grupoObjetivo = signal<'todos' | 'focus' | 'reducido'>('todos');
+
   // State
   enviando = signal(false);
   error = signal<string | null>(null);
   success = signal<string | null>(null);
+
+  volver() {
+    this.location.back();
+  }
 
   getIcono(tipo: string): string {
     switch (tipo) {
@@ -150,7 +177,16 @@ export class AdminAvisosComponent {
   }
 
   getClaseTipo(tipo: string): string {
-    return tipo; 
+    return tipo;
+  }
+
+  getNombreGrupo(grupo: string): string {
+    switch (grupo) {
+      case 'todos': return 'TODOS los usuarios';
+      case 'focus': return 'Grupo FOCUS (+ Híbridos)';
+      case 'reducido': return 'Grupo REDUCIDO (+ Híbridos)';
+      default: return grupo;
+    }
   }
 
   esValido(): boolean {
@@ -160,9 +196,9 @@ export class AdminAvisosComponent {
   async enviarAviso() {
     if (!await this.confirmation.confirm({
       titulo: 'Enviar aviso general',
-      mensaje: '¿Estás seguro de enviar esta notificación a TODOS los usuarios?',
+      mensaje: `¿Estás seguro de enviar este aviso a: ${this.getNombreGrupo(this.grupoObjetivo())}?`,
       tipo: 'warning',
-      textoConfirmar: 'Enviar a todos'
+      textoConfirmar: 'Enviar aviso'
     })) return;
 
     this.enviando.set(true);
@@ -170,11 +206,13 @@ export class AdminAvisosComponent {
     this.success.set(null);
 
     try {
-      const { data, error } = await supabase().rpc('enviar_aviso_general', {
+      // Usamos la nueva función filtrada
+      const { data, error } = await supabase().rpc('enviar_aviso_filtrado', {
         p_usuario_id: this.auth.userId(),
         p_titulo: this.titulo(),
         p_mensaje: this.mensaje(),
-        p_tipo: this.tipo()
+        p_tipo: this.tipo(),
+        p_grupo_objetivo: this.grupoObjetivo()
       });
 
       if (error) throw error;
