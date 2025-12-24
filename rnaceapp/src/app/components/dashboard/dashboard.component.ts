@@ -81,6 +81,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   hoyExpanded = signal(false);
   clasesHoyExpanded = signal(false);
 
+  // Estados de secciones cliente
+  recuperacionesExpanded = signal(false);
+
   // Computed
   nombreUsuario = computed(() => this.auth.usuario()?.nombre || 'Usuario');
   userId = computed(() => this.auth.userId());
@@ -442,6 +445,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   toggleClasesHoySection() {
     this.clasesHoyExpanded.update((v) => !v);
+  }
+
+  toggleRecuperacionesSection() {
+    this.recuperacionesExpanded.update((v) => !v);
   }
 
   getOcupacionPercent(clase: ClaseHoy): number {
