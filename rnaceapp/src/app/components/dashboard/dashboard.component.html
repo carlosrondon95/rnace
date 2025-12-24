@@ -202,13 +202,15 @@
     @if (isAdmin()) {
     <!-- Estadísticas del día -->
     <section class="section">
-      <div class="section-header">
+      <div class="section-header clickable" (click)="toggleHoySection()">
         <h2>
           <span class="material-symbols-rounded">analytics</span>
           Hoy
         </h2>
+        <span class="material-symbols-rounded chevron" [class.rotated]="!hoyExpanded()">expand_more</span>
       </div>
 
+      @if (hoyExpanded()) {
       <div class="stats-grid">
         <div class="stat-card">
           <span class="stat-value">{{ estadisticas().clases_hoy }}</span>
@@ -227,18 +229,21 @@
           <span class="stat-label">En espera</span>
         </div>
       </div>
+      }
     </section>
 
     <!-- Clases de hoy - CARDS EXPANDIBLES CON BARRA DE PROGRESO -->
-    @if (clasesHoy().length > 0) {
     <section class="section">
-      <div class="section-header">
+      <div class="section-header clickable" (click)="toggleClasesHoySection()">
         <h2>
           <span class="material-symbols-rounded">schedule</span>
           Clases de hoy
         </h2>
+        <span class="material-symbols-rounded chevron" [class.rotated]="!clasesHoyExpanded()">expand_more</span>
       </div>
 
+      @if (clasesHoyExpanded()) {
+      @if (clasesHoy().length > 0) {
       <div class="clases-timeline">
         @for (clase of clasesHoy(); track trackByClaseId($index, clase); let i = $index) {
         <article class="timeline-card" [class.timeline-card--expanded]="expandedClaseIndex() === i"
@@ -295,21 +300,14 @@
         </article>
         }
       </div>
-    </section>
-    } @else {
-    <section class="section">
-      <div class="section-header">
-        <h2>
-          <span class="material-symbols-rounded">schedule</span>
-          Clases de hoy
-        </h2>
-      </div>
+      } @else {
       <div class="empty-card">
         <span class="material-symbols-rounded">event_busy</span>
-        <p>No hay clases programadas para hoy</p>
+        <p>No hay más clases programadas para hoy</p>
       </div>
+      }
+      }
     </section>
-    }
 
     <!-- Acciones admin -->
     <section class="actions-grid actions-grid--admin">

@@ -108,6 +108,24 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-md);
+  
+  &.clickable {
+    cursor: pointer;
+    user-select: none;
+    
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  .chevron {
+    color: var(--color-text-muted);
+    transition: transform var(--transition-fast);
+    
+    &.rotated {
+      transform: rotate(180deg);
+    }
+  }
 
   h2 {
     font-size: var(--font-size-md);
