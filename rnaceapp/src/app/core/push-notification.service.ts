@@ -1,9 +1,12 @@
-import { Injectable } from '@angular/core';
-import { initializeApp, FirebaseApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { supabase } from './supabase.client';
+
+// Define needed types locally or import type only
+import type { FirebaseApp } from 'firebase/app';
+import type { Messaging } from 'firebase/messaging';
 
 export interface PushNotification {
   tipo: string;
@@ -17,6 +20,7 @@ export interface PushNotification {
   providedIn: 'root'
 })
 export class PushNotificationService {
+  private platformId = inject(PLATFORM_ID);
   private firebaseApp: FirebaseApp | null = null;
   private messaging: Messaging | null = null;
 
@@ -30,37 +34,61 @@ export class PushNotificationService {
   notification$ = this._notification.asObservable();
   isSupported$ = this._isSupported.asObservable();
 
+  private initialized = false;
+
   constructor() {
-    this.checkSupport();
-    if (this._isSupported.value) {
-      this.initializeFirebase();
+    // Solo verificar soporte en el constructor, NO inicializar Firebase
+    // La inicialización se hace de forma lazy para evitar "Worker is not defined"
+    if (isPlatformBrowser(this.platformId)) {
+      this.checkSupport();
     }
   }
 
-  private checkSupport(): void {
-    const isSupported =
-      typeof window !== 'undefined' &&
-      'serviceWorker' in navigator &&
-      'PushManager' in window &&
-      'Notification' in window;
+  /**
+   * Inicializa Firebase de forma lazy.
+   * Debe llamarse después de que el usuario haya iniciado sesión.
+   */
+  async ensureInitialized(): Promise<void> {
+    if (this.initialized || !isPlatformBrowser(this.platformId)) return;
+    if (!this._isSupported.value) return;
 
-    this._isSupported.next(isSupported);
+    await this.initializeFirebase();
+    this.initialized = true;
+  }
+
+  private checkSupport(): void {
+    try {
+      const isSupported =
+        typeof window !== 'undefined' &&
+        'serviceWorker' in navigator &&
+        'PushManager' in window &&
+        'Notification' in window;
+
+      this._isSupported.next(isSupported);
+    } catch (e) {
+      this._isSupported.next(false);
+    }
   }
 
   isSupported(): boolean {
     return this._isSupported.value;
   }
 
-  private initializeFirebase(): void {
+  private async initializeFirebase(): Promise<void> {
     try {
       if (!environment.firebase?.apiKey) {
         console.warn('[Push] Firebase no configurado');
         return;
       }
 
+      // Dynamic imports to avoid SSR issues
+      const { initializeApp } = await import('firebase/app');
+      const { getMessaging, onMessage } = await import('firebase/messaging');
+
       this.firebaseApp = initializeApp(environment.firebase);
       this.messaging = getMessaging(this.firebaseApp);
-      this.setupForegroundListener();
+
+      this.setupForegroundListener(onMessage);
       this.checkPermissionStatus();
     } catch (error) {
       console.error('[Push] Error inicializando Firebase:', error);
@@ -75,6 +103,11 @@ export class PushNotificationService {
 
   async requestPermission(): Promise<boolean> {
     if (!this.isSupported()) return false;
+    // Extra safety: never run on server
+    if (!isPlatformBrowser(this.platformId)) return false;
+
+    // Asegurar que Firebase esté inicializado antes de solicitar permisos
+    await this.ensureInitialized();
 
     try {
       const permission = await Notification.requestPermission();
@@ -92,9 +125,12 @@ export class PushNotificationService {
   }
 
   async getAndSaveToken(): Promise<string | null> {
-    if (!this.messaging) return null;
+    if (!this.messaging || !isPlatformBrowser(this.platformId)) return null;
 
     try {
+      // Dynamic import again just to be safe inside the method
+      const { getToken } = await import('firebase/messaging');
+
       const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
       await navigator.serviceWorker.ready;
 
@@ -117,6 +153,7 @@ export class PushNotificationService {
 
   // Obtener userId desde localStorage (tu sistema de auth)
   private getUserId(): string | null {
+    if (!isPlatformBrowser(this.platformId)) return null;
     try {
       const guardado = localStorage.getItem('rnace_usuario');
       if (guardado) {
@@ -137,8 +174,10 @@ export class PushNotificationService {
         return;
       }
 
-      const deviceInfo = /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'iOS' :
-        /Android/.test(navigator.userAgent) ? 'Android' : 'Web';
+      // Check navigator safety
+      const userAgent = isPlatformBrowser(this.platformId) ? navigator.userAgent : 'Server';
+      const deviceInfo = /iPhone|iPad|iPod/.test(userAgent) ? 'iOS' :
+        /Android/.test(userAgent) ? 'Android' : 'Web';
 
       const { error } = await supabase()
         .from('fcm_tokens')
@@ -160,10 +199,10 @@ export class PushNotificationService {
     }
   }
 
-  private setupForegroundListener(): void {
-    if (!this.messaging) return;
+  private setupForegroundListener(onMessageFn: any): void {
+    if (!this.messaging || !isPlatformBrowser(this.platformId)) return;
 
-    onMessage(this.messaging, (payload) => {
+    onMessageFn(this.messaging, (payload: any) => {
       console.log('[Push] Notificación en foreground:', payload);
 
       const notification: PushNotification = {
@@ -187,6 +226,8 @@ export class PushNotificationService {
   }
 
   async removeToken(): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) return;
+
     const token = this._currentToken.value;
     if (!token) return;
 

@@ -1,9 +1,9 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
-// ⚠️ REEMPLAZA con tus valores de Firebase
+// Configuración de Firebase para notificaciones push
 firebase.initializeApp({
-  apiKey: 'AIzaSyBqgXG6XpZG6XpZG6XpZG6XpZG6XpZG6Xp',
+  apiKey: '***REMOVED_API_KEY***',
   authDomain: 'rnace-50c31.firebaseapp.com',
   projectId: 'rnace-50c31',
   storageBucket: 'rnace-50c31.appspot.com',

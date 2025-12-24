@@ -23,7 +23,6 @@ export class AuthService {
   constructor() {
     if (isPlatformBrowser(this.platformId)) {
       this.cargarUsuarioGuardado();
-      this.recuperarSesion();
     }
   }
 
@@ -40,15 +39,6 @@ export class AuthService {
   }
 
   userId = () => this.usuarioActual()?.id || null;
-
-  private async recuperarSesion() {
-    // Check if we have a valid Supabase session
-    const { data: { session } } = await supabase().auth.getSession();
-    if (session) {
-      // Optionally refresh user data
-      // console.log('Sesión activa:', session.user.id);
-    }
-  }
 
   private cargarUsuarioGuardado() {
     if (!isPlatformBrowser(this.platformId)) return;
@@ -86,10 +76,12 @@ export class AuthService {
       if (error) {
         // HTTP Error (400, 401, 500)
         try {
-          // Try to parse error body if it's a string, otherwise it's unknown
-          const errBody = JSON.parse(await error.context.json());
+          // error.context es el objeto Response
+          // await error.context.json() YA devuelve el objeto JSON parsed, no un string.
+          const errBody = await error.context.json();
           return { success: false, error: errBody.error || 'Error al iniciar sesión' };
-        } catch {
+        } catch (e) {
+          console.error('Error parsing response:', e);
           return { success: false, error: 'Error de conexión o credenciales inválidas' };
         }
       }
@@ -98,15 +90,10 @@ export class AuthService {
         return { success: false, error: data.error || 'Error al iniciar sesión' };
       }
 
-      // CRITICAL: Set the session in Supabase Client
-      const { error: sessionError } = await supabase().auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.access_token // We are not implementing refresh token rotation yet, simpler for now
-      });
-
-      if (sessionError) {
-        console.error('Error estableciendo sesión:', sessionError);
-        return { success: false, error: 'Error estableciendo sesión segura' };
+      // Guardar el token JWT personalizado para usar con RLS
+      // Nota: No usamos supabase().auth.setSession() porque nuestro JWT es personalizado
+      if (isPlatformBrowser(this.platformId)) {
+        localStorage.setItem('rnace_token', data.access_token);
       }
 
       const usuarioLimpio: Usuario = {
@@ -118,6 +105,11 @@ export class AuthService {
       };
 
       this.guardarUsuario(usuarioLimpio);
+
+      // Inicializar push notifications después del login exitoso
+      // Esto se hace de forma lazy para evitar "Worker is not defined" en SSR
+      await this.pushService.ensureInitialized();
+
       return { success: true };
 
     } catch (error) {
@@ -130,11 +122,9 @@ export class AuthService {
     // Eliminar token FCM antes de cerrar sesión
     await this.pushService.removeToken();
 
-    // Close secure session
-    await supabase().auth.signOut();
-
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('rnace_usuario');
+      localStorage.removeItem('rnace_token');
     }
     this.usuarioActual.set(null);
   }

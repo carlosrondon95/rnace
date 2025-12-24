@@ -4,7 +4,7 @@ export const environment = {
   supabaseUrl: 'https://bpzdpsmwtsmwrlyxzcsk.supabase.co',
   supabaseAnonKey: '***REMOVED_SUPABASE_KEY***',
   firebase: {
-    apiKey: 'AIzaSyBqgXG6XpZG6XpZG6XpZG6XpZG6XpZG6Xp',
+    apiKey: '***REMOVED_API_KEY***',
     authDomain: 'rnace-50c31.firebaseapp.com',
     projectId: 'rnace-50c31',
     storageBucket: 'rnace-50c31.appspot.com',
