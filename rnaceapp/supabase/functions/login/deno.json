@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "std/": "https://deno.land/std@0.168.0/",
+    "bcrypt": "https://deno.land/x/bcrypt@v0.4.1/mod.ts",
+    "djwt": "https://deno.land/x/djwt@v2.8/mod.ts",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+  }
+}
