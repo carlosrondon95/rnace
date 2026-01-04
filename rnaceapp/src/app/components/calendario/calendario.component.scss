@@ -94,20 +94,52 @@
   color: var(--color-success);
   font-size: var(--font-size-sm);
   margin-bottom: var(--space-md);
-  
+
   // High visibility over modals
   position: fixed;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10000;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 300px;
   max-width: 90%;
   justify-content: center;
+  animation: slideDown 0.3s ease-out;
 
   .material-symbols-rounded {
     font-size: 1.2rem;
+  }
+
+  .btn-cerrar-mensaje {
+    background: transparent;
+    border: none;
+    color: var(--color-success);
+    cursor: pointer;
+    padding: var(--space-xs);
+    margin-left: var(--space-sm);
+    opacity: 0.7;
+    transition: opacity var(--transition-fast);
+
+    &:hover {
+      opacity: 1;
+    }
+
+    .material-symbols-rounded {
+      font-size: 1rem;
+    }
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
 
@@ -129,7 +161,7 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 10000;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 300px;
   max-width: 90%;
   justify-content: center;
@@ -1749,7 +1781,7 @@
   font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--color-accent);
-  
+
   .material-symbols-rounded {
     font-size: 1.1rem;
   }
@@ -1773,16 +1805,16 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
-  
+
   &:hover:not(.sesion-llena):not(.es-misma-sesion) {
     border-color: var(--color-accent);
     background: var(--color-bg-elevated);
   }
-  
+
   &.sesion-llena {
     opacity: 0.6;
   }
-  
+
   &.es-misma-sesion {
     border-color: var(--color-border);
     background: var(--color-bg-main);
@@ -1837,16 +1869,16 @@
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast);
-  
+
   .material-symbols-rounded {
     font-size: 1rem;
   }
-  
+
   &:hover:not(:disabled) {
     opacity: 0.9;
     transform: translateY(-1px);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1879,15 +1911,15 @@
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
-  
+
   .material-symbols-rounded {
     font-size: 0.9rem;
   }
-  
+
   &:hover:not(:disabled) {
     background: var(--color-accent-soft);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1907,17 +1939,51 @@
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
-  
+
   .material-symbols-rounded {
     font-size: 0.9rem;
   }
-  
+
   &:hover:not(:disabled) {
     background: var(--color-danger-soft);
   }
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+}
+
+// Alerta de plaza libre en lista de espera
+.alerta-plaza-libre {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #10b981;
+  /* Verde éxito */
+  background: rgba(16, 185, 129, 0.1);
+  padding: 4px 8px;
+  border-radius: 999px;
+  margin-right: 8px;
+  animation: pulse-green 2s infinite;
+
+  .material-symbols-rounded {
+    font-size: 14px;
+  }
+}
+
+@keyframes pulse-green {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
   }
 }

@@ -135,7 +135,15 @@
     }
 
     <!-- Mensajes -->
-
+    @if (mensajeExito()) {
+    <div class="mensaje-exito">
+      <span class="material-symbols-rounded">check_circle</span>
+      {{ mensajeExito() }}
+      <button class="btn-cerrar-mensaje" (click)="mensajeExito.set(null)" aria-label="Cerrar">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+    }
 
     @if (error()) {
     <div class="mensaje-error">
@@ -332,7 +340,7 @@
           }
           } @else {
           <!-- VISTA CLIENTE -->
-          
+
           @if (modoCambio()) {
           <!-- MODO CAMBIO: Muestra todas las sesiones disponibles del mes -->
           <div class="modo-cambio-header">
@@ -347,7 +355,7 @@
           </div>
 
           <h3 class="section-title">Selecciona el nuevo horario</h3>
-          
+
           @if (cargandoCambio()) {
           <div class="loading-state">
             <span class="spinner-small"></span>
@@ -356,10 +364,9 @@
           } @else if (sesionesDisponiblesCambio().length > 0) {
           <div class="lista-cambio-sesiones">
             @for (sesion of sesionesDisponiblesCambio(); track sesion.id) {
-            <div class="cambio-sesion-card" 
-                 [class.sesion-llena]="sesion.plazas_disponibles === 0"
-                 [class.es-misma-sesion]="sesion.id === reservaACambiar()!.sesion_id">
-              
+            <div class="cambio-sesion-card" [class.sesion-llena]="sesion.plazas_disponibles === 0"
+              [class.es-misma-sesion]="sesion.id === reservaACambiar()!.sesion_id">
+
               <div class="cambio-sesion-info">
                 <div class="cambio-fecha">{{ formatearFechaCambio(sesion.fecha!) }}</div>
                 <div class="cambio-hora">{{ sesion.hora }}</div>
@@ -372,13 +379,13 @@
                 <span class="badge-ya-tienes">Ya tienes clase</span>
                 } @else if (sesion.plazas_disponibles > 0) {
                 <button class="btn-seleccionar-cambio" [disabled]="guardando()"
-                        (click)="confirmarCambioTurno(sesion.id)">
+                  (click)="confirmarCambioTurno(sesion.id)">
                   <span class="material-symbols-rounded">check_circle</span>
                   Cambiar aquí
                 </button>
                 } @else {
                 <button class="btn-primario-espera btn-compact" [disabled]="guardando()"
-                        (click)="apuntarseListaEspera(sesion.id)">
+                  (click)="apuntarseListaEspera(sesion.id)">
                   Avisar hueco
                 </button>
                 }
@@ -436,6 +443,12 @@
                   </div>
                 </div>
                 } @else if (sesion.en_lista_espera) {
+                @if (sesion.plazas_disponibles > 0) {
+                <div class="alerta-plaza-libre">
+                  <span class="material-symbols-rounded">campaign</span>
+                  ¡Plaza libre!
+                </div>
+                }
                 <button class="btn-secundario-danger btn-compact" [disabled]="guardando()"
                   (click)="salirListaEspera(sesion.id)">
                   Salir espera

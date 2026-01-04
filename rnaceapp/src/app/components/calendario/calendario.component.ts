@@ -386,9 +386,19 @@ export class CalendarioComponent implements OnInit {
       if (error) throw error;
 
       if (data && data[0]?.ok) {
-        this.mensajeExito.set(data[0].mensaje);
-        const dia = this.diaSeleccionado();
-        if (dia) { await this.cargarSesionesDia(dia.fecha); this.cargarCalendario(); }
+        // Cerrar el modal de cambio y el modal del día
+        this.modoCambio.set(false);
+        this.reservaACambiar.set(null);
+        this.diaSeleccionado.set(null);
+
+        // Recargar calendario primero
+        await this.cargarCalendario();
+
+        // Mostrar mensaje de éxito (después de recargar para que no sea borrado)
+        this.mensajeExito.set(data[0].mensaje || '¡Clase cambiada correctamente!');
+
+        // Auto-descartar después de 4 segundos
+        setTimeout(() => this.mensajeExito.set(null), 4000);
       } else { this.error.set(data?.[0]?.mensaje || 'No se pudo cambiar.'); }
     } catch (err: any) { this.error.set(err.message || 'Error.'); } finally { this.guardando.set(false); }
   }
@@ -402,6 +412,7 @@ export class CalendarioComponent implements OnInit {
       if (error) throw error;
       if (data && data[0]?.ok) {
         this.mensajeExito.set(data[0].mensaje);
+        setTimeout(() => this.mensajeExito.set(null), 4000);
         const dia = this.diaSeleccionado();
         if (dia) await this.cargarSesionesDia(dia.fecha);
       } else { this.error.set(data?.[0]?.mensaje || 'Error.'); }
@@ -417,6 +428,7 @@ export class CalendarioComponent implements OnInit {
       if (error) throw error;
       if (data && data[0]?.ok) {
         this.mensajeExito.set(data[0].mensaje);
+        setTimeout(() => this.mensajeExito.set(null), 4000);
         const dia = this.diaSeleccionado();
         if (dia) await this.cargarSesionesDia(dia.fecha);
       } else { this.error.set(data?.[0]?.mensaje || 'Error.'); }
@@ -497,7 +509,7 @@ export class CalendarioComponent implements OnInit {
   async cargarCalendario() {
     this.cargando.set(true);
     this.error.set(null);
-    this.mensajeExito.set(null);
+    // NO resetear mensajeExito aquí - se gestiona con setTimeout y botón de cierre
 
     try {
       const anio = this.anioActual();
@@ -992,6 +1004,15 @@ export class CalendarioComponent implements OnInit {
         console.warn('No se pudieron generar sesiones automáticamente:', genError);
       }
 
+      // Generar reservas automáticas desde horarios fijos de todos los usuarios
+      const { data: regenData, error: regenError } = await client.rpc('regenerar_reservas_futuras');
+
+      if (regenError) {
+        console.warn('No se pudieron generar reservas automáticamente:', regenError);
+      } else if (regenData) {
+        console.log('Reservas regeneradas:', regenData);
+      }
+
       this.mensajeExito.set('Mes configurado correctamente. Los usuarios ya pueden reservar.');
       this.modoEdicion.set(false);
       this.festivosSeleccionados.set(new Set());
@@ -1095,7 +1116,7 @@ export class CalendarioComponent implements OnInit {
   cerrarDetalleDia() {
     this.diaSeleccionado.set(null);
     this.sesionesDiaSeleccionado.set([]);
-    this.mensajeExito.set(null);
+    // NO resetear mensajeExito aquí - debe permanecer visible después de cerrar el modal
     this.error.set(null);
     // Reset modo cambio
     this.modoCambio.set(false);
@@ -1268,9 +1289,13 @@ export class CalendarioComponent implements OnInit {
       if (error) throw error;
 
       if (data && data[0]?.ok) {
-        this.mensajeExito.set(data[0].mensaje);
+        // Primero cerrar todo
         this.cerrarDetalleDia();
+        // Recargar calendario
         await this.cargarCalendario();
+        // Mostrar mensaje de éxito (después de todo para que no sea borrado)
+        this.mensajeExito.set(data[0].mensaje || '¡Clase cambiada correctamente!');
+        setTimeout(() => this.mensajeExito.set(null), 4000);
       } else {
         this.error.set(data?.[0]?.mensaje || 'No se pudo realizar el cambio.');
       }
