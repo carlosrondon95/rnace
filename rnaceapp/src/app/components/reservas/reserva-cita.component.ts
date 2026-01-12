@@ -438,6 +438,7 @@ export class ReservaCitaComponent implements OnInit {
 
     this.guardando.set(true);
     this.error.set(null);
+    this.mensajeExito.set(null);
 
     try {
       if (sesion.en_lista_espera) {
@@ -453,7 +454,9 @@ export class ReservaCitaComponent implements OnInit {
         }
 
         if (data?.[0]?.ok) {
-          this.mensajeExito.set('Eliminado de la lista de espera.');
+          this.sesionSeleccionada.set(null); // Cerrar modal
+          this.mensajeExito.set('Te has quitado de la lista de espera.');
+          setTimeout(() => this.mensajeExito.set(null), 4000);
           await this.cargarSesionesDisponibles();
         } else {
           this.error.set(data?.[0]?.mensaje || 'Error al quitar de lista de espera.');
@@ -471,7 +474,9 @@ export class ReservaCitaComponent implements OnInit {
         }
 
         if (data?.[0]?.ok) {
-          this.mensajeExito.set('Añadido a la lista de espera. Te notificaremos si hay hueco.');
+          this.sesionSeleccionada.set(null); // Cerrar modal
+          this.mensajeExito.set('Te has apuntado a la lista de espera. Te notificaremos si hay hueco.');
+          setTimeout(() => this.mensajeExito.set(null), 4000);
           await this.cargarSesionesDisponibles();
         } else {
           this.error.set(data?.[0]?.mensaje || 'Error al añadir a lista de espera.');

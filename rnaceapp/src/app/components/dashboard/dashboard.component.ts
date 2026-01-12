@@ -84,6 +84,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isProfesor = computed(() => this.auth.usuario()?.rol === 'profesor');
   isAdmin = computed(() => this.auth.usuario()?.rol === 'admin');
 
+  // Estado UI admin
+  clasesHoyExpandido = signal(false);
+
   saludo = computed(() => {
     const hora = new Date().getHours();
     if (hora < 12) return 'Buenos días';
@@ -414,6 +417,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   // ============ MÉTODOS CARDS EXPANDIBLES (ADMIN) ============
+
+  toggleClasesHoy() {
+    this.clasesHoyExpandido.update(v => !v);
+  }
 
   toggleClaseExpand(index: number) {
     if (this.expandedClaseIndex() === index) {
