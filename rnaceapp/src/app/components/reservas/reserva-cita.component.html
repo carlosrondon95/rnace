@@ -31,6 +31,21 @@
   }
 
   <section class="reserva-card">
+    <!-- Mensajes de feedback (fuera de bloques condicionales) -->
+    @if (mensajeExito(); as msg) {
+    <div class="mensaje-exito" role="status">
+      <span class="material-symbols-rounded">check_circle</span>
+      {{ msg }}
+    </div>
+    }
+
+    @if (error(); as err) {
+    <div class="mensaje-error" role="alert">
+      <span class="material-symbols-rounded">error</span>
+      {{ err }}
+    </div>
+    }
+
     <!-- Loading -->
     @if (cargando()) {
     <div class="loading-state">
@@ -64,9 +79,9 @@
             </span>
             {{ recup.modalidad === 'focus' ? 'Focus' : 'Reducido' }}
           </div>
-            <div class="recup-validez">
+          <div class="recup-validez">
             <span [class.texto-invalida]="!esValidaParaMesActual(recup) && !esFuturaParaMesActual(recup)"
-                  [class.texto-futura]="esFuturaParaMesActual(recup)">
+              [class.texto-futura]="esFuturaParaMesActual(recup)">
               {{ getTextoValidez(recup) }}
             </span>
           </div>
@@ -155,20 +170,7 @@
     </div>
     }
 
-    <!-- Mensajes -->
-    @if (mensajeExito(); as msg) {
-    <div class="mensaje-exito" role="status">
-      <span class="material-symbols-rounded">check_circle</span>
-      {{ msg }}
-    </div>
-    }
 
-    @if (error(); as err) {
-    <div class="mensaje-error" role="alert">
-      <span class="material-symbols-rounded">error</span>
-      {{ err }}
-    </div>
-    }
 
     <!-- Leyenda -->
     <div class="leyenda">

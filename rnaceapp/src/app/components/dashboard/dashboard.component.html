@@ -229,14 +229,19 @@
     <!-- Clases de hoy - CARDS EXPANDIBLES CON BARRA DE PROGRESO -->
     @if (clasesHoy().length > 0) {
     <section class="section">
-      <div class="section-header">
+      <div class="section-header clickable" (click)="toggleClasesHoy()" role="button"
+        [attr.aria-expanded]="clasesHoyExpandido()" tabindex="0">
         <h2>
           <span class="material-symbols-rounded">schedule</span>
           Clases de hoy
         </h2>
+        <span class="material-symbols-rounded expand-icon" [class.expand-icon--rotated]="clasesHoyExpandido()">
+          expand_more
+        </span>
       </div>
 
-      <div class="clases-timeline">
+      @if (clasesHoyExpandido()) {
+      <div class="clases-timeline animate-slide-down">
         @for (clase of clasesHoy(); track trackByClaseId($index, clase); let i = $index) {
         <article class="timeline-card" [class.timeline-card--expanded]="expandedClaseIndex() === i"
           [class.timeline-card--full]="clase.reservas_count >= clase.capacidad" (click)="toggleClaseExpand(i)">
@@ -292,6 +297,7 @@
         </article>
         }
       </div>
+      }
     </section>
     } @else {
     <section class="section">

@@ -9,146 +9,117 @@
       <div class="header-content">
         <h1>Lista de espera</h1>
         @if (totalEnEspera() > 0) {
-          <span class="badge-total">{{ totalEnEspera() }} en espera</span>
+        <span class="badge-total">{{ totalEnEspera() }} en espera</span>
         }
       </div>
-      <button
-        type="button"
-        class="btn-refrescar"
-        (click)="cargarListaEspera()"
-        [disabled]="cargando() || procesando()"
-        aria-label="Actualizar lista"
-      >
+      <button type="button" class="btn-refrescar" (click)="cargarListaEspera()" [disabled]="cargando() || procesando()"
+        aria-label="Actualizar lista">
         <span class="material-symbols-rounded">refresh</span>
       </button>
     </header>
 
     <!-- Mensajes -->
     @if (error()) {
-      <div class="mensaje mensaje--error">
-        <span class="material-symbols-rounded">error</span>
-        {{ error() }}
-        <button type="button" class="btn-cerrar" (click)="error.set(null)">
-          <span class="material-symbols-rounded">close</span>
-        </button>
-      </div>
+    <div class="mensaje mensaje--error">
+      <span class="material-symbols-rounded">error</span>
+      {{ error() }}
+      <button type="button" class="btn-cerrar" (click)="error.set(null)">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
     }
 
     @if (mensajeExito()) {
-      <div class="mensaje mensaje--exito">
-        <span class="material-symbols-rounded">check_circle</span>
-        {{ mensajeExito() }}
-        <button type="button" class="btn-cerrar" (click)="mensajeExito.set(null)">
-          <span class="material-symbols-rounded">close</span>
-        </button>
-      </div>
+    <div class="mensaje mensaje--exito">
+      <span class="material-symbols-rounded">check_circle</span>
+      {{ mensajeExito() }}
+      <button type="button" class="btn-cerrar" (click)="mensajeExito.set(null)">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
     }
 
     <!-- Contenido -->
     @if (cargando()) {
-      <div class="loading-state">
-        <div class="spinner"></div>
-        <p>Cargando lista de espera...</p>
-      </div>
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Cargando lista de espera...</p>
+    </div>
     } @else if (sesionesAgrupadas().length === 0) {
-      <div class="empty-state">
-        <span class="material-symbols-rounded empty-icon">hourglass_disabled</span>
-        <h3>Sin usuarios en espera</h3>
-        <p>No hay nadie esperando plaza en las sesiones futuras</p>
-      </div>
+    <div class="empty-state">
+      <span class="material-symbols-rounded empty-icon">hourglass_disabled</span>
+      <h3>Sin usuarios en espera</h3>
+      <p>No hay nadie esperando plaza en las sesiones futuras</p>
+    </div>
     } @else {
-      <div class="sesiones-lista">
-        @for (sesion of sesionesAgrupadas(); track trackBySesionId($index, sesion)) {
-          <article class="sesion-card">
-            <header class="sesion-header">
-              <div class="sesion-info">
-                <h2 class="sesion-fecha">{{ sesion.fecha }}</h2>
-                <div class="sesion-detalles">
-                  <span class="sesion-hora">{{ sesion.hora }}</span>
-                  <span class="sesion-modalidad" [class]="'modalidad--' + sesion.modalidad">
-                    {{ sesion.modalidad }}
-                  </span>
-                </div>
-              </div>
-              <div class="sesion-capacidad">
-                <span
-                  class="capacidad-badge"
-                  [class.capacidad-badge--lleno]="sesion.plazas_disponibles === 0"
-                  [class.capacidad-badge--disponible]="sesion.plazas_disponibles > 0"
-                >
-                  @if (sesion.plazas_disponibles > 0) {
-                    {{ sesion.plazas_disponibles }} plaza(s) libre(s)
-                  } @else {
-                    Completo
-                  }
-                </span>
-                <span class="capacidad-detalle">
-                  {{ sesion.plazas_ocupadas }}/{{ sesion.capacidad }}
-                </span>
-              </div>
-            </header>
-
-            <div class="usuarios-lista">
-              <h3 class="usuarios-titulo">
-                <span class="material-symbols-rounded">people</span>
-                {{ sesion.usuarios.length }} en espera
-              </h3>
-
-              @for (usuario of sesion.usuarios; track trackByUsuarioId($index, usuario)) {
-                <div class="usuario-item">
-                  <div class="usuario-posicion">
-                    <span class="posicion-numero">{{ usuario.posicion }}</span>
-                  </div>
-
-                  <div class="usuario-info">
-                    <span class="usuario-nombre">{{ usuario.nombre }}</span>
-                    <span class="usuario-telefono">{{ usuario.telefono }}</span>
-                    <span class="usuario-desde">Desde {{ usuario.creado_en }}</span>
-                  </div>
-
-                  <div class="usuario-acciones">
-                    @if (sesion.plazas_disponibles > 0) {
-                      <button
-                        type="button"
-                        class="btn-accion btn-accion--primary"
-                        (click)="asignarPlaza(sesion, usuario.usuario_id)"
-                        [disabled]="procesando()"
-                        title="Asignar plaza"
-                        aria-label="Asignar plaza a {{ usuario.nombre }}"
-                      >
-                        <span class="material-symbols-rounded">check</span>
-                        Asignar
-                      </button>
-                    } @else {
-                      <button
-                        type="button"
-                        class="btn-accion btn-accion--notify"
-                        (click)="notificarUsuario(sesion, usuario.usuario_id, usuario.nombre)"
-                        [disabled]="procesando()"
-                        title="Enviar notificación"
-                        aria-label="Notificar a {{ usuario.nombre }}"
-                      >
-                        <span class="material-symbols-rounded">notifications</span>
-                      </button>
-                    }
-
-                    <button
-                      type="button"
-                      class="btn-accion btn-accion--danger"
-                      (click)="quitarDeEspera(sesion.sesion_id, usuario.usuario_id)"
-                      [disabled]="procesando()"
-                      title="Quitar de la lista"
-                      aria-label="Quitar a {{ usuario.nombre }} de la lista"
-                    >
-                      <span class="material-symbols-rounded">person_remove</span>
-                    </button>
-                  </div>
-                </div>
-              }
+    <div class="sesiones-lista">
+      @for (sesion of sesionesAgrupadas(); track trackBySesionId($index, sesion)) {
+      <article class="sesion-card">
+        <header class="sesion-header">
+          <div class="sesion-info">
+            <h2 class="sesion-fecha">{{ sesion.fecha }}</h2>
+            <div class="sesion-detalles">
+              <span class="sesion-hora">{{ sesion.hora }}</span>
+              <span class="sesion-modalidad" [class]="'modalidad--' + sesion.modalidad">
+                {{ sesion.modalidad }}
+              </span>
             </div>
-          </article>
-        }
-      </div>
+          </div>
+          <div class="sesion-capacidad">
+            <span class="capacidad-badge" [class.capacidad-badge--lleno]="sesion.plazas_disponibles === 0"
+              [class.capacidad-badge--disponible]="sesion.plazas_disponibles > 0">
+              @if (sesion.plazas_disponibles > 0) {
+              {{ sesion.plazas_disponibles }} plaza(s) libre(s)
+              } @else {
+              Completo
+              }
+            </span>
+            <span class="capacidad-detalle">
+              {{ sesion.plazas_ocupadas }}/{{ sesion.capacidad }}
+            </span>
+          </div>
+        </header>
+
+        <div class="usuarios-lista">
+          <h3 class="usuarios-titulo">
+            <span class="material-symbols-rounded">people</span>
+            {{ sesion.usuarios.length }} en espera
+          </h3>
+
+          @for (usuario of sesion.usuarios; track trackByUsuarioId($index, usuario)) {
+          <div class="usuario-item">
+            <div class="usuario-posicion">
+              <span class="posicion-numero">{{ usuario.posicion }}</span>
+            </div>
+
+            <div class="usuario-info">
+              <span class="usuario-nombre">{{ usuario.nombre }}</span>
+              <span class="usuario-telefono">{{ usuario.telefono }}</span>
+              <span class="usuario-desde">Desde {{ usuario.creado_en }}</span>
+            </div>
+
+            <div class="usuario-acciones">
+              @if (sesion.plazas_disponibles > 0) {
+              <button type="button" class="btn-accion btn-accion--primary"
+                (click)="asignarPlaza(sesion, usuario.usuario_id)" [disabled]="procesando()" title="Asignar plaza"
+                aria-label="Asignar plaza a {{ usuario.nombre }}">
+                <span class="material-symbols-rounded">check</span>
+                Asignar
+              </button>
+              }
+
+              <button type="button" class="btn-accion btn-accion--danger"
+                (click)="quitarDeEspera(sesion.sesion_id, usuario.usuario_id)" [disabled]="procesando()"
+                title="Quitar de la lista" aria-label="Quitar a {{ usuario.nombre }} de la lista">
+                <span class="material-symbols-rounded">person_remove</span>
+              </button>
+            </div>
+          </div>
+          }
+        </div>
+      </article>
+      }
+    </div>
     }
   </div>
 </main>
