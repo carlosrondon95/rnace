@@ -1,6 +1,6 @@
 // src/app/auth/login/login.component.ts
-import { Component, signal, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, signal, inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
@@ -15,6 +15,7 @@ import { AuthService } from '../../core/auth.service';
 export class LoginComponent {
   private router = inject(Router);
   private authService = inject(AuthService);
+  private platformId = inject(PLATFORM_ID);
 
   telefono = signal('');
   password = signal('');
@@ -22,9 +23,13 @@ export class LoginComponent {
   error = signal<string | null>(null);
 
   constructor() {
-    // Si ya está logueado, ir al dashboard
+    // Si ya está logueado en la app, ir al dashboard
     if (this.authService.estaLogueado()) {
       this.router.navigateByUrl('/dashboard');
+    } else if (isPlatformBrowser(this.platformId)) {
+      // Limpieza preventiva de sesiones caducadas de Supabase
+      // Esto soluciona problemas de login tras mucho tiempo inactivo
+      localStorage.removeItem('sb-bpzdpsmwtsmwrlyxzcsk-auth-token');
     }
   }
 

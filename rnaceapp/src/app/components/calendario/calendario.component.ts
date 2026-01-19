@@ -386,9 +386,19 @@ export class CalendarioComponent implements OnInit {
       if (error) throw error;
 
       if (data && data[0]?.ok) {
-        this.mensajeExito.set(data[0].mensaje);
-        const dia = this.diaSeleccionado();
-        if (dia) { await this.cargarSesionesDia(dia.fecha); this.cargarCalendario(); }
+        // Cerrar el modal de cambio y el modal del día
+        this.modoCambio.set(false);
+        this.reservaACambiar.set(null);
+        this.diaSeleccionado.set(null);
+
+        // Recargar calendario primero
+        await this.cargarCalendario();
+
+        // Mostrar mensaje de éxito (después de recargar para que no sea borrado)
+        this.mensajeExito.set(data[0].mensaje || '¡Clase cambiada correctamente!');
+
+        // Auto-descartar después de 4 segundos
+        setTimeout(() => this.mensajeExito.set(null), 4000);
       } else { this.error.set(data?.[0]?.mensaje || 'No se pudo cambiar.'); }
     } catch (err: any) { this.error.set(err.message || 'Error.'); } finally { this.guardando.set(false); }
   }
@@ -401,10 +411,11 @@ export class CalendarioComponent implements OnInit {
       const { data, error } = await supabase().rpc('apuntarse_lista_espera', { p_usuario_id: uid, p_sesion_id: sesionId });
       if (error) throw error;
       if (data && data[0]?.ok) {
-        this.mensajeExito.set(data[0].mensaje);
+        this.mensajeExito.set(data[0].mensaje || '✅ Te has apuntado a la lista de espera. Te avisaremos si hay hueco.');
+        setTimeout(() => this.mensajeExito.set(null), 4000);
         const dia = this.diaSeleccionado();
         if (dia) await this.cargarSesionesDia(dia.fecha);
-      } else { this.error.set(data?.[0]?.mensaje || 'Error.'); }
+      } else { this.error.set(data?.[0]?.mensaje || 'Error al apuntarse a la lista de espera.'); }
     } catch (err: any) { this.error.set(err.message); } finally { this.guardando.set(false); }
   }
 
@@ -416,10 +427,11 @@ export class CalendarioComponent implements OnInit {
       const { data, error } = await supabase().rpc('quitar_lista_espera', { p_usuario_id: uid, p_sesion_id: sesionId });
       if (error) throw error;
       if (data && data[0]?.ok) {
-        this.mensajeExito.set(data[0].mensaje);
+        this.mensajeExito.set(data[0].mensaje || '✅ Te has quitado de la lista de espera.');
+        setTimeout(() => this.mensajeExito.set(null), 4000);
         const dia = this.diaSeleccionado();
         if (dia) await this.cargarSesionesDia(dia.fecha);
-      } else { this.error.set(data?.[0]?.mensaje || 'Error.'); }
+      } else { this.error.set(data?.[0]?.mensaje || 'Error al salir de la lista de espera.'); }
     } catch (err: any) { this.error.set(err.message); } finally { this.guardando.set(false); }
   }
 
@@ -497,7 +509,7 @@ export class CalendarioComponent implements OnInit {
   async cargarCalendario() {
     this.cargando.set(true);
     this.error.set(null);
-    this.mensajeExito.set(null);
+    // NO resetear mensajeExito aquí - se gestiona con setTimeout y botón de cierre
 
     try {
       const anio = this.anioActual();
@@ -935,6 +947,7 @@ export class CalendarioComponent implements OnInit {
       }
 
       const festivosArray = [...this.festivosSeleccionados()];
+      let recuperacionesGeneradas = 0;
 
       if (festivosArray.length > 0) {
         const festivosInsert = festivosArray.map((fecha) => ({
@@ -948,6 +961,113 @@ export class CalendarioComponent implements OnInit {
           console.error('Error insertando festivos:', insertError);
           this.error.set(`Error al guardar festivos: ${insertError.message}`);
           return;
+        }
+
+        // Cancelar reservas existentes en los días festivos y generar recuperaciones
+        const reservasAfectadas: { reservaId: number; usuarioId: string }[] = [];
+
+        // Buscar reservas en los días marcados como festivos
+        for (const fecha of festivosArray) {
+          const dia = this.diasCalendario().find(d => d.fecha === fecha);
+          if (dia && dia.reservas.length > 0) {
+            for (const reserva of dia.reservas) {
+              // Obtener usuario_id de la reserva
+              const { data: reservaData } = await client
+                .from('reservas')
+                .select('usuario_id')
+                .eq('id', reserva.id)
+                .single();
+
+              if (reservaData) {
+                reservasAfectadas.push({
+                  reservaId: reserva.id,
+                  usuarioId: reservaData.usuario_id
+                });
+              }
+            }
+          }
+        }
+
+        // Cancelar reservas y generar recuperaciones DIRECTAMENTE (sin RPC)
+        for (const { reservaId, usuarioId } of reservasAfectadas) {
+          try {
+            // 1. Obtener datos de la sesión para la recuperación
+            const { data: reservaCompleta } = await client
+              .from('reservas')
+              .select('sesion_id, sesiones(modalidad, fecha)')
+              .eq('id', reservaId)
+              .single();
+
+            if (!reservaCompleta) continue;
+
+            const sesionData = Array.isArray(reservaCompleta.sesiones)
+              ? reservaCompleta.sesiones[0]
+              : reservaCompleta.sesiones;
+
+            if (!sesionData) continue;
+
+            const fechaSesion = new Date(sesionData.fecha);
+            const mesOrigen = fechaSesion.getMonth() + 1;
+            const anioOrigen = fechaSesion.getFullYear();
+
+            // Calcular mes límite (mes siguiente)
+            let mesLimite = mesOrigen + 1;
+            let anioLimite = anioOrigen;
+            if (mesLimite > 12) {
+              mesLimite = 1;
+              anioLimite++;
+            }
+
+            // 2. Cancelar la reserva
+            await client
+              .from('reservas')
+              .update({
+                estado: 'cancelada',
+                cancelada_en: new Date().toISOString(),
+                cancelada_correctamente: true
+              })
+              .eq('id', reservaId);
+
+            // 3. Insertar recuperación en la tabla principal
+            const { error: recupError } = await client
+              .from('recuperaciones')
+              .insert({
+                usuario_id: usuarioId,
+                sesion_cancelada_id: reservaCompleta.sesion_id,
+                modalidad: sesionData.modalidad,
+                mes_origen: mesOrigen,
+                anio_origen: anioOrigen,
+                mes_limite: mesLimite,
+                anio_limite: anioLimite,
+                estado: 'disponible'
+              });
+
+            if (!recupError) {
+              recuperacionesGeneradas++;
+              console.log(`Reserva ${reservaId} cancelada, recuperación generada para usuario ${usuarioId}`);
+
+              // 4. Insertar notificación al usuario
+              const fechaFormateada = fechaSesion.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+              await client
+                .from('notificaciones')
+                .insert({
+                  usuario_id: usuarioId,
+                  tipo: 'cancelacion',
+                  titulo: 'Clase cancelada por festivo',
+                  mensaje: `Tu clase del ${fechaFormateada} ha sido cancelada por festivo. Se ha generado una recuperación.`,
+                  leida: false
+                });
+            } else {
+              console.warn('Error insertando recuperación:', recupError);
+            }
+
+          } catch (err) {
+            console.warn(`Error cancelando reserva ${reservaId}:`, err);
+          }
+        }
+
+        if (recuperacionesGeneradas > 0) {
+          console.log(`Total recuperaciones generadas: ${recuperacionesGeneradas}`);
         }
       }
 
@@ -992,7 +1112,25 @@ export class CalendarioComponent implements OnInit {
         console.warn('No se pudieron generar sesiones automáticamente:', genError);
       }
 
-      this.mensajeExito.set('Mes configurado correctamente. Los usuarios ya pueden reservar.');
+      // Generar reservas automáticas desde horarios fijos de todos los usuarios
+      const { data: regenData, error: regenError } = await client.rpc('regenerar_reservas_futuras');
+
+      if (regenError) {
+        console.warn('No se pudieron generar reservas automáticamente:', regenError);
+      } else if (regenData) {
+        console.log('Reservas regeneradas:', regenData);
+      }
+      // Mensaje de éxito según lo que se hizo
+      const numFestivos = festivosArray.length;
+      if (numFestivos > 0) {
+        let mensaje = `Configuración guardada: ${numFestivos} día${numFestivos > 1 ? 's' : ''} marcado${numFestivos > 1 ? 's' : ''} como festivo.`;
+        if (recuperacionesGeneradas > 0) {
+          mensaje += ` Se generaron ${recuperacionesGeneradas} recuperación${recuperacionesGeneradas > 1 ? 'es' : ''}.`;
+        }
+        this.mensajeExito.set(mensaje);
+      } else {
+        this.mensajeExito.set('Mes abierto correctamente. Los usuarios ya pueden reservar.');
+      }
       this.modoEdicion.set(false);
       this.festivosSeleccionados.set(new Set());
 
@@ -1095,7 +1233,7 @@ export class CalendarioComponent implements OnInit {
   cerrarDetalleDia() {
     this.diaSeleccionado.set(null);
     this.sesionesDiaSeleccionado.set([]);
-    this.mensajeExito.set(null);
+    // NO resetear mensajeExito aquí - debe permanecer visible después de cerrar el modal
     this.error.set(null);
     // Reset modo cambio
     this.modoCambio.set(false);
@@ -1268,9 +1406,13 @@ export class CalendarioComponent implements OnInit {
       if (error) throw error;
 
       if (data && data[0]?.ok) {
-        this.mensajeExito.set(data[0].mensaje);
+        // Primero cerrar todo
         this.cerrarDetalleDia();
+        // Recargar calendario
         await this.cargarCalendario();
+        // Mostrar mensaje de éxito (después de todo para que no sea borrado)
+        this.mensajeExito.set(data[0].mensaje || '¡Clase cambiada correctamente!');
+        setTimeout(() => this.mensajeExito.set(null), 4000);
       } else {
         this.error.set(data?.[0]?.mensaje || 'No se pudo realizar el cambio.');
       }
