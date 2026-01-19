@@ -97,6 +97,11 @@ export class ReservaCitaComponent implements OnInit {
     return this.recuperacionesModalidad().some(r => this.esValidaParaMesActual(r));
   });
 
+  // Solo recuperaciones válidas para el mes actual (excluye caducadas y futuras)
+  recuperacionesValidasMes = computed(() => {
+    return this.recuperaciones().filter(r => this.esValidaParaMesActual(r));
+  });
+
   // Modalidades disponibles según tipo de grupo
   modalidadesDisponibles = computed((): Modalidad[] => {
     const tipo = this.tipoGrupo();

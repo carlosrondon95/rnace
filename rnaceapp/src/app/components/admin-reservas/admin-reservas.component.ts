@@ -429,32 +429,33 @@ export class AdminReservasComponent implements OnInit {
     this.reservaAEliminar.set(null);
   }
 
-  async confirmarEliminar() {
+  async confirmarEliminar(generarRecuperacion: boolean) {
     const reserva = this.reservaAEliminar();
+    const usuario = this.usuarioSeleccionado();
     if (!reserva) return;
 
     this.eliminando.set(true);
+    this.error.set(null);
 
     try {
-      const { error } = await supabase()
-        .from('reservas')
-        .update({
-          estado: 'cancelada',
-          cancelada_en: new Date().toISOString(),
-          cancelada_correctamente: true,
-        })
-        .eq('id', reserva.id);
+      const { data, error } = await supabase().rpc('cancelar_reserva_admin', {
+        p_reserva_id: reserva.id,
+        p_generar_recuperacion: generarRecuperacion
+      });
 
       if (error) {
+        console.error('Error RPC:', error);
         this.error.set('Error al eliminar la reserva: ' + error.message);
         return;
       }
 
-      this.mensajeExito.set('Reserva eliminada correctamente.');
-      this.cerrarModalEliminar();
-
-      const usuario = this.usuarioSeleccionado();
-      if (usuario) this.cargarReservasUsuario(usuario);
+      if (data && data.length > 0 && data[0].ok) {
+        this.mensajeExito.set(data[0].mensaje);
+        this.cerrarModalEliminar();
+        if (usuario) this.cargarReservasUsuario(usuario);
+      } else {
+        this.error.set(data?.[0]?.mensaje || 'Error al eliminar la reserva');
+      }
     } catch (err) {
       console.error('Error:', err);
       this.error.set('Error inesperado al eliminar la reserva.');

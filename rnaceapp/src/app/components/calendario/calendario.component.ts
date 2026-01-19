@@ -168,33 +168,147 @@ export class CalendarioComponent implements OnInit {
   reservaACambiar = signal<{ id: number; sesion_id: number; hora: string; fecha: string; modalidad: string } | null>(null);
   sesionesDisponiblesCambio = signal<SesionDia[]>([]);
   cargandoCambio = signal(false);
+  festivosCambio = signal<Set<string>>(new Set()); // Festivos del mes para mostrar bloqueados
 
-  // Sesiones filtradas por tipo de grupo del usuario
+  // Mini-calendario para cambio: día seleccionado dentro del cambio
+  diaCambioSeleccionado = signal<string | null>(null);
+
+  // === CANCELACIÓN ADMIN ===
+  mostrarModalCancelarAdmin = signal(false);
+  reservaACancelarAdmin = signal<ReservaCalendario | null>(null);
+  cancelandoAdmin = signal(false);
+
+  // Computed: Sesiones del día seleccionado en modo cambio
+  sesionesCambioDia = computed(() => {
+    const diaSelec = this.diaCambioSeleccionado();
+    if (!diaSelec) return [];
+    return this.sesionesDisponiblesCambio().filter(s => s.fecha === diaSelec);
+  });
+
+  // Computed: Días únicos con sesiones disponibles para cambio - estructurados por semanas
+  diasConSesionesCambio = computed(() => {
+    const sesiones = this.sesionesDisponiblesCambio();
+    const festivos = this.festivosCambio();
+    const diasMap = new Map<string, { fecha: string; tienePlazas: boolean; esMismodia: boolean; esFestivo: boolean }>();
+    const reserva = this.reservaACambiar();
+
+    // Primero añadir días con sesiones
+    sesiones.forEach(s => {
+      if (!s.fecha) return;
+      const existing = diasMap.get(s.fecha);
+      const tienePlazas = s.plazas_disponibles > 0 && !s.tiene_reserva;
+      const esMismodia = reserva?.fecha === s.fecha;
+      const esFestivo = festivos.has(s.fecha);
+
+      if (!existing) {
+        diasMap.set(s.fecha, { fecha: s.fecha, tienePlazas, esMismodia, esFestivo });
+      } else if (tienePlazas && !existing.tienePlazas) {
+        existing.tienePlazas = true;
+      }
+    });
+
+    // Añadir festivos que no tienen sesiones (para mostrarlos bloqueados)
+    festivos.forEach(fecha => {
+      if (!diasMap.has(fecha)) {
+        diasMap.set(fecha, { fecha, tienePlazas: false, esMismodia: false, esFestivo: true });
+      }
+    });
+
+    return Array.from(diasMap.values()).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  });
+
+  // Computed: Días agrupados por semanas para vista de calendario
+  semanasCalendarioCambio = computed(() => {
+    const reserva = this.reservaACambiar();
+    if (!reserva?.fecha) return [];
+
+    const fechaReserva = new Date(reserva.fecha + 'T12:00:00');
+    const anio = fechaReserva.getFullYear();
+    const mes = fechaReserva.getMonth();
+    const festivos = this.festivosCambio();
+    const diasConSesiones = this.diasConSesionesCambio();
+    const sesionesMap = new Map(diasConSesiones.map(d => [d.fecha, d]));
+
+    // Calcular el primer y último día del mes
+    const primerDiaMes = new Date(anio, mes, 1);
+    const ultimoDiaMes = new Date(anio, mes + 1, 0).getDate();
+
+    // Para hoy (solo mostrar días desde hoy en adelante)
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const semanas: Array<Array<{ fecha: string; dia: number; diaSemana: number; tienePlazas: boolean; esMismodia: boolean; esFestivo: boolean; esPasado: boolean; esDelMes: boolean } | null>> = [];
+    let semanaActual: Array<{ fecha: string; dia: number; diaSemana: number; tienePlazas: boolean; esMismodia: boolean; esFestivo: boolean; esPasado: boolean; esDelMes: boolean } | null> = [];
+
+    // Determinar el día de la semana del primer día (0=Dom -> 6=Sab, convertir a 0=Lun)
+    let primerDiaSemana = primerDiaMes.getDay();
+    primerDiaSemana = primerDiaSemana === 0 ? 6 : primerDiaSemana - 1;
+
+    // Rellenar días vacíos antes del primer día
+    for (let i = 0; i < primerDiaSemana; i++) {
+      semanaActual.push(null);
+    }
+
+    // Añadir todos los días del mes
+    for (let dia = 1; dia <= ultimoDiaMes; dia++) {
+      const fecha = `${anio}-${(mes + 1).toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
+      const fechaDate = new Date(anio, mes, dia);
+      let diaSemana = fechaDate.getDay();
+      diaSemana = diaSemana === 0 ? 6 : diaSemana - 1;
+
+      // Solo días laborables (Lun-Vie, es decir 0-4)
+      if (diaSemana >= 0 && diaSemana <= 4) {
+        const dataSesion = sesionesMap.get(fecha);
+        const esPasado = fechaDate < hoy;
+        const esFestivo = festivos.has(fecha);
+        const esMismodia = reserva.fecha === fecha;
+
+        semanaActual.push({
+          fecha,
+          dia,
+          diaSemana,
+          tienePlazas: dataSesion?.tienePlazas ?? false,
+          esMismodia,
+          esFestivo,
+          esPasado,
+          esDelMes: true
+        });
+
+        // Si es viernes (4), cerrar la semana
+        if (diaSemana === 4) {
+          // Asegurarse de que la semana tenga 5 elementos (Lun-Vie)
+          while (semanaActual.length < 5) {
+            semanaActual.unshift(null);
+          }
+          semanas.push(semanaActual);
+          semanaActual = [];
+        }
+      }
+    }
+
+    // Añadir última semana si quedó incompleta
+    if (semanaActual.length > 0) {
+      while (semanaActual.length < 5) {
+        semanaActual.push(null);
+      }
+      semanas.push(semanaActual);
+    }
+
+    return semanas;
+  });
+
+  // Sesiones filtradas: Solo muestra la sesión donde el cliente tiene su reserva
   sesionesFiltradasPorGrupo = computed(() => {
     const sesiones = this.sesionesDiaSeleccionado();
 
-    // Si es admin, esta propiedad no debería usarse en la vista restringida, 
-    // pero por si acaso devolvemos todo o vacío según la lógica de UI
+    // Si es admin, esta propiedad no debería usarse en la vista restringida
     if (this.esAdmin()) return sesiones;
 
-    const tipoGrupo = this.tipoGrupoUsuario();
-    console.log('Filtrando sesiones. Usuario:', this.userId(), 'Tipo Grupo:', tipoGrupo, 'Sesiones:', sesiones.length);
+    // Para clientes: mostrar SOLO la sesión donde tienen reserva
+    const sesionesConReserva = sesiones.filter(s => s.tiene_reserva);
+    console.log('Sesiones del cliente con reserva:', sesionesConReserva.length);
 
-    // Si no se ha cargado el tipo de grupo, NO MOSTRAR NADA por seguridad
-    if (!tipoGrupo) {
-      console.warn('Tipo de grupo no cargado, ocultando sesiones por seguridad');
-      return [];
-    }
-
-    // Si es híbrido, mostrar todas
-    if (tipoGrupo === 'hibrido') {
-      return sesiones;
-    }
-
-    // Filtrar solo las sesiones del tipo de grupo del usuario
-    const filtradas = sesiones.filter(s => s.modalidad?.toLowerCase() === tipoGrupo?.toLowerCase());
-    console.log(`Filtrando para ${tipoGrupo}: ${sesiones.length} -> ${filtradas.length}`);
-    return filtradas;
+    return sesionesConReserva;
   });
 
   reservasDiaSeleccionadoOrdenadas = computed(() => {
@@ -1263,6 +1377,36 @@ export class CalendarioComponent implements OnInit {
     this.modoCambio.set(false);
     this.reservaACambiar.set(null);
     this.sesionesDisponiblesCambio.set([]);
+    this.diaCambioSeleccionado.set(null);
+  }
+
+  /**
+   * Selecciona un día en el mini-calendario del modo cambio
+   */
+  seleccionarDiaCambio(fecha: string) {
+    this.diaCambioSeleccionado.set(fecha);
+  }
+
+  /**
+   * Vuelve al mini-calendario de selección de día
+   */
+  volverAMiniCalendario() {
+    this.diaCambioSeleccionado.set(null);
+  }
+
+  /**
+   * Helper para obtener nombre del día de la semana
+   */
+  getNombreDia(fecha: string): string {
+    const date = new Date(fecha + 'T12:00:00');
+    return date.toLocaleDateString('es-ES', { weekday: 'short' });
+  }
+
+  /**
+   * Helper para obtener número del día
+   */
+  getNumeroDia(fecha: string): number {
+    return new Date(fecha + 'T12:00:00').getDate();
   }
 
   /**
@@ -1299,6 +1443,24 @@ export class CalendarioComponent implements OnInit {
       // Esto asegura que solo se muestren sesiones futuras Y del mismo mes
       const fechaMinima = hoyStr > primerDia ? hoyStr : primerDia;
 
+      // Cargar festivos del mes para mostrarlos bloqueados en el calendario
+      const festivosSet = new Set<string>();
+      try {
+        const { data: festivosData, error: festivosError } = await supabase()
+          .from('festivos')
+          .select('fecha')
+          .gte('fecha', primerDia)
+          .lte('fecha', ultimoDia);
+
+        if (!festivosError && festivosData) {
+          festivosData.forEach(f => festivosSet.add(f.fecha));
+        }
+      } catch (err) {
+        console.warn('Error cargando festivos para cambio:', err);
+      }
+      // Guardar festivos para usarlos en la vista del calendario
+      this.festivosCambio.set(festivosSet);
+
       const { data: sesiones, error } = await supabase()
         .from('sesiones')
         .select('*')
@@ -1315,9 +1477,13 @@ export class CalendarioComponent implements OnInit {
         return;
       }
 
-      // Filtrar sesiones que ya han comenzado
+      // Filtrar sesiones que ya han comenzado (pero NO excluir festivos - se mostrarán bloqueados)
       const ahoras = ahora.getTime();
       const sesionesFuturas = sesiones.filter(s => {
+        // Excluir sesiones en días festivos del listado de sesiones disponibles
+        // (los festivos se muestran en el calendario pero bloqueados, sin sesiones)
+        if (festivosSet.has(s.fecha)) return false;
+
         const fechaHoraSesion = new Date(`${s.fecha}T${s.hora}`).getTime();
         return fechaHoraSesion > ahoras;
       });
@@ -1425,13 +1591,7 @@ export class CalendarioComponent implements OnInit {
     }
   }
 
-  /**
-   * Obtiene el nombre del día de la semana
-   */
-  getNombreDia(fecha: string): string {
-    const d = new Date(fecha + 'T12:00:00');
-    return d.toLocaleDateString('es-ES', { weekday: 'long' });
-  }
+
 
   /**
    * Formatea una fecha para mostrar
@@ -1569,6 +1729,54 @@ export class CalendarioComponent implements OnInit {
       this.error.set('Error al cancelar la clase.');
     } finally {
       this.guardando.set(false);
+    }
+  }
+
+  // === CANCELACIÓN ADMIN ===
+  abrirModalCancelarAdmin(reserva: ReservaCalendario) {
+    this.reservaACancelarAdmin.set(reserva);
+    this.mostrarModalCancelarAdmin.set(true);
+  }
+
+  cerrarModalCancelarAdmin() {
+    this.mostrarModalCancelarAdmin.set(false);
+    this.reservaACancelarAdmin.set(null);
+  }
+
+  async cancelarReservaAdmin(generarRecuperacion: boolean) {
+    const reserva = this.reservaACancelarAdmin();
+    if (!reserva) return;
+
+    this.cancelandoAdmin.set(true);
+    this.error.set(null);
+
+    try {
+      const { data, error } = await supabase().rpc('cancelar_reserva_admin', {
+        p_reserva_id: reserva.id,
+        p_generar_recuperacion: generarRecuperacion
+      });
+
+      if (error) {
+        console.error('Error RPC:', error);
+        this.error.set('Error al cancelar la reserva: ' + error.message);
+        return;
+      }
+
+      if (data && data.length > 0 && data[0].ok) {
+        this.mensajeExito.set(data[0].mensaje);
+        this.cerrarModalCancelarAdmin();
+        // Recargar calendario para reflejar los cambios
+        await this.cargarCalendario();
+        // Cerrar el modal del día también
+        this.diaSeleccionado.set(null);
+      } else {
+        this.error.set(data?.[0]?.mensaje || 'Error al cancelar la reserva');
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      this.error.set('Error inesperado al cancelar la reserva');
+    } finally {
+      this.cancelandoAdmin.set(false);
     }
   }
 

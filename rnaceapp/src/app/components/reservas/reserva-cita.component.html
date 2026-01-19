@@ -56,37 +56,28 @@
 
     <!-- Contenido principal -->
     @if (!cargando() && mesAbierto()) {
-    <!-- Info de recuperaciones -->
+    <!-- Info de recuperaciones (solo válidas para el mes actual) -->
     <div class="recuperaciones-section">
       <div class="recuperaciones-header">
         <span class="material-symbols-rounded">replay</span>
         <span>Tus recuperaciones disponibles</span>
       </div>
 
-      @if (recuperaciones().length === 0) {
+      @if (recuperacionesValidasMes().length === 0) {
       <div class="sin-recuperaciones">
-        <p>No tienes recuperaciones pendientes.</p>
-        <p class="hint">Las recuperaciones se generan cuando cancelas una clase con más de 1 hora de antelación.</p>
+        <p>No tienes recuperaciones para usar este mes.</p>
       </div>
       } @else {
-      <div class="recuperaciones-lista">
-        @for (recup of recuperaciones(); track recup.id) {
+      <div class="recuperaciones-grid">
+        @for (recup of recuperacionesValidasMes(); track recup.id) {
         <div class="recuperacion-card" [class.recup-focus]="recup.modalidad === 'focus'"
-          [class.recup-reducido]="recup.modalidad === 'reducido'" [class.invalida]="!esValidaParaMesActual(recup)">
-          <div class="recup-modalidad">
-            <span class="material-symbols-rounded">
-              {{ recup.modalidad === 'focus' ? 'fitness_center' : 'groups' }}
-            </span>
-            {{ recup.modalidad === 'focus' ? 'Focus' : 'Reducido' }}
-          </div>
-          <div class="recup-validez">
-            <span [class.texto-invalida]="!esValidaParaMesActual(recup) && !esFuturaParaMesActual(recup)"
-              [class.texto-futura]="esFuturaParaMesActual(recup)">
-              {{ getTextoValidez(recup) }}
-            </span>
+          [class.recup-reducido]="recup.modalidad === 'reducido'">
+          <div class="recup-info">
+            <span class="recup-modalidad-text">{{ recup.modalidad === 'focus' ? 'Focus' : 'Reducido' }}</span>
+            <span class="recup-validez">{{ getTextoValidez(recup) }}</span>
           </div>
           @if (recup.motivo === 'festivo') {
-          <span class="recup-origen">Por festivo</span>
+          <span class="recup-origen">Festivo</span>
           }
         </div>
         }
