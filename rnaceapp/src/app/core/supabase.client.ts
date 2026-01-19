@@ -13,9 +13,12 @@ export function supabase(): SupabaseClient {
 
     _client = createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
       auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
+        // Desactivamos la persistencia de sesión de Supabase Auth
+        // porque usamos autenticación propia con la tabla 'usuarios'.
+        // Esto evita problemas con tokens caducados que interfieren con las consultas.
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
       },
     });
   }

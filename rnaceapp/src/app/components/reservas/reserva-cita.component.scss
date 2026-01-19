@@ -535,33 +535,60 @@
   }
 }
 
-// Mensajes
-.mensaje-exito,
-.mensaje-error {
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-md);
-  font-size: var(--font-size-sm);
-  animation: slideUp 0.3s ease;
+// Mensajes (mismo estilo que calendario)
+.mensaje-exito {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-sm);
-
-  .material-symbols-rounded {
-    font-size: 1.2rem;
-  }
-}
-
-.mensaje-exito {
+  padding: var(--space-md);
   background: var(--color-success-soft);
   border: 1px solid var(--color-success-border);
+  border-radius: var(--radius-md);
   color: var(--color-success);
+  font-size: var(--font-size-sm);
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 300px;
+  max-width: 90%;
+  animation: slideDown 0.3s ease-out;
 }
 
 .mensaje-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
   background: var(--color-danger-soft);
   border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
   color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 300px;
+  max-width: 90%;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 // Leyenda

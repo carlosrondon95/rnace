@@ -237,17 +237,32 @@
 
     <!-- Clases de hoy - CARDS EXPANDIBLES CON BARRA DE PROGRESO -->
     <section class="section">
+<<<<<<< HEAD
       <div class="section-header clickable" (click)="toggleClasesHoySection()">
+=======
+      <div class="section-header clickable" (click)="toggleClasesHoy()" role="button"
+        [attr.aria-expanded]="clasesHoyExpandido()" tabindex="0">
+>>>>>>> limpieza
         <h2>
           <span class="material-symbols-rounded">schedule</span>
           Clases de hoy
         </h2>
+<<<<<<< HEAD
         <span class="material-symbols-rounded chevron" [class.rotated]="!clasesHoyExpanded()">expand_more</span>
       </div>
 
       @if (clasesHoyExpanded()) {
       @if (clasesHoy().length > 0) {
       <div class="clases-timeline collapsible-content">
+=======
+        <span class="material-symbols-rounded expand-icon" [class.expand-icon--rotated]="clasesHoyExpandido()">
+          expand_more
+        </span>
+      </div>
+
+      @if (clasesHoyExpandido()) {
+      <div class="clases-timeline animate-slide-down">
+>>>>>>> limpieza
         @for (clase of clasesHoy(); track trackByClaseId($index, clase); let i = $index) {
         <article class="timeline-card" [class.timeline-card--expanded]="expandedClaseIndex() === i"
           [class.timeline-card--full]="clase.reservas_count >= clase.capacidad" (click)="toggleClaseExpand(i)">
@@ -303,7 +318,20 @@
         </article>
         }
       </div>
+<<<<<<< HEAD
       } @else {
+=======
+      }
+    </section>
+    } @else {
+    <section class="section">
+      <div class="section-header">
+        <h2>
+          <span class="material-symbols-rounded">schedule</span>
+          Clases de hoy
+        </h2>
+      </div>
+>>>>>>> limpieza
       <div class="empty-card">
         <span class="material-symbols-rounded">event_busy</span>
         <p>No hay más clases programadas para hoy</p>
