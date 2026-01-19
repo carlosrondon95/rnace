@@ -210,34 +210,58 @@
     <span class="sr-only">Cerrar</span>
   </button>
 
-  <div class="modal-content modal-content--small">
+  <div class="modal-content modal-content--small modal-cancelar-admin">
     <div class="modal-header modal-header--danger">
-      <h2>Eliminar Reserva</h2>
+      <h2>Cancelar Reserva</h2>
       <button class="btn-cerrar" (click)="cerrarModalEliminar()">
         <span class="material-symbols-rounded">close</span>
       </button>
     </div>
 
     <div class="modal-body">
-      <div class="eliminar-warning">
-        <span class="material-symbols-rounded">warning</span>
-        <p>
-          ¿Eliminar la reserva del <strong>{{ reservaAEliminar()?.fecha }}</strong> a las
-          <strong>{{ reservaAEliminar()?.hora }}</strong>?
+      <div class="info-reserva-cancelar">
+        <p class="reserva-info-line">
+          <span class="material-symbols-rounded">event</span>
+          <strong>{{ reservaAEliminar()?.fecha }}</strong>
         </p>
-        <p class="eliminar-hint">Esta acción cancelará la reserva del usuario.</p>
+        <p class="reserva-info-line">
+          <span class="material-symbols-rounded">schedule</span>
+          {{ reservaAEliminar()?.hora }} - {{ reservaAEliminar()?.modalidad | titlecase }}
+        </p>
+      </div>
+
+      <div class="opciones-cancelacion">
+        <p class="opciones-titulo">¿Cómo deseas proceder?</p>
+
+        <button class="btn-opcion btn-opcion--recuperacion" [disabled]="eliminando()" (click)="confirmarEliminar(true)">
+          @if (eliminando()) {
+          <span class="spinner-small"></span>
+          } @else {
+          <span class="material-symbols-rounded">refresh</span>
+          }
+          <div class="opcion-texto">
+            <strong>Cancelar con recuperación</strong>
+            <span>Se generará una recuperación para el usuario</span>
+          </div>
+        </button>
+
+        <button class="btn-opcion btn-opcion--permanente" [disabled]="eliminando()" (click)="confirmarEliminar(false)">
+          @if (eliminando()) {
+          <span class="spinner-small"></span>
+          } @else {
+          <span class="material-symbols-rounded">delete_forever</span>
+          }
+          <div class="opcion-texto">
+            <strong>Eliminar permanentemente</strong>
+            <span>No se generará recuperación</span>
+          </div>
+        </button>
       </div>
     </div>
 
     <div class="modal-footer">
-      <button class="btn-cancelar" (click)="cerrarModalEliminar()">Cancelar</button>
-      <button class="btn-eliminar-confirmar" (click)="confirmarEliminar()" [disabled]="eliminando()">
-        @if (eliminando()) {
-        <span class="spinner-small"></span>
-        } @else {
-        <span class="material-symbols-rounded">delete</span>
-        }
-        {{ eliminando() ? 'Eliminando...' : 'Sí, eliminar' }}
+      <button class="btn-cancelar" (click)="cerrarModalEliminar()" [disabled]="eliminando()">
+        Volver
       </button>
     </div>
   </div>

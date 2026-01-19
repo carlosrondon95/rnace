@@ -697,3 +697,134 @@
     grid-template-columns: 1fr;
   }
 }
+
+// ============ CANCELACIÓN CON OPCIONES ============
+
+.modal-cancelar-admin {
+  max-width: 420px;
+}
+
+.info-reserva-cancelar {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md, 10px);
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+
+  p {
+    margin: 0;
+  }
+
+  .reserva-info-line {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(235, 233, 227, 0.9);
+
+    .material-symbols-rounded {
+      font-size: 1.1rem;
+      color: rgba(235, 233, 227, 0.5);
+    }
+
+    &:first-child {
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+
+    &:last-child {
+      font-size: 0.9rem;
+      color: rgba(235, 233, 227, 0.7);
+    }
+  }
+}
+
+.opciones-cancelacion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.opciones-titulo {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #ebe9e3;
+  margin-bottom: 0.25rem;
+}
+
+.btn-opcion {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+
+  .material-symbols-rounded {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .opcion-texto {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    span {
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+  }
+
+  &--recuperacion {
+    border-color: #60a5fa;
+    color: #60a5fa;
+
+    .opcion-texto strong {
+      color: #60a5fa;
+    }
+
+    .opcion-texto span {
+      color: rgba(235, 233, 227, 0.6);
+    }
+
+    &:hover:not(:disabled) {
+      background: rgba(96, 165, 250, 0.15);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(96, 165, 250, 0.2);
+    }
+  }
+
+  &--permanente {
+    border-color: #ef4444;
+    color: #ef4444;
+
+    .opcion-texto strong {
+      color: #ef4444;
+    }
+
+    .opcion-texto span {
+      color: rgba(235, 233, 227, 0.6);
+    }
+
+    &:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.15);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+}

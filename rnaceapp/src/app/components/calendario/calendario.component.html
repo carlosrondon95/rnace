@@ -325,6 +325,11 @@
                       <span class="modalidad-nombre">{{ reserva.modalidad | titlecase }}</span>
                     </div>
                   </div>
+
+                  <button class="btn-cancelar-admin" title="Cancelar reserva"
+                    (click)="abrirModalCancelarAdmin(reserva)">
+                    <span class="material-symbols-rounded">cancel</span>
+                  </button>
                 </div>
                 }
               </div>
@@ -342,7 +347,7 @@
           <!-- VISTA CLIENTE -->
 
           @if (modoCambio()) {
-          <!-- MODO CAMBIO: Muestra todas las sesiones disponibles del mes -->
+          <!-- MODO CAMBIO: Mini-calendario de días -->
           <div class="modo-cambio-header">
             <button class="btn-volver-modal" (click)="cancelarModoCambio()">
               <span class="material-symbols-rounded">arrow_back</span>
@@ -354,22 +359,75 @@
             </div>
           </div>
 
-          <h3 class="section-title">Selecciona el nuevo horario</h3>
-
           @if (cargandoCambio()) {
           <div class="loading-state">
             <span class="spinner-small"></span>
             <p>Cargando sesiones disponibles...</p>
           </div>
-          } @else if (sesionesDisponiblesCambio().length > 0) {
+          } @else if (diasConSesionesCambio().length > 0) {
+
+          @if (!diaCambioSeleccionado()) {
+          <!-- PASO 1: Mini-calendario de días con estructura semanal -->
+          <h3 class="section-title">Selecciona un día</h3>
+          <div class="mini-calendario-grid">
+            <!-- Cabecera de días de la semana -->
+            <div class="mini-calendario-header">
+              <span class="dia-header-mini">Lun</span>
+              <span class="dia-header-mini">Mar</span>
+              <span class="dia-header-mini">Mié</span>
+              <span class="dia-header-mini">Jue</span>
+              <span class="dia-header-mini">Vie</span>
+            </div>
+            <!-- Filas por semana -->
+            @for (semana of semanasCalendarioCambio(); track $index) {
+            <div class="mini-calendario-semana">
+              @for (dia of semana; track dia?.fecha ?? $index) {
+              @if (dia) {
+              <button type="button" class="dia-cambio-btn" [class.dia-festivo]="dia.esFestivo"
+                [class.dia-pasado]="dia.esPasado" [class.dia-actual]="dia.esMismodia"
+                [disabled]="dia.esFestivo || dia.esPasado" (click)="seleccionarDiaCambio(dia.fecha)">
+                <span class="dia-numero">{{ dia.dia }}</span>
+                @if (dia.esFestivo) {
+                <span class="dia-estado dia-estado--festivo">
+                  <span class="material-symbols-rounded">block</span>
+                </span>
+                }
+              </button>
+              } @else {
+              <div class="dia-cambio-placeholder"></div>
+              }
+              }
+            </div>
+            }
+          </div>
+          <div class="leyenda-cambio">
+            <span class="leyenda-item-cambio">
+              <span class="leyenda-color leyenda-festivo-cambio"></span>
+              Festivo (bloqueado)
+            </span>
+          </div>
+          } @else {
+          <!-- PASO 2: Turnos del día seleccionado -->
+          <div class="cambio-dia-header">
+            <button class="btn-volver-modal" (click)="volverAMiniCalendario()">
+              <span class="material-symbols-rounded">arrow_back</span>
+              Ver otros días
+            </button>
+            <span class="dia-seleccionado-badge">{{ formatearFechaCambio(diaCambioSeleccionado()!) }}</span>
+          </div>
+
+          <h3 class="section-title">Turnos disponibles</h3>
           <div class="lista-cambio-sesiones">
-            @for (sesion of sesionesDisponiblesCambio(); track sesion.id) {
+            @for (sesion of sesionesCambioDia(); track sesion.id) {
             <div class="cambio-sesion-card" [class.sesion-llena]="sesion.plazas_disponibles === 0"
               [class.es-misma-sesion]="sesion.id === reservaACambiar()!.sesion_id">
 
               <div class="cambio-sesion-info">
-                <div class="cambio-fecha">{{ formatearFechaCambio(sesion.fecha!) }}</div>
                 <div class="cambio-hora">{{ sesion.hora }}</div>
+                <div class="cambio-plazas" [class.plazas-disponibles]="sesion.plazas_disponibles > 0">
+                  {{ sesion.plazas_disponibles }} plaza{{ sesion.plazas_disponibles !== 1 ? 's' : '' }} libre{{
+                  sesion.plazas_disponibles !== 1 ? 's' : '' }}
+                </div>
               </div>
 
               <div class="cambio-sesion-acciones">
@@ -393,6 +451,8 @@
             </div>
             }
           </div>
+          }
+
           } @else {
           <div class="empty-state-modal">
             <span class="material-symbols-rounded">event_busy</span>
@@ -401,8 +461,8 @@
           }
 
           } @else {
-          <!-- VISTA NORMAL: Sesiones del día -->
-          <h3 class="section-title">Sesiones del día</h3>
+          <!-- VISTA NORMAL: Solo la clase del cliente -->
+          <h3 class="section-title">Tu clase</h3>
           @if (sesionesFiltradasPorGrupo().length > 0) {
           <div class="lista-reservas-detalle">
             @for (sesion of sesionesFiltradasPorGrupo(); track sesion.id) {
@@ -469,7 +529,7 @@
           </div>
           } @else {
           <div class="empty-state-modal">
-            <p class="no-reservas">No hay sesiones programadas para este día.</p>
+            <p class="no-reservas">No tienes clase reservada este día.</p>
           </div>
           }
           }
@@ -511,6 +571,70 @@
         <button class="btn-cancelar" (click)="cancelarCierre()">Cancelar</button>
         <button class="btn-confirmar-peligro" (click)="confirmarCierreConConflictos()">
           Entendido, cerrar día
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Modal Cancelar Reserva Admin -->
+  @if (mostrarModalCancelarAdmin()) {
+  <div class="modal-overlay modal-danger" (click)="cerrarModalCancelarAdmin()">
+    <div class="modal-confirmacion modal-cancelar-admin" (click)="$event.stopPropagation()">
+      <header class="modal-header header-danger">
+        <span class="material-symbols-rounded icon-warn">warning</span>
+        <h3>Cancelar Reserva</h3>
+        <button class="btn-cerrar" (click)="cerrarModalCancelarAdmin()" aria-label="Cerrar">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <div class="info-reserva-cancelar">
+          <p class="reserva-usuario">
+            <span class="material-symbols-rounded">person</span>
+            {{ reservaACancelarAdmin()?.usuario_nombre }}
+          </p>
+          <p class="reserva-detalles">
+            <span class="material-symbols-rounded">schedule</span>
+            {{ reservaACancelarAdmin()?.hora }} - {{ reservaACancelarAdmin()?.modalidad | titlecase }}
+          </p>
+        </div>
+
+        <div class="opciones-cancelacion">
+          <p class="opciones-titulo">¿Cómo deseas proceder?</p>
+
+          <button class="btn-opcion btn-opcion--recuperacion" [disabled]="cancelandoAdmin()"
+            (click)="cancelarReservaAdmin(true)">
+            @if (cancelandoAdmin()) {
+            <span class="spinner-small"></span>
+            } @else {
+            <span class="material-symbols-rounded">refresh</span>
+            }
+            <div class="opcion-texto">
+              <strong>Cancelar con recuperación</strong>
+              <span>Se generará una recuperación para el usuario</span>
+            </div>
+          </button>
+
+          <button class="btn-opcion btn-opcion--permanente" [disabled]="cancelandoAdmin()"
+            (click)="cancelarReservaAdmin(false)">
+            @if (cancelandoAdmin()) {
+            <span class="spinner-small"></span>
+            } @else {
+            <span class="material-symbols-rounded">delete_forever</span>
+            }
+            <div class="opcion-texto">
+              <strong>Eliminar permanentemente</strong>
+              <span>No se generará recuperación</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancelar" (click)="cerrarModalCancelarAdmin()" [disabled]="cancelandoAdmin()">
+          Volver
         </button>
       </div>
     </div>
