@@ -306,8 +306,18 @@ export class NotificacionesComponent implements OnInit {
   }
 
   ejecutarAccion(notificacion: Notificacion) {
+    this.cerrarModal();
+
+    // Para notificaciones de plaza disponible, navegar al calendario con el sesion_id
+    if ((notificacion.tipo === 'plaza_disponible' || notificacion.tipo === 'lista_espera') && notificacion.sesion_id) {
+      this.router.navigate(['/calendario'], {
+        queryParams: { sesion: notificacion.sesion_id }
+      });
+      return;
+    }
+
+    // Para otras notificaciones con accion_url
     if (notificacion.accion_url) {
-      this.cerrarModal();
       this.router.navigateByUrl(notificacion.accion_url);
     }
   }

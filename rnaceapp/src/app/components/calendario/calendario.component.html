@@ -291,10 +291,16 @@
               <span class="material-symbols-rounded">arrow_back</span>
               Volver a grupos
             </button>
-            <span class="filtro-actual bubble" [class.bubble-focus]="tipoGrupoSeleccionado() === 'focus'"
-              [class.bubble-reducido]="tipoGrupoSeleccionado() === 'reducido'">
-              {{ tipoGrupoSeleccionado() | titlecase }}
-            </span>
+            <div class="header-nav-right">
+              <span class="filtro-actual bubble" [class.bubble-focus]="tipoGrupoSeleccionado() === 'focus'"
+                [class.bubble-reducido]="tipoGrupoSeleccionado() === 'reducido'">
+                {{ tipoGrupoSeleccionado() | titlecase }}
+              </span>
+              <button class="btn-agregar-usuario" (click)="abrirModalAgregarUsuario()">
+                <span class="material-symbols-rounded">person_add</span>
+                Añadir
+              </button>
+            </div>
           </div>
 
           @if (reservasAgrupadasPorHora().length > 0) {
@@ -635,6 +641,196 @@
       <div class="modal-footer">
         <button class="btn-cancelar" (click)="cerrarModalCancelarAdmin()" [disabled]="cancelandoAdmin()">
           Volver
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Modal Agregar Usuario a Sesión -->
+  @if (mostrarModalAgregarUsuario()) {
+  <div class="modal-overlay" (click)="cerrarModalAgregarUsuario()">
+    <div class="modal-confirmacion modal-agregar-usuario" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <span class="material-symbols-rounded icon-add">person_add</span>
+        <h3>Añadir Cliente</h3>
+        <button class="btn-cerrar" (click)="cerrarModalAgregarUsuario()" aria-label="Cerrar">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </header>
+
+      <div class="modal-body">
+        @if (cargandoUsuariosAgregar()) {
+        <div class="loading-inline">
+          <span class="spinner-small"></span>
+          <span>Cargando...</span>
+        </div>
+        } @else {
+        <!-- Selector de Sesión (Hora) -->
+        <div class="form-group-modal">
+          <label>Selecciona la hora:</label>
+          <div class="sesiones-selector">
+            @for (sesion of sesionesDelDiaAdmin(); track sesion.id) {
+            <button class="sesion-chip" [class.selected]="sesionSeleccionadaParaAgregar() === sesion.id"
+              [class.llena]="sesion.ocupadas >= sesion.capacidad" [disabled]="sesion.ocupadas >= sesion.capacidad"
+              (click)="sesionSeleccionadaParaAgregar.set(sesion.id); usuarioSeleccionadoParaAgregar.set(null)">
+              <span class="hora">{{ sesion.hora }}</span>
+              <span class="ocupacion">{{ sesion.ocupadas }}/{{ sesion.capacidad }}</span>
+            </button>
+            } @empty {
+            <p class="no-data">No hay sesiones disponibles para este día</p>
+            }
+          </div>
+        </div>
+
+        <!-- Selector de Usuario -->
+        @if (sesionSeleccionadaParaAgregar()) {
+        <div class="form-group-modal">
+          <label>Selecciona el cliente:</label>
+          <div class="usuarios-lista-agregar">
+            @for (usuario of usuariosFiltradosParaSesion(); track usuario.id) {
+            <button class="usuario-chip" [class.selected]="usuarioSeleccionadoParaAgregar() === usuario.id"
+              (click)="usuarioSeleccionadoParaAgregar.set(usuario.id)">
+              <span class="usuario-nombre">{{ usuario.nombre }}</span>
+              @if (usuario.telefono) {
+              <span class="usuario-telefono">{{ usuario.telefono }}</span>
+              }
+            </button>
+            } @empty {
+            <p class="no-data">No hay clientes disponibles para esta sesión</p>
+            }
+          </div>
+        </div>
+        }
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancelar" (click)="cerrarModalAgregarUsuario()" [disabled]="agregandoUsuario()">
+          Cancelar
+        </button>
+        <button class="btn-confirmar"
+          [disabled]="!sesionSeleccionadaParaAgregar() || !usuarioSeleccionadoParaAgregar() || agregandoUsuario()"
+          (click)="agregarUsuarioASesion()">
+          @if (agregandoUsuario()) {
+          <span class="spinner-small"></span>
+          Añadiendo...
+          } @else {
+          <span class="material-symbols-rounded">check</span>
+          Añadir
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Modal Reclamar Plaza de Lista de Espera -->
+  @if (mostrarModalReclamarPlaza() && sesionReclamar(); as sesion) {
+  <div class="modal-overlay" (click)="cerrarModalReclamarPlaza()">
+    <div class="modal-confirmacion modal-reclamar-plaza" (click)="$event.stopPropagation()">
+      <header class="modal-header header-success">
+        <span class="material-symbols-rounded icon-success">celebration</span>
+        <h3>¡Plaza Disponible!</h3>
+        <button class="btn-cerrar" (click)="cerrarModalReclamarPlaza()" aria-label="Cerrar">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <div class="info-sesion-reclamar">
+          <p class="sesion-fecha">
+            <span class="material-symbols-rounded">event</span>
+            {{ sesion.fecha | date:'EEEE d MMMM':'':'es' | titlecase }}
+          </p>
+          <p class="sesion-hora">
+            <span class="material-symbols-rounded">schedule</span>
+            {{ sesion.hora }} - {{ sesion.modalidad | titlecase }}
+          </p>
+        </div>
+
+        <div class="opciones-reclamar">
+          <p class="opciones-titulo">¿Cómo quieres reclamar esta plaza?</p>
+
+          <!-- Opción 1: Cambiar reserva existente -->
+          @if (misReservasParaCambio().length > 0) {
+          <button class="btn-opcion-reclamar" [class.selected]="opcionReclamarSeleccionada() === 'cambiar'"
+            (click)="opcionReclamarSeleccionada.set('cambiar'); recuperacionSeleccionada.set(null)">
+            <span class="material-symbols-rounded">swap_horiz</span>
+            <div class="opcion-texto">
+              <strong>Cambiar una reserva existente</strong>
+              <span>Intercambia una de tus clases por esta</span>
+            </div>
+          </button>
+
+          @if (opcionReclamarSeleccionada() === 'cambiar') {
+          <div class="sub-opciones animate-fade-in">
+            <p class="sub-titulo">Selecciona la reserva a cambiar:</p>
+            <div class="reservas-lista-cambio">
+              @for (reserva of misReservasParaCambio(); track reserva.id) {
+              <button class="reserva-cambio-chip" [class.selected]="reservaSeleccionadaParaCambio() === reserva.id"
+                (click)="reservaSeleccionadaParaCambio.set(reserva.id)">
+                <span class="reserva-fecha">{{ reserva.fecha | date:'EEE d MMM':'':'es' }}</span>
+                <span class="reserva-hora">{{ reserva.hora }}</span>
+              </button>
+              }
+            </div>
+          </div>
+          }
+          }
+
+          <!-- Opción 2: Usar recuperación -->
+          @if (recuperacionesDisponibles().length > 0) {
+          <button class="btn-opcion-reclamar" [class.selected]="opcionReclamarSeleccionada() === 'recuperacion'"
+            (click)="opcionReclamarSeleccionada.set('recuperacion'); reservaSeleccionadaParaCambio.set(null)">
+            <span class="material-symbols-rounded">replay</span>
+            <div class="opcion-texto">
+              <strong>Usar una recuperación</strong>
+              <span>Tienes {{ recuperacionesDisponibles().length }} recuperación(es) disponible(s)</span>
+            </div>
+          </button>
+
+          @if (opcionReclamarSeleccionada() === 'recuperacion') {
+          <div class="sub-opciones animate-fade-in">
+            <p class="sub-titulo">Selecciona la recuperación:</p>
+            <div class="recuperaciones-lista">
+              @for (recup of recuperacionesDisponibles(); track recup.id) {
+              <button class="recuperacion-chip" [class.selected]="recuperacionSeleccionada() === recup.id"
+                (click)="recuperacionSeleccionada.set(recup.id)">
+                <span class="recup-modalidad">{{ recup.modalidad | titlecase }}</span>
+                <span class="recup-origen">de {{ recup.mes_origen }}/{{ recup.anio_origen }}</span>
+              </button>
+              }
+            </div>
+          </div>
+          }
+          }
+
+          <!-- Mensaje si no hay opciones -->
+          @if (misReservasParaCambio().length === 0 && recuperacionesDisponibles().length === 0) {
+          <div class="no-opciones">
+            <span class="material-symbols-rounded">info</span>
+            <p>No tienes reservas para cambiar ni recuperaciones disponibles para esta modalidad.</p>
+          </div>
+          }
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancelar" (click)="cerrarModalReclamarPlaza()" [disabled]="reclamandoPlaza()">
+          Cancelar
+        </button>
+        <button class="btn-confirmar btn-success" [disabled]="!opcionReclamarSeleccionada() || 
+                           (opcionReclamarSeleccionada() === 'cambiar' && !reservaSeleccionadaParaCambio()) ||
+                           (opcionReclamarSeleccionada() === 'recuperacion' && !recuperacionSeleccionada()) ||
+                           reclamandoPlaza()" (click)="confirmarReclamarPlaza()">
+          @if (reclamandoPlaza()) {
+          <span class="spinner-small"></span>
+          Reclamando...
+          } @else {
+          <span class="material-symbols-rounded">check</span>
+          Reclamar Plaza
+          }
         </button>
       </div>
     </div>
