@@ -178,6 +178,25 @@ export class CalendarioComponent implements OnInit {
   reservaACancelarAdmin = signal<ReservaCalendario | null>(null);
   cancelandoAdmin = signal(false);
 
+  // === AGREGAR USUARIO A SESIÓN (ADMIN) ===
+  mostrarModalAgregarUsuario = signal(false);
+  sesionesDelDiaAdmin = signal<{ id: number; hora: string; modalidad: string; capacidad: number; ocupadas: number }[]>([]);
+  usuariosDisponiblesParaAgregar = signal<{ id: string; nombre: string; telefono: string }[]>([]);
+  sesionSeleccionadaParaAgregar = signal<number | null>(null);
+  usuarioSeleccionadoParaAgregar = signal<string | null>(null);
+  agregandoUsuario = signal(false);
+  cargandoUsuariosAgregar = signal(false);
+
+  // === RECLAMAR PLAZA DE LISTA DE ESPERA ===
+  mostrarModalReclamarPlaza = signal(false);
+  sesionReclamar = signal<{ id: number; fecha: string; hora: string; modalidad: string } | null>(null);
+  misReservasParaCambio = signal<{ id: number; sesion_id: number; fecha: string; hora: string; modalidad: string }[]>([]);
+  recuperacionesDisponibles = signal<{ id: number; modalidad: string; mes_origen: number; anio_origen: number }[]>([]);
+  reclamandoPlaza = signal(false);
+  opcionReclamarSeleccionada = signal<'cambiar' | 'recuperacion' | null>(null);
+  reservaSeleccionadaParaCambio = signal<number | null>(null);
+  recuperacionSeleccionada = signal<number | null>(null);
+
   // Computed: Sesiones del día seleccionado en modo cambio
   sesionesCambioDia = computed(() => {
     const diaSelec = this.diaCambioSeleccionado();
@@ -582,41 +601,193 @@ export class CalendarioComponent implements OnInit {
 
   async abrirDiaDeSesion(sesionId: number) {
     try {
-      // Obtener fecha de la sesión
-      const { data, error } = await supabase()
+      // Obtener detalles de la sesión
+      const { data: sesion, error } = await supabase()
         .from('sesiones')
-        .select('fecha')
+        .select('id, fecha, hora, modalidad')
         .eq('id', sesionId)
         .single();
 
-      if (error || !data) return;
+      if (error || !sesion) return;
 
-      const fechaSesion = data.fecha;
+      const fechaSesion = sesion.fecha;
       const fechaDate = new Date(fechaSesion);
 
       // Si la sesión es de otro mes, cambiar mes
       const anioSesion = fechaDate.getFullYear();
       const mesSesion = fechaDate.getMonth() + 1;
 
-      // Asumimos que podemos cambiar el mes directamente
       if (anioSesion !== this.anioActual() || mesSesion !== this.mesActual()) {
         this.anioActual.set(anioSesion);
         this.mesActual.set(mesSesion);
         await this.cargarCalendario();
       }
 
-      // Encontrar día en el calendario actual
-      // (Esperamos un poco a que se actualice el signal de diasCalendario si cambiamos de mes)
-      // Aunque como cargarCalendario es await, debería estar listo
-      const diaEncontrado = this.diasCalendario().find(d => d.fecha === fechaSesion);
-
-      if (diaEncontrado) {
-        // Abrir el detalle directamente
-        await this.onClickDia(diaEncontrado);
+      // Si es cliente (no admin), abrir el modal de reclamar plaza
+      if (!this.esAdmin()) {
+        await this.abrirModalReclamarPlaza(sesion);
+      } else {
+        // Para admin, solo abrir el día
+        const diaEncontrado = this.diasCalendario().find(d => d.fecha === fechaSesion);
+        if (diaEncontrado) {
+          await this.onClickDia(diaEncontrado);
+        }
       }
-
     } catch (err) {
       console.warn('Error al intentar abrir sesión directa:', err);
+    }
+  }
+
+  async abrirModalReclamarPlaza(sesion: { id: number; fecha: string; hora: string; modalidad: string }) {
+    const uid = this.userId();
+    if (!uid) return;
+
+    this.sesionReclamar.set({
+      id: sesion.id,
+      fecha: sesion.fecha,
+      hora: sesion.hora.slice(0, 5),
+      modalidad: sesion.modalidad
+    });
+    this.mostrarModalReclamarPlaza.set(true);
+    this.opcionReclamarSeleccionada.set(null);
+    this.reservaSeleccionadaParaCambio.set(null);
+    this.recuperacionSeleccionada.set(null);
+
+    try {
+      // Cargar reservas futuras del usuario para posible cambio
+      const hoy = new Date().toISOString().split('T')[0];
+      const { data: reservas } = await supabase()
+        .from('reservas')
+        .select('id, sesion_id, sesiones(fecha, hora, modalidad)')
+        .eq('usuario_id', uid)
+        .eq('estado', 'activa')
+        .gte('sesiones.fecha', hoy);
+
+      const reservasMapeadas = (reservas || [])
+        .filter((r: any) => r.sesiones)
+        .map((r: any) => {
+          const s = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
+          return {
+            id: r.id,
+            sesion_id: r.sesion_id,
+            fecha: s.fecha,
+            hora: s.hora.slice(0, 5),
+            modalidad: s.modalidad
+          };
+        })
+        .sort((a: any, b: any) => a.fecha.localeCompare(b.fecha));
+
+      this.misReservasParaCambio.set(reservasMapeadas);
+
+      // Cargar recuperaciones disponibles del usuario
+      const mesActual = new Date().getMonth() + 1;
+      const anioActual = new Date().getFullYear();
+
+      const { data: recuperaciones } = await supabase()
+        .from('recuperaciones')
+        .select('id, modalidad, mes_origen, anio_origen')
+        .eq('usuario_id', uid)
+        .eq('estado', 'disponible')
+        .or(`modalidad.eq.${sesion.modalidad},modalidad.eq.hibrido`);
+
+      // Filtrar por mes válido (mes_limite >= mes actual)
+      const recupValidas = (recuperaciones || []).filter((rec: any) => {
+        // Simple check - recovery is valid if it's from current month or later
+        if (rec.anio_origen > anioActual) return true;
+        if (rec.anio_origen === anioActual && rec.mes_origen >= mesActual - 1) return true;
+        return false;
+      });
+
+      this.recuperacionesDisponibles.set(recupValidas);
+
+    } catch (err) {
+      console.error('Error cargando datos para reclamar plaza:', err);
+    }
+  }
+
+  cerrarModalReclamarPlaza() {
+    this.mostrarModalReclamarPlaza.set(false);
+    this.sesionReclamar.set(null);
+    this.misReservasParaCambio.set([]);
+    this.recuperacionesDisponibles.set([]);
+    this.opcionReclamarSeleccionada.set(null);
+    this.reservaSeleccionadaParaCambio.set(null);
+    this.recuperacionSeleccionada.set(null);
+  }
+
+  async confirmarReclamarPlaza() {
+    const sesion = this.sesionReclamar();
+    const opcion = this.opcionReclamarSeleccionada();
+    const uid = this.userId();
+
+    if (!sesion || !opcion || !uid) {
+      this.error.set('Selecciona una opción');
+      return;
+    }
+
+    this.reclamandoPlaza.set(true);
+    this.error.set(null);
+
+    try {
+      if (opcion === 'cambiar') {
+        const reservaId = this.reservaSeleccionadaParaCambio();
+        if (!reservaId) {
+          this.error.set('Selecciona una reserva para cambiar');
+          return;
+        }
+
+        // Usar la función cambiar_turno existente
+        const { data, error } = await supabase().rpc('cambiar_turno', {
+          p_usuario_id: uid,
+          p_reserva_id: reservaId,
+          p_nueva_sesion_id: sesion.id
+        });
+
+        if (error) throw error;
+        if (data && data[0]?.ok) {
+          this.mensajeExito.set('¡Plaza reclamada! Tu reserva ha sido cambiada.');
+          setTimeout(() => this.mensajeExito.set(null), 4000);
+          this.cerrarModalReclamarPlaza();
+          await this.cargarCalendario();
+        } else {
+          this.error.set(data?.[0]?.mensaje || 'Error al cambiar la reserva');
+        }
+      } else if (opcion === 'recuperacion') {
+        const recuperacionId = this.recuperacionSeleccionada();
+        if (!recuperacionId) {
+          this.error.set('Selecciona una recuperación');
+          return;
+        }
+
+        // Usar la función usar_recuperacion existente
+        const { data, error } = await supabase().rpc('usar_recuperacion', {
+          p_usuario_id: uid,
+          p_recuperacion_id: recuperacionId,
+          p_sesion_id: sesion.id
+        });
+
+        if (error) throw error;
+        if (data && data[0]?.ok) {
+          this.mensajeExito.set('¡Plaza reclamada con recuperación!');
+          setTimeout(() => this.mensajeExito.set(null), 4000);
+          this.cerrarModalReclamarPlaza();
+          await this.cargarCalendario();
+        } else {
+          this.error.set(data?.[0]?.mensaje || 'Error al usar la recuperación');
+        }
+      }
+
+      // Quitar de lista de espera ya que reclamó la plaza
+      await supabase().rpc('quitar_lista_espera', {
+        p_usuario_id: uid,
+        p_sesion_id: sesion.id
+      });
+
+    } catch (err: any) {
+      console.error('Error:', err);
+      this.error.set(err.message || 'Error al reclamar la plaza');
+    } finally {
+      this.reclamandoPlaza.set(false);
     }
   }
 
@@ -1764,6 +1935,7 @@ export class CalendarioComponent implements OnInit {
 
       if (data && data.length > 0 && data[0].ok) {
         this.mensajeExito.set(data[0].mensaje);
+        setTimeout(() => this.mensajeExito.set(null), 3000);
         this.cerrarModalCancelarAdmin();
         // Recargar calendario para reflejar los cambios
         await this.cargarCalendario();
@@ -1777,6 +1949,185 @@ export class CalendarioComponent implements OnInit {
       this.error.set('Error inesperado al cancelar la reserva');
     } finally {
       this.cancelandoAdmin.set(false);
+    }
+  }
+
+  // === AGREGAR USUARIO A SESIÓN (ADMIN) ===
+  async abrirModalAgregarUsuario() {
+    const dia = this.diaSeleccionado();
+    const tipoGrupo = this.tipoGrupoSeleccionado();
+    if (!dia || !tipoGrupo) return;
+
+    this.error.set(null);
+    this.cargandoUsuariosAgregar.set(true);
+    this.mostrarModalAgregarUsuario.set(true);
+    this.sesionSeleccionadaParaAgregar.set(null);
+    this.usuarioSeleccionadoParaAgregar.set(null);
+
+    try {
+      // 1. Cargar sesiones del día para el tipo de grupo seleccionado
+      const { data: sesiones, error: sesError } = await supabase()
+        .from('sesiones')
+        .select('id, hora, modalidad, capacidad')
+        .eq('fecha', dia.fecha)
+        .eq('modalidad', tipoGrupo)
+        .eq('cancelada', false)
+        .order('hora');
+
+      if (sesError) throw sesError;
+
+      // 2. Obtener ocupación de cada sesión
+      const sesionIds = sesiones?.map(s => s.id) || [];
+      let ocupacionMap = new Map<number, number>();
+
+      if (sesionIds.length > 0) {
+        const { data: reservas } = await supabase()
+          .from('reservas')
+          .select('sesion_id')
+          .in('sesion_id', sesionIds)
+          .eq('estado', 'activa');
+
+        if (reservas) {
+          for (const r of reservas) {
+            ocupacionMap.set(r.sesion_id, (ocupacionMap.get(r.sesion_id) || 0) + 1);
+          }
+        }
+      }
+
+      this.sesionesDelDiaAdmin.set((sesiones || []).map(s => ({
+        id: s.id,
+        hora: s.hora.slice(0, 5),
+        modalidad: s.modalidad,
+        capacidad: s.capacidad,
+        ocupadas: ocupacionMap.get(s.id) || 0
+      })));
+
+      // 3. Cargar usuarios del grupo correspondiente
+      await this.cargarUsuariosParaAgregar(tipoGrupo);
+    } catch (err) {
+      console.error('Error:', err);
+      this.error.set('Error al cargar datos para agregar usuario');
+    } finally {
+      this.cargandoUsuariosAgregar.set(false);
+    }
+  }
+
+  async cargarUsuariosParaAgregar(modalidad: 'focus' | 'reducido') {
+    try {
+      // Buscar usuarios cuyo plan es del tipo correspondiente o híbrido
+      const { data: planes, error: planError } = await supabase()
+        .from('plan_usuario')
+        .select('usuario_id, tipo_grupo')
+        .eq('activo', true)
+        .or(`tipo_grupo.eq.${modalidad},tipo_grupo.eq.hibrido`);
+
+      if (planError) throw planError;
+      if (!planes || planes.length === 0) {
+        this.usuariosDisponiblesParaAgregar.set([]);
+        return;
+      }
+
+      const userIds = planes.map(p => p.usuario_id);
+
+      // Obtener info de usuarios
+      const { data: usuarios, error: usrError } = await supabase()
+        .from('usuarios')
+        .select('id, nombre, telefono')
+        .in('id', userIds)
+        .eq('activo', true)
+        .order('nombre');
+
+      if (usrError) throw usrError;
+
+      this.usuariosDisponiblesParaAgregar.set(usuarios || []);
+    } catch (err) {
+      console.error('Error cargando usuarios:', err);
+      this.usuariosDisponiblesParaAgregar.set([]);
+    }
+  }
+
+  cerrarModalAgregarUsuario() {
+    this.mostrarModalAgregarUsuario.set(false);
+    this.sesionSeleccionadaParaAgregar.set(null);
+    this.usuarioSeleccionadoParaAgregar.set(null);
+    this.usuariosDisponiblesParaAgregar.set([]);
+    this.sesionesDelDiaAdmin.set([]);
+  }
+
+  // Usuarios filtrados para la sesión seleccionada (excluye los que ya tienen reserva)
+  usuariosFiltradosParaSesion = computed(() => {
+    const sesionId = this.sesionSeleccionadaParaAgregar();
+    const usuarios = this.usuariosDisponiblesParaAgregar();
+    const dia = this.diaSeleccionado();
+
+    if (!sesionId || !dia) return usuarios;
+
+    // Obtener usuarios que ya tienen reserva en esta sesión
+    const usuariosEnSesion = new Set(
+      dia.reservas
+        .filter(r => r.sesion_id === sesionId)
+        .map(r => {
+          // Necesitamos el usuario_id pero solo tenemos nombre
+          // Vamos a excluir por nombre como aproximación
+          return r.usuario_nombre;
+        })
+    );
+
+    return usuarios.filter(u => !usuariosEnSesion.has(u.nombre));
+  });
+
+  async agregarUsuarioASesion() {
+    const sesionId = this.sesionSeleccionadaParaAgregar();
+    const usuarioId = this.usuarioSeleccionadoParaAgregar();
+
+    if (!sesionId || !usuarioId) {
+      this.error.set('Selecciona una sesión y un usuario');
+      return;
+    }
+
+    this.agregandoUsuario.set(true);
+    this.error.set(null);
+
+    try {
+      // Verificar que no exista ya una reserva activa
+      const { data: existente } = await supabase()
+        .from('reservas')
+        .select('id')
+        .eq('sesion_id', sesionId)
+        .eq('usuario_id', usuarioId)
+        .eq('estado', 'activa')
+        .maybeSingle();
+
+      if (existente) {
+        this.error.set('Este usuario ya tiene una reserva en esta sesión');
+        return;
+      }
+
+      // Crear la reserva
+      const { error: insertError } = await supabase()
+        .from('reservas')
+        .insert({
+          sesion_id: sesionId,
+          usuario_id: usuarioId,
+          estado: 'activa',
+          es_recuperacion: false,
+          es_desde_horario_fijo: false
+        });
+
+      if (insertError) throw insertError;
+
+      this.mensajeExito.set('Usuario añadido correctamente a la sesión');
+      setTimeout(() => this.mensajeExito.set(null), 3000);
+      this.cerrarModalAgregarUsuario();
+
+      // Recargar calendario para reflejar cambios
+      await this.cargarCalendario();
+      this.diaSeleccionado.set(null);
+    } catch (err) {
+      console.error('Error:', err);
+      this.error.set('Error al añadir usuario a la sesión');
+    } finally {
+      this.agregandoUsuario.set(false);
     }
   }
 

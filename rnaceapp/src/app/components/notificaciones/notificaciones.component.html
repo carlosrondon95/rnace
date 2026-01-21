@@ -1,153 +1,152 @@
 <!-- src/app/components/notificaciones/notificaciones.component.html -->
 <main class="page-container">
-   <!-- Wrapper removed, page-container handles layout -->
-    <!-- Header -->
-    <header class="page-header">
-      <button type="button" class="btn-volver" (click)="volver()" aria-label="Volver al dashboard">
-        <span class="material-symbols-rounded">arrow_back</span>
-        Dashboard
-      </button>
-      <div class="header-content">
-        <h1>Notificaciones</h1>
-        @if (noLeidas() > 0) {
-        <span class="badge-no-leidas">{{ noLeidas() }}</span>
+  <!-- Wrapper removed, page-container handles layout -->
+  <!-- Header -->
+  <header class="page-header">
+    <button type="button" class="btn-volver" (click)="volver()" aria-label="Volver al dashboard">
+      <span class="material-symbols-rounded">arrow_back</span>
+      Dashboard
+    </button>
+    <div class="header-content">
+      <h1>Notificaciones</h1>
+      @if (noLeidas() > 0) {
+      <span class="badge-no-leidas">{{ noLeidas() }}</span>
+      }
+    </div>
+  </header>
+
+  <!-- Acciones admin (separadas del header para móvil) -->
+  <div class="acciones-row">
+    @if (esAdmin()) {
+    <button type="button" class="btn-broadcast" (click)="irAEnviarAviso()" aria-label="Enviar aviso">
+      <span class="material-symbols-rounded">campaign</span>
+      Enviar aviso
+    </button>
+    }
+    @if (notificaciones().length > 0 && noLeidas() > 0) {
+    <button type="button" class="btn-marcar-leidas" (click)="marcarTodasLeidas()" aria-label="Marcar todas como leídas">
+      <span class="material-symbols-rounded">done_all</span>
+      Marcar leídas
+    </button>
+    }
+  </div>
+
+  <!-- Filtros -->
+  @if (notificaciones().length > 0) {
+  <nav class="filtros-nav" aria-label="Filtrar notificaciones">
+    <button type="button" class="filtro-btn" [class.filtro-btn--activo]="filtroActivo() === 'todas'"
+      (click)="cambiarFiltro('todas')">
+      Todas
+      <span class="filtro-count">{{ notificaciones().length }}</span>
+    </button>
+    <button type="button" class="filtro-btn" [class.filtro-btn--activo]="filtroActivo() === 'no_leidas'"
+      (click)="cambiarFiltro('no_leidas')">
+      No leídas
+      @if (noLeidas() > 0) {
+      <span class="filtro-count filtro-count--activo">{{ noLeidas() }}</span>
+      }
+    </button>
+    <button type="button" class="filtro-btn" [class.filtro-btn--activo]="filtroActivo() === 'leidas'"
+      (click)="cambiarFiltro('leidas')">
+      Leídas
+      <span class="filtro-count">{{ leidas() }}</span>
+    </button>
+  </nav>
+  }
+
+  <!-- Filtros por Tipo (Chips) -->
+  @if (notificaciones().length > 0) {
+  <div class="filtros-chips">
+    <button type="button" class="chip" [class.active]="filtroTipo() === 'todos'" (click)="cambiarFiltroTipo('todos')">
+      Todos
+    </button>
+    <button type="button" class="chip" [class.active]="filtroTipo() === 'avisos'" (click)="cambiarFiltroTipo('avisos')">
+      <span class="material-symbols-rounded">campaign</span>
+      Avisos
+    </button>
+    <button type="button" class="chip" [class.active]="filtroTipo() === 'clases'" (click)="cambiarFiltroTipo('clases')">
+      <span class="material-symbols-rounded">fitness_center</span>
+      Clases
+    </button>
+    <button type="button" class="chip" [class.active]="filtroTipo() === 'festivos'"
+      (click)="cambiarFiltroTipo('festivos')">
+      <span class="material-symbols-rounded">event_busy</span>
+      Festivos
+    </button>
+  </div>
+  }
+
+  <!-- Mensajes -->
+  @if (error()) {
+  <div class="mensaje mensaje--error">
+    <span class="material-symbols-rounded">error</span>
+    {{ error() }}
+  </div>
+  }
+
+  @if (mensajeExito()) {
+  <div class="mensaje mensaje--exito">
+    <span class="material-symbols-rounded">check_circle</span>
+    {{ mensajeExito() }}
+  </div>
+  }
+
+  <!-- Contenido -->
+  @if (cargando()) {
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando notificaciones...</p>
+  </div>
+  } @else if (notificaciones().length === 0) {
+  <div class="empty-state">
+    <span class="material-symbols-rounded empty-icon">notifications_off</span>
+    <h3>Sin notificaciones</h3>
+    <p>Cuando tengas nuevas notificaciones aparecerán aquí</p>
+  </div>
+  } @else if (notificacionesFiltradas().length === 0) {
+  <div class="empty-state">
+    <span class="material-symbols-rounded empty-icon">filter_list_off</span>
+    <h3>Sin resultados</h3>
+    <p>No hay notificaciones con el filtro seleccionado</p>
+  </div>
+  } @else {
+  <div class="notificaciones-lista">
+    @for (grupo of notificacionesAgrupadas(); track trackByTitulo($index, grupo)) {
+    <div class="grupo">
+      <h2 class="grupo-titulo">{{ grupo.titulo }}</h2>
+      <div class="grupo-items">
+        @for (notif of grupo.items; track trackById($index, notif)) {
+        <article class="notificacion-item notificacion-item--clickable"
+          [class.notificacion-item--no-leida]="!notif.leida" (click)="onClickNotificacion(notif)"
+          (keydown.enter)="onClickNotificacion(notif)" tabindex="0" role="button"
+          [attr.aria-label]="notif.titulo + '. ' + notif.mensaje">
+          <div class="notificacion-icono" [ngClass]="getClaseTipo(notif.tipo)">
+            <span class="material-symbols-rounded">{{ getIcono(notif.tipo) }}</span>
+          </div>
+
+          <div class="notificacion-contenido">
+            <h3 class="notificacion-titulo">
+              {{ notif.titulo }}
+              @if (!notif.leida) {
+              <span class="punto-nuevo"></span>
+              }
+            </h3>
+            <p class="notificacion-mensaje">{{ notif.mensaje }}</p>
+            <span class="notificacion-tiempo">{{ notif.tiempo_relativo }}</span>
+          </div>
+
+          <div class="notificacion-acciones">
+            <span class="material-symbols-rounded accion-ir" title="Ver detalle">visibility</span>
+            <span class="material-symbols-rounded accion-borrar" (click)="eliminarNotificacion(notif, $event)"
+              title="Eliminar" role="button" tabindex="0">delete</span>
+          </div>
+        </article>
         }
       </div>
-    </header>
-    
-    <!-- Acciones admin (separadas del header para móvil) -->
-    <div class="acciones-row">
-      @if (esAdmin()) {
-      <button type="button" class="btn-broadcast" (click)="irAEnviarAviso()" aria-label="Enviar aviso">
-        <span class="material-symbols-rounded">campaign</span>
-        Enviar aviso
-      </button>
-      }
-      @if (notificaciones().length > 0 && noLeidas() > 0) {
-      <button type="button" class="btn-marcar-leidas" (click)="marcarTodasLeidas()" aria-label="Marcar todas como leídas">
-        <span class="material-symbols-rounded">done_all</span>
-        Marcar leídas
-      </button>
-      }
-    </div>
-
-    <!-- Filtros -->
-    @if (notificaciones().length > 0) {
-    <nav class="filtros-nav" aria-label="Filtrar notificaciones">
-      <button type="button" class="filtro-btn" [class.filtro-btn--activo]="filtroActivo() === 'todas'"
-        (click)="cambiarFiltro('todas')">
-        Todas
-        <span class="filtro-count">{{ notificaciones().length }}</span>
-      </button>
-      <button type="button" class="filtro-btn" [class.filtro-btn--activo]="filtroActivo() === 'no_leidas'"
-        (click)="cambiarFiltro('no_leidas')">
-        No leídas
-        @if (noLeidas() > 0) {
-        <span class="filtro-count filtro-count--activo">{{ noLeidas() }}</span>
-        }
-      </button>
-      <button type="button" class="filtro-btn" [class.filtro-btn--activo]="filtroActivo() === 'leidas'"
-        (click)="cambiarFiltro('leidas')">
-        Leídas
-        <span class="filtro-count">{{ leidas() }}</span>
-      </button>
-    </nav>
-    }
-
-    <!-- Filtros por Tipo (Chips) -->
-    @if (notificaciones().length > 0) {
-    <div class="filtros-chips">
-      <button type="button" class="chip" [class.active]="filtroTipo() === 'todos'" (click)="cambiarFiltroTipo('todos')">
-        Todos
-      </button>
-      <button type="button" class="chip" [class.active]="filtroTipo() === 'avisos'"
-        (click)="cambiarFiltroTipo('avisos')">
-        <span class="material-symbols-rounded">campaign</span>
-        Avisos
-      </button>
-      <button type="button" class="chip" [class.active]="filtroTipo() === 'clases'"
-        (click)="cambiarFiltroTipo('clases')">
-        <span class="material-symbols-rounded">fitness_center</span>
-        Clases
-      </button>
-      <button type="button" class="chip" [class.active]="filtroTipo() === 'festivos'"
-        (click)="cambiarFiltroTipo('festivos')">
-        <span class="material-symbols-rounded">event_busy</span>
-        Festivos
-      </button>
     </div>
     }
-
-    <!-- Mensajes -->
-    @if (error()) {
-    <div class="mensaje mensaje--error">
-      <span class="material-symbols-rounded">error</span>
-      {{ error() }}
-    </div>
-    }
-
-    @if (mensajeExito()) {
-    <div class="mensaje mensaje--exito">
-      <span class="material-symbols-rounded">check_circle</span>
-      {{ mensajeExito() }}
-    </div>
-    }
-
-    <!-- Contenido -->
-    @if (cargando()) {
-    <div class="loading-state">
-      <div class="spinner"></div>
-      <p>Cargando notificaciones...</p>
-    </div>
-    } @else if (notificaciones().length === 0) {
-    <div class="empty-state">
-      <span class="material-symbols-rounded empty-icon">notifications_off</span>
-      <h3>Sin notificaciones</h3>
-      <p>Cuando tengas nuevas notificaciones aparecerán aquí</p>
-    </div>
-    } @else if (notificacionesFiltradas().length === 0) {
-    <div class="empty-state">
-      <span class="material-symbols-rounded empty-icon">filter_list_off</span>
-      <h3>Sin resultados</h3>
-      <p>No hay notificaciones con el filtro seleccionado</p>
-    </div>
-    } @else {
-    <div class="notificaciones-lista">
-      @for (grupo of notificacionesAgrupadas(); track trackByTitulo($index, grupo)) {
-      <div class="grupo">
-        <h2 class="grupo-titulo">{{ grupo.titulo }}</h2>
-        <div class="grupo-items">
-          @for (notif of grupo.items; track trackById($index, notif)) {
-          <article class="notificacion-item notificacion-item--clickable"
-            [class.notificacion-item--no-leida]="!notif.leida" (click)="onClickNotificacion(notif)"
-            (keydown.enter)="onClickNotificacion(notif)" tabindex="0" role="button"
-            [attr.aria-label]="notif.titulo + '. ' + notif.mensaje">
-            <div class="notificacion-icono" [ngClass]="getClaseTipo(notif.tipo)">
-              <span class="material-symbols-rounded">{{ getIcono(notif.tipo) }}</span>
-            </div>
-
-            <div class="notificacion-contenido">
-              <h3 class="notificacion-titulo">
-                {{ notif.titulo }}
-                @if (!notif.leida) {
-                <span class="punto-nuevo"></span>
-                }
-              </h3>
-              <p class="notificacion-mensaje">{{ notif.mensaje }}</p>
-              <span class="notificacion-tiempo">{{ notif.tiempo_relativo }}</span>
-            </div>
-
-            <div class="notificacion-acciones">
-              <span class="material-symbols-rounded accion-ir" title="Ver detalle">visibility</span>
-              <span class="material-symbols-rounded accion-borrar" (click)="eliminarNotificacion(notif, $event)" title="Eliminar" role="button" tabindex="0">delete</span>
-            </div>
-          </article>
-          }
-        </div>
-      </div>
-      }
-    </div>
-    }
+  </div>
+  }
 
   @if (modalAbierto() && notificacionSeleccionada(); as notif) {
   <div class="modal-overlay" (click)="cerrarModal()">
@@ -166,21 +165,26 @@
         <p class="modal-message">{{ notif.mensaje }}</p>
       </div>
 
-      @if (notif.accion_url) {
+      @if (notif.accion_url || ((notif.tipo === 'plaza_disponible' || notif.tipo === 'lista_espera') &&
+      notif.sesion_id)) {
       <div class="modal-footer">
-        <button class="btn-action" (click)="ejecutarAccion(notif)">
+        <button class="btn-action btn-success" (click)="ejecutarAccion(notif)">
+          @if (notif.tipo === 'plaza_disponible' || notif.tipo === 'lista_espera') {
+          Reclamar plaza
+          } @else {
           Ir a detalle
+          }
           <span class="material-symbols-rounded">arrow_forward</span>
         </button>
       </div>
       } @else {
-        <!-- Footer solo con borrar si no hay acción -->
-        <div class="modal-footer">
-          <button class="btn-action btn-danger" (click)="eliminarNotificacion(notif)">
-            Eliminar
-            <span class="material-symbols-rounded">delete</span>
-          </button>
-        </div>
+      <!-- Footer solo con borrar si no hay acción -->
+      <div class="modal-footer">
+        <button class="btn-action btn-danger" (click)="eliminarNotificacion(notif)">
+          Eliminar
+          <span class="material-symbols-rounded">delete</span>
+        </button>
+      </div>
       }
     </div>
   </div>
