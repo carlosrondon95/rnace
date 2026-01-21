@@ -137,117 +137,143 @@ serve(async (req: Request) => {
 
     if (tokensError) throw tokensError;
 
-    if (!tokens || tokens.length === 0) {
-      return new Response(
-        JSON.stringify({ success: false, message: 'El usuario no tiene dispositivos registrados' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Enviando a ${tokens.length} dispositivo(s)`);
+// Validar usuario activo
+const { data: usuario, error: userError } = await supabase
+  .from('usuarios')
+  .select('activo')
+  .eq('id', payload.user_id)
+  .single();
 
-    // Obtener token de acceso para FCM v1
-    const accessToken = await getAccessToken(serviceAccount);
+if (userError || !usuario) {
+  // Si no encontramos al usuario, asumimos que no es válido
+  return new Response(
+    JSON.stringify({ success: false, message: 'Usuario no encontrado' }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
 
-    // Generar contenido con plantilla
-    const template = TEMPLATES[payload.tipo];
-    const content = template
-      ? template(payload.data || {})
-      : { titulo: payload.titulo || 'RNACE', mensaje: payload.mensaje || '' };
+if (!usuario.activo) {
+  console.log(`Usuario ${payload.user_id} inactivo. Omitiendo notificación.`);
+  return new Response(
+    JSON.stringify({ success: true, message: 'Usuario inactivo. Notificación omitida.', skipped: true }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
 
-    const url = payload.data?.url || '/';
+if (!tokens || tokens.length === 0) {
+  return new Response(
+    JSON.stringify({ success: false, message: 'El usuario no tiene dispositivos registrados' }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
 
-    // Enviar a todos los dispositivos
-    const results = await Promise.all(
-      tokens.map(async ({ token, device_info }) => {
-        try {
-          const response = await fetch(
-            `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`
+console.log(`Enviando a ${tokens.length} dispositivo(s)`);
+
+// Obtener token de acceso para FCM v1
+const accessToken = await getAccessToken(serviceAccount);
+
+// Generar contenido con plantilla
+const template = TEMPLATES[payload.tipo];
+const content = template
+  ? template(payload.data || {})
+  : { titulo: payload.titulo || 'RNACE', mensaje: payload.mensaje || '' };
+
+const url = payload.data?.url || '/';
+
+// Enviar a todos los dispositivos
+const results = await Promise.all(
+  tokens.map(async ({ token, device_info }) => {
+    try {
+      const response = await fetch(
+        `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            message: {
+              token: token,
+              notification: {
+                title: content.titulo,
+                body: content.mensaje,
+                icon: '/assets/icon/logofull.JPG',
+                click_action: url
               },
-              body: JSON.stringify({
-                message: {
-                  token: token,
-                  notification: {
-                    title: content.titulo,
-                    body: content.mensaje,
-                    icon: '/assets/icon/logofull.JPG',
-                    click_action: url
-                  },
-                  data: {
-                    tipo: payload.tipo,
-                    url: url,
-                    tag: `${payload.tipo}-${Date.now()}`,
-                    ...payload.data
-                  },
-                  webpush: {
-                    fcm_options: { link: url },
-                    headers: { Urgency: 'high' }
-                  }
-                }
-              })
+              data: {
+                tipo: payload.tipo,
+                url: url,
+                tag: `${payload.tipo}-${Date.now()}`,
+                ...payload.data
+              },
+              webpush: {
+                fcm_options: { link: url },
+                headers: { Urgency: 'high' }
+              }
             }
-          );
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            const errorCode = result.error?.details?.[0]?.errorCode || result.error?.status;
-
-            // Si token inválido, eliminarlo
-            if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
-              console.log(`Token inválido (${errorCode}), eliminando...`);
-              await supabase.from('fcm_tokens').delete().eq('token', token);
-            }
-
-            throw new Error(result.error?.message || 'Error desconocido de FCM');
-          }
-
-          return {
-            device: device_info || 'unknown',
-            success: true,
-            messageId: result.name
-          };
-        } catch (error) {
-          return {
-            device: device_info || 'unknown',
-            success: false,
-            error: error instanceof Error ? error.message : String(error)
-          };
+          })
         }
-      })
-    );
+      );
 
-    // Guardar en historial de notificaciones
-    await supabase.from('notificaciones').insert({
-      usuario_id: payload.user_id,
-      tipo: payload.tipo,
-      titulo: content.titulo,
-      mensaje: content.mensaje,
-      leida: false
-    });
+      const result = await response.json();
 
-    const successCount = results.filter(r => r.success).length;
+      if (!response.ok) {
+        const errorCode = result.error?.details?.[0]?.errorCode || result.error?.status;
 
-    return new Response(
-      JSON.stringify({
+        // Si token inválido, eliminarlo
+        if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
+          console.log(`Token inválido (${errorCode}), eliminando...`);
+          await supabase.from('fcm_tokens').delete().eq('token', token);
+        }
+
+        throw new Error(result.error?.message || 'Error desconocido de FCM');
+      }
+
+      return {
+        device: device_info || 'unknown',
         success: true,
-        sent_to: tokens.length,
-        successful: successCount,
-        results
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+        messageId: result.name
+      };
+    } catch (error) {
+      return {
+        device: device_info || 'unknown',
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  })
+);
+
+// Guardar en historial de notificaciones
+await supabase.from('notificaciones').insert({
+  usuario_id: payload.user_id,
+  tipo: payload.tipo,
+  titulo: content.titulo,
+  mensaje: content.mensaje,
+  leida: false
+});
+
+const successCount = results.filter(r => r.success).length;
+
+return new Response(
+  JSON.stringify({
+    success: true,
+    sent_to: tokens.length,
+    successful: successCount,
+    results
+  }),
+  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+);
 
   } catch (error) {
-    console.error('Error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
+  console.error('Error:', error);
+  return new Response(
+    JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }),
+    { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
 });
