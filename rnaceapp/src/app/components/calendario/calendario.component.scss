@@ -1077,6 +1077,8 @@
 .modal-content {
   padding: var(--space-lg);
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 
   .section-title {
     margin: 0 0 var(--space-md) 0;
@@ -2095,31 +2097,31 @@
 .mini-calendario-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-  margin-bottom: var(--space-md);
+  gap: 4px;
+  margin-bottom: var(--space-sm);
 }
 
 .mini-calendario-header {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-xs);
-  margin-bottom: var(--space-xs);
+  gap: 4px;
+  margin-bottom: 2px;
 }
 
 .dia-header-mini {
   text-align: center;
-  font-size: var(--font-size-xs);
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: var(--space-xs);
+  letter-spacing: 0.3px;
+  padding: 4px 0;
 }
 
 .mini-calendario-semana {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-xs);
+  gap: 4px;
 }
 
 .dia-cambio-btn {
@@ -2127,13 +2129,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--space-sm);
+  padding: 6px 4px;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   cursor: pointer;
   transition: all var(--transition-fast);
-  min-height: 52px;
+  min-height: 44px;
   position: relative;
 
   .dia-numero {
@@ -2193,6 +2195,91 @@
 .dia-cambio-placeholder {
   min-height: 52px;
   background: transparent;
+}
+
+// Día con reserva del usuario (seleccionable)
+.dia-cambio-btn.dia-reserva {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.4);
+  cursor: pointer;
+
+  .dia-numero {
+    color: #60a5fa;
+  }
+
+  .dia-hora {
+    font-size: 0.65rem;
+    color: rgba(96, 165, 250, 0.8);
+    margin-top: 2px;
+  }
+
+  &:hover {
+    background: rgba(96, 165, 250, 0.25);
+    border-color: #60a5fa;
+    transform: translateY(-1px);
+  }
+
+  &.selected {
+    background: rgba(74, 222, 128, 0.2);
+    border-color: #4ade80;
+    box-shadow: 0 4px 12px rgba(74, 222, 128, 0.15);
+
+    .dia-numero {
+      color: #4ade80;
+      font-weight: 700;
+    }
+
+    .dia-hora {
+      color: #4ade80;
+    }
+  }
+}
+
+// Día de la sesión disponible (target)
+.dia-cambio-btn.dia-target {
+  background: rgba(74, 222, 128, 0.15);
+  border: 2px dashed rgba(74, 222, 128, 0.5);
+  cursor: default;
+
+  .dia-numero {
+    color: #4ade80;
+    font-weight: 700;
+  }
+
+  .dia-target-badge {
+    font-size: 0.55rem;
+    color: #4ade80;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-top: 2px;
+  }
+}
+
+// Día vacío (sin reserva ni sesión target)
+.dia-cambio-btn.dia-vacio {
+  background: var(--color-bg-input);
+  border-color: transparent;
+  cursor: default;
+
+  .dia-numero {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+  }
+
+  &.dia-pasado {
+    opacity: 0.35;
+  }
+}
+
+// Leyenda adicional
+.leyenda-reserva {
+  background: rgba(96, 165, 250, 0.3);
+  border: 1px solid rgba(96, 165, 250, 0.6);
+}
+
+.leyenda-target {
+  background: rgba(74, 222, 128, 0.3);
+  border: 1px solid rgba(74, 222, 128, 0.6);
 }
 
 .dia-estado {
@@ -2712,18 +2799,204 @@
 // ============ RECLAMAR PLAZA DE LISTA DE ESPERA ============
 
 .modal-reclamar-plaza {
-  max-width: 480px;
+  max-width: 440px;
   width: 95%;
-  border-color: rgba(74, 222, 128, 0.4);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: #32332f;
+  border: 2px solid rgba(74, 222, 128, 0.4);
+  border-radius: 12px;
+  overflow: hidden;
+
+  .modal-header {
+    padding: 1rem 1.25rem;
+    background: rgba(74, 222, 128, 0.12);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(74, 222, 128, 0.25);
+    flex-shrink: 0;
+
+    .icon-success {
+      font-size: 1.5rem;
+      color: #4ade80;
+    }
+
+    h3 {
+      flex: 1;
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #4ade80;
+    }
+
+    .btn-cerrar {
+      background: transparent;
+      border: none;
+      color: rgba(235, 233, 227, 0.6);
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ebe9e3;
+      }
+
+      .material-symbols-rounded {
+        font-size: 1.25rem;
+      }
+    }
+  }
+
+  .modal-body {
+    padding: 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .modal-footer {
+    padding: 1rem 1.25rem;
+    background: rgba(0, 0, 0, 0.15);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
+}
+
+// Responsive para móviles
+@media (max-width: 480px) {
+  .modal-reclamar-plaza {
+    max-height: 85vh;
+    width: 100%;
+    border-radius: 12px;
+
+    .modal-header {
+      padding: 0.875rem 1rem;
+
+      h3 {
+        font-size: 1rem;
+      }
+    }
+
+    .modal-body {
+      padding: 1rem;
+    }
+
+    .modal-footer {
+      padding: 0.875rem 1rem;
+    }
+  }
+
+  // Ajustar mini-calendario para móvil
+  .mini-calendario-grid {
+    gap: var(--space-xs);
+  }
+
+  .dia-cambio-btn {
+    min-height: 44px;
+    padding: var(--space-xs);
+
+    .dia-numero {
+      font-size: var(--font-size-sm);
+    }
+
+    .dia-hora {
+      font-size: 0.6rem;
+    }
+  }
+}
+
+// Botón volver en vistas de opción
+.btn-volver-opcion {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.8rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: rgba(235, 233, 227, 0.7);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-bottom: 1rem;
+
+  .material-symbols-rounded {
+    font-size: 1.1rem;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #ebe9e3;
+  }
+}
+
+// Header info para vistas de cambio/recuperación
+.cambiar-header-info {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.cambiar-instruccion {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ebe9e3;
+}
+
+.cambiar-destino {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+
+  .material-symbols-rounded {
+    font-size: 1rem;
+  }
+}
+
+// Flecha en opciones
+.opcion-arrow {
+  color: rgba(235, 233, 227, 0.4);
+  font-size: 1.25rem;
+  margin-left: auto;
+  transition: all 0.15s ease;
+}
+
+.btn-opcion-reclamar:hover .opcion-arrow {
+  color: rgba(235, 233, 227, 0.7);
+  transform: translateX(2px);
+}
+
+// Vista de cambiar reserva
+.cambiar-reserva-view,
+.recuperacion-view {
+  animation: fadeIn 0.2s ease-out;
 }
 
 .header-success {
   padding: 1rem 1.25rem;
-  background: rgba(74, 222, 128, 0.15);
+  background: rgba(74, 222, 128, 0.12);
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border-bottom: 1px solid rgba(74, 222, 128, 0.3);
+  border-bottom: 1px solid rgba(74, 222, 128, 0.25);
 
   h3 {
     color: #4ade80;
@@ -2740,9 +3013,10 @@
 }
 
 .info-sesion-reclamar {
-  background: rgba(74, 222, 128, 0.1);
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.2);
   border-radius: 10px;
-  padding: 1rem;
+  padding: 1rem 1.25rem;
   margin-bottom: 1.25rem;
 
   p {
@@ -2753,7 +3027,7 @@
 
     .material-symbols-rounded {
       font-size: 1.1rem;
-      color: rgba(74, 222, 128, 0.7);
+      color: #4ade80;
     }
   }
 
@@ -2761,7 +3035,7 @@
     font-size: 1rem;
     font-weight: 600;
     color: #ebe9e3;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.35rem !important;
   }
 
   .sesion-hora {
@@ -2779,121 +3053,141 @@
     font-weight: 600;
     font-size: 0.9rem;
     color: #ebe9e3;
-    margin-bottom: 0.25rem;
+    margin: 0 0 0.5rem 0;
   }
 }
 
 .btn-opcion-reclamar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.9rem 1rem;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
   width: 100%;
   color: #ebe9e3;
 
-  .material-symbols-rounded {
-    font-size: 1.4rem;
-    color: rgba(235, 233, 227, 0.6);
+  >.material-symbols-rounded {
+    font-size: 1.5rem;
+    color: rgba(235, 233, 227, 0.5);
+    flex-shrink: 0;
   }
 
   .opcion-texto {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
+    flex: 1;
 
     strong {
       font-weight: 600;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
+      color: #ebe9e3;
     }
 
     span {
-      font-size: 0.75rem;
-      color: rgba(235, 233, 227, 0.6);
+      font-size: 0.8rem;
+      color: rgba(235, 233, 227, 0.5);
     }
   }
 
   &:hover {
-    border-color: rgba(184, 178, 158, 0.5);
-    background: rgba(184, 178, 158, 0.1);
+    border-color: rgba(184, 178, 158, 0.4);
+    background: rgba(184, 178, 158, 0.08);
   }
 
   &.selected {
     border-color: #4ade80;
     background: rgba(74, 222, 128, 0.1);
 
-    .material-symbols-rounded {
+    >.material-symbols-rounded {
       color: #4ade80;
     }
 
-    strong {
+    .opcion-texto strong {
       color: #4ade80;
     }
   }
 }
 
 .sub-opciones {
-  margin-left: 1rem;
-  padding-left: 1rem;
+  margin: 0.75rem 0 0 1.5rem;
+  padding: 0.75rem 0 0.75rem 1rem;
   border-left: 2px solid rgba(74, 222, 128, 0.3);
 
   .sub-titulo {
     font-size: 0.8rem;
     color: rgba(235, 233, 227, 0.6);
-    margin-bottom: 0.5rem;
+    margin: 0 0 0.6rem 0;
   }
 }
 
 .reservas-lista-cambio,
 .recuperaciones-lista {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .reserva-cambio-chip,
 .recuperacion-chip {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 0.5rem 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
   color: #ebe9e3;
-  min-width: 80px;
+  width: 100%;
+  text-align: left;
+  flex-direction: row; // Ensure row direction
 
   .reserva-fecha,
   .recup-modalidad {
-    font-size: 0.8rem;
-    font-weight: 500;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.2;
+    flex: 1;
   }
 
   .reserva-hora,
   .recup-origen {
-    font-size: 0.7rem;
-    color: rgba(235, 233, 227, 0.5);
+    font-size: 0.9rem;
+    color: rgba(235, 233, 227, 0.6);
+    margin-top: 0;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
   }
 
   &:hover {
-    border-color: rgba(184, 178, 158, 0.5);
-    background: rgba(184, 178, 158, 0.1);
+    border-color: rgba(184, 178, 158, 0.4);
+    background: rgba(184, 178, 158, 0.08);
+    transform: translateY(-1px);
   }
 
   &.selected {
     border-color: #4ade80;
-    background: rgba(74, 222, 128, 0.15);
+    background: rgba(74, 222, 128, 0.12);
+    box-shadow: 0 4px 12px rgba(74, 222, 128, 0.1);
 
     .reserva-fecha,
     .recup-modalidad {
       color: #4ade80;
+    }
+
+    .reserva-hora,
+    .recup-origen {
+      color: #4ade80;
+      background: rgba(74, 222, 128, 0.1);
     }
   }
 }
@@ -2903,7 +3197,8 @@
   align-items: flex-start;
   gap: 0.75rem;
   padding: 1rem;
-  background: rgba(251, 191, 36, 0.1);
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
   border-radius: 10px;
   color: #fbbf24;
 
@@ -2916,6 +3211,93 @@
     margin: 0;
     font-size: 0.85rem;
     line-height: 1.4;
+  }
+}
+
+.no-opciones-mini {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 8px;
+  color: #fbbf24;
+  font-size: 0.85rem;
+
+  .material-symbols-rounded {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+}
+
+// Footer buttons for reclamar plaza modal
+.modal-reclamar-plaza .modal-footer {
+  .btn-cancelar {
+    padding: 0.65rem 1.1rem;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: rgba(235, 233, 227, 0.8);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .btn-confirmar {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.25rem;
+    background: #4ade80;
+    border: none;
+    border-radius: 8px;
+    color: #1a1a1a;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    .material-symbols-rounded {
+      font-size: 1.1rem;
+    }
+
+    .spinner-small {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      border-top-color: #1a1a1a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    &:hover:not(:disabled) {
+      background: #22c55e;
+      transform: translateY(-1px);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

@@ -15,6 +15,42 @@
     </div>
   </header>
 
+  <!-- Push Notification Settings -->
+  @if (pushSupported()) {
+  <section class="notif-settings">
+    <div class="setting-row">
+      <div class="setting-info">
+        <span class="material-symbols-rounded setting-icon" [class.setting-icon--active]="pushEnabled()">
+          {{ pushEnabled() ? 'notifications_active' : 'notifications_off' }}
+        </span>
+        <div class="setting-text">
+          <h4>Notificaciones push</h4>
+          <p>
+            @if (pushPermission() === 'denied') {
+            Bloqueadas por el navegador
+            } @else if (pushEnabled()) {
+            Activadas - Recibirás recordatorios y avisos
+            } @else {
+            Desactivadas - No recibirás avisos push
+            }
+          </p>
+        </div>
+      </div>
+      <label class="toggle-switch" [class.toggle-switch--disabled]="pushPermission() === 'denied' || togglingPush()">
+        <input type="checkbox" [checked]="pushEnabled()" (change)="togglePush()"
+          [disabled]="pushPermission() === 'denied' || togglingPush()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    @if (pushPermission() === 'denied') {
+    <p class="setting-hint">
+      <span class="material-symbols-rounded">info</span>
+      Para activar, permite las notificaciones en la configuración de tu navegador
+    </p>
+    }
+  </section>
+  }
+
   <!-- Acciones admin (separadas del header para móvil) -->
   <div class="acciones-row">
     @if (esAdmin()) {
@@ -163,6 +199,19 @@
         <span class="modal-date">{{ formatearFechaCompleta(notif.creado_en) }}</span>
         <h2 class="modal-title">{{ notif.titulo }}</h2>
         <p class="modal-message">{{ notif.mensaje }}</p>
+
+        @if (detalleSesion(); as sesion) {
+        <div class="sesion-detalle-highlight">
+          <div class="detalle-item">
+            <span class="material-symbols-rounded">calendar_today</span>
+            <span>{{ formatearFechaSesion(sesion.fecha) }}</span>
+          </div>
+          <div class="detalle-item">
+            <span class="material-symbols-rounded">schedule</span>
+            <span>{{ sesion.hora }} - {{ sesion.modalidad | titlecase }}</span>
+          </div>
+        </div>
+        }
       </div>
 
       @if (notif.accion_url || ((notif.tipo === 'plaza_disponible' || notif.tipo === 'lista_espera') &&

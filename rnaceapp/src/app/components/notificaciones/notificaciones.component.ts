@@ -1,10 +1,12 @@
 // src/app/components/notificaciones/notificaciones.component.ts
 import { CommonModule, Location } from '@angular/common';
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
 import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
+import { PushNotificationService } from '../../core/push-notification.service';
+import { Subscription } from 'rxjs';
 
 interface Notificacion {
   id: number;
@@ -25,11 +27,15 @@ interface Notificacion {
   templateUrl: './notificaciones.component.html',
   styleUrls: ['./notificaciones.component.scss'],
 })
-export class NotificacionesComponent implements OnInit {
+export class NotificacionesComponent implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private router = inject(Router);
   private location = inject(Location);
   private confirmation = inject(ConfirmationService);
+  private pushService = inject(PushNotificationService);
+
+  private subscriptions: Subscription[] = [];
+
 
   // Estado
   cargando = signal(true);
@@ -102,6 +108,13 @@ export class NotificacionesComponent implements OnInit {
   // Modal Detalle
   modalAbierto = signal(false);
   notificacionSeleccionada = signal<Notificacion | null>(null);
+  detalleSesion = signal<{ fecha: string; hora: string; modalidad: string } | null>(null);
+
+  // Push notifications state
+  pushSupported = signal(false);
+  pushEnabled = signal(false);
+  pushPermission = signal<NotificationPermission>('default');
+  togglingPush = signal(false);
 
   // Computed
   userId = computed(() => this.auth.userId());
@@ -179,6 +192,55 @@ export class NotificacionesComponent implements OnInit {
 
   ngOnInit() {
     this.cargarNotificaciones();
+    this.setupPushSubscriptions();
+  }
+
+  ngOnDestroy() {
+    this.subscriptions.forEach(s => s.unsubscribe());
+  }
+
+  private setupPushSubscriptions() {
+    this.subscriptions.push(
+      this.pushService.isSupported$.subscribe(supported => {
+        this.pushSupported.set(supported);
+      }),
+      this.pushService.permissionStatus$.subscribe(status => {
+        this.pushPermission.set(status);
+        this.updatePushEnabled();
+      }),
+      this.pushService.currentToken$.subscribe(() => {
+        this.updatePushEnabled();
+      })
+    );
+    // Initial check
+    this.pushSupported.set(this.pushService.isSupported());
+    this.updatePushEnabled();
+  }
+
+  private updatePushEnabled() {
+    const enabled = this.pushService.isEffectivelyEnabled();
+    this.pushEnabled.set(enabled);
+  }
+
+  async togglePush() {
+    this.togglingPush.set(true);
+    try {
+      if (this.pushEnabled()) {
+        // Disable notifications
+        await this.pushService.optOutNotifications();
+        this.pushEnabled.set(false);
+      } else {
+        // Enable notifications
+        const success = await this.pushService.optInNotifications();
+        this.pushEnabled.set(success);
+        if (!success && this.pushPermission() === 'denied') {
+          this.error.set('Las notificaciones están bloqueadas en tu navegador');
+          setTimeout(() => this.error.set(null), 4000);
+        }
+      }
+    } finally {
+      this.togglingPush.set(false);
+    }
   }
 
   async cargarNotificaciones() {
@@ -244,6 +306,14 @@ export class NotificacionesComponent implements OnInit {
     return (fechaStr.charAt(0).toUpperCase() + fechaStr.slice(1)) + ' - ' + horaStr;
   }
 
+  formatearFechaSesion(fecha: string): string {
+    // Añadir hora para evitar problemas de timezone
+    const d = new Date(fecha + 'T12:00:00');
+    const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+    const formatted = d.toLocaleDateString('es-ES', options);
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }
+
   async marcarComoLeida(notificacion: Notificacion) {
     if (notificacion.leida) return;
 
@@ -292,17 +362,38 @@ export class NotificacionesComponent implements OnInit {
     this.filtroTipo.set(tipo);
   }
 
-  onClickNotificacion(notificacion: Notificacion) {
+  async onClickNotificacion(notificacion: Notificacion) {
     this.marcarComoLeida(notificacion);
-    // Abrir modal en lugar de navegar directamente si no es una acción inmediata
-    // Pero el usuario pidió "cuando pulse... se despliegue un modal"
     this.notificacionSeleccionada.set(notificacion);
+
+    // Si es una notificación de plaza disponible o lista de espera, cargar detalles de la sesión
+    if ((notificacion.tipo === 'plaza_disponible' || notificacion.tipo === 'lista_espera') && notificacion.sesion_id) {
+      try {
+        const { data } = await supabase()
+          .from('sesiones')
+          .select('fecha, hora, modalidad')
+          .eq('id', notificacion.sesion_id)
+          .single();
+
+        if (data) {
+          this.detalleSesion.set({
+            fecha: data.fecha,
+            hora: data.hora.slice(0, 5), // Quitar segundos
+            modalidad: data.modalidad
+          });
+        }
+      } catch (e) {
+        console.error('Error cargando detalle sesión notif:', e);
+      }
+    }
+
     this.modalAbierto.set(true);
   }
 
   cerrarModal() {
     this.modalAbierto.set(false);
     this.notificacionSeleccionada.set(null);
+    this.detalleSesion.set(null);
   }
 
   ejecutarAccion(notificacion: Notificacion) {
