@@ -258,4 +258,52 @@ export class PushNotificationService {
   hasToken(): boolean {
     return this._currentToken.value !== null;
   }
+
+  /**
+   * Check if user has opted out of notifications (stored locally)
+   */
+  isOptedOut(): boolean {
+    if (!isPlatformBrowser(this.platformId)) return false;
+    return localStorage.getItem('rnace_push_optout') === 'true';
+  }
+
+  /**
+   * Check if push notifications are effectively enabled
+   * (granted permission AND not opted out AND has token)
+   */
+  isEffectivelyEnabled(): boolean {
+    return this._permissionStatus.value === 'granted' &&
+      !this.isOptedOut() &&
+      this._currentToken.value !== null;
+  }
+
+  /**
+   * Opt out of push notifications (user preference)
+   * This removes the FCM token but keeps browser permission
+   */
+  async optOutNotifications(): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    localStorage.setItem('rnace_push_optout', 'true');
+    await this.removeToken();
+  }
+
+  /**
+   * Opt back in to push notifications
+   * Returns true if successfully re-enabled
+   */
+  async optInNotifications(): Promise<boolean> {
+    if (!isPlatformBrowser(this.platformId)) return false;
+
+    localStorage.removeItem('rnace_push_optout');
+
+    // If permission already granted, just get a new token
+    if (this._permissionStatus.value === 'granted') {
+      const token = await this.getAndSaveToken();
+      return token !== null;
+    }
+
+    // Otherwise, request permission
+    return await this.requestPermission();
+  }
 }

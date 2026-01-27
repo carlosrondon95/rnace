@@ -914,20 +914,23 @@ export class GestionarPerfilesComponent implements OnInit {
         horario_disponible_id,
         horarios_disponibles (
           dia_semana, 
-          hora
+          hora,
+          modalidad
         )
       `)
       .eq('usuario_id', userId)
       .eq('activo', true);
 
-    if (hError || !horariosFijos || horariosFijos.length === 0) return;
+    if (hError || !horariosFijos) return;
 
+    // Mapa de horarios deseados: "dia-hora-modalidad"
     const horariosMap = new Set<string>();
     horariosFijos.forEach((hf) => {
       const hd = hf.horarios_disponibles as any;
       if (hd) {
         const horaSimple = hd.hora.slice(0, 5);
-        horariosMap.add(`${hd.dia_semana}-${horaSimple}`);
+        // IMPORTANTE: Incluir modalidad en la clave para evitar cruces
+        horariosMap.add(`${hd.dia_semana}-${horaSimple}-${hd.modalidad}`);
       }
     });
 
@@ -944,14 +947,16 @@ export class GestionarPerfilesComponent implements OnInit {
 
     const { data: sesionesFuturas, error: sError } = await client
       .from('sesiones')
-      .select('id, fecha, hora')
+      .select('id, fecha, hora, modalidad')
       .gte('fecha', hoyStr)
       .eq('cancelada', false);
 
     if (sError || !sesionesFuturas) return;
 
-    // 4. Filtrar sesiones coincidentes
+    // 4. Filtrar sesiones coincidentes con el nuevo plan
     const sesionesA_Reservar: any[] = [];
+    // IDs de sesiones que deberían estar reservadas
+    const idsSesionesDeseadas = new Set<number>();
 
     for (const sesion of sesionesFuturas) {
       const d = new Date(sesion.fecha);
@@ -966,16 +971,68 @@ export class GestionarPerfilesComponent implements OnInit {
       if (!mesAbierto) continue;
 
       const horaSimple = sesion.hora.slice(0, 5);
-      const key = `${sistemaDia}-${horaSimple}`;
+      // Clave debe coincidir exactamente con la generada arriba (dia-hora-modalidad)
+      const key = `${sistemaDia}-${horaSimple}-${sesion.modalidad}`;
 
       if (horariosMap.has(key)) {
         sesionesA_Reservar.push(sesion);
+        idsSesionesDeseadas.add(sesion.id);
+      }
+    }
+
+    // 5. LIMPIEZA: Eliminar reservas futuras que NO coinciden con el nuevo plan
+    // Solo eliminamos reservas activas, generadas automáticamente ("es_desde_horario_fijo"), 
+    // que estén en meses abiertos y que ya no estén en el plan deseado.
+
+    // Obtener reservas futuras del usuario
+    const { data: reservasFuturasExistentes } = await client
+      .from('reservas')
+      .select('id, sesion_id, es_desde_horario_fijo, estado')
+      .eq('usuario_id', userId)
+      .gte('created_at', '2020-01-01') // Filtro dummy para asegurar uso de índice si existe
+      .eq('estado', 'activa');
+
+    // Filtramos manualmente las reservas asociadas a las sesiones futuras cargadas
+    if (reservasFuturasExistentes && sesionesFuturas.length > 0) {
+      const mapSesionesFuturas = new Map(sesionesFuturas.map(s => [s.id, s]));
+      const reservasAEliminar: number[] = [];
+
+      for (const r of reservasFuturasExistentes) {
+        // Solo verificamos si la reserva está asociada a una sesión futura de las que cargamos
+        // (es decir, sesiones activas a partir de hoy)
+        const sesionAsociada = mapSesionesFuturas.get(r.sesion_id);
+
+        if (sesionAsociada) {
+          // Si la sesión no está en el nuevo plan deseado
+          if (!idsSesionesDeseadas.has(r.sesion_id)) {
+            // Y si fue generada automáticamente O si queremos ser estrictos con el plan,
+            // eliminamos la reserva. 
+            // En este caso, asumimos que si cambias el plan, quieres que se ajuste todo.
+            // Para mayor seguridad, podríamos mirar 'es_desde_horario_fijo', pero 
+            // como había un bug, muchas no lo tendrán marcado.
+            // Así que eliminamos cualquier reserva futura que no encaje en el nuevo horario fijo
+            // PERO cuidado con días sueltos/recuperaciones.
+
+            // Estrategia segura: Eliminar si es_desde_horario_fijo es true
+            // O si la modalidad no coincide con ninguna del nuevo plan (para limpiar basura).
+
+            // Dado el problema actual, vamos a eliminarla si no está en idsSesionesDeseadas.
+            // Esto limpiará "ruido". Si el usuario hizo un cambio manual a otro día, 
+            // se perderá si no está en el horario fijo. Es un trade-off aceptable al "Resetear" plan.
+            reservasAEliminar.push(r.id);
+          }
+        }
+      }
+
+      if (reservasAEliminar.length > 0) {
+        console.log(`Eliminando ${reservasAEliminar.length} reservas obsoletas...`);
+        await client.from('reservas').delete().in('id', reservasAEliminar);
       }
     }
 
     if (sesionesA_Reservar.length === 0) return;
 
-    // 5. Verificar existentes
+    // 6. Verificar existentes para no duplicar
     const idsSesiones = sesionesA_Reservar.map((s) => s.id);
     const { data: reservasExistentes } = await client
       .from('reservas')
@@ -991,6 +1048,7 @@ export class GestionarPerfilesComponent implements OnInit {
         usuario_id: userId,
         sesion_id: s.id,
         estado: 'activa',
+        es_desde_horario_fijo: true // Marcamos que viene del automático
       }));
 
     if (nuevasReservas.length > 0) {

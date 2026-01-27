@@ -427,12 +427,12 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
 
   dismissInstall(): void {
     this.showInstallPrompt.set(false);
-    sessionStorage.setItem('dismiss_install', 'true');
+    localStorage.setItem('dismiss_install', 'true');
   }
 
   dismissIOS(): void {
     this.showIOSInstructions.set(false);
-    sessionStorage.setItem('dismiss_ios', 'true');
+    localStorage.setItem('dismiss_ios', 'true');
   }
 
   async enableNotifications(): Promise<void> {
@@ -451,10 +451,10 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
 
   dismissNotifications(): void {
     this.showNotificationPrompt.set(false);
-    sessionStorage.setItem('dismiss_notification', 'true');
+    localStorage.setItem('dismiss_notification', 'true');
   }
 
   private isDismissed(key: string): boolean {
-    return sessionStorage.getItem(`dismiss_${key}`) === 'true';
+    return localStorage.getItem(`dismiss_${key}`) === 'true';
   }
 }

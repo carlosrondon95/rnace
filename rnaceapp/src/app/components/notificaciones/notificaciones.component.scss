@@ -53,6 +53,134 @@ $color-default: #a78bfa;
   color: #ef4444;
 }
 
+// Push Notification Settings
+.notif-settings {
+  @include card-base;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.setting-info {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-icon {
+  font-size: 1.5rem;
+  color: $text-muted;
+  transition: color 0.2s ease;
+
+  &--active {
+    color: $color-disponible;
+  }
+}
+
+.setting-text {
+  min-width: 0;
+
+  h4 {
+    margin: 0 0 0.125rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: $text-secondary;
+    line-height: 1.3;
+  }
+}
+
+.setting-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid $border-color;
+  font-size: 0.75rem;
+  color: $text-muted;
+
+  .material-symbols-rounded {
+    font-size: 1rem;
+  }
+}
+
+// Toggle Switch
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+  flex-shrink: 0;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.15);
+    border: 1px solid $border-color;
+    transition: all 0.3s ease;
+    border-radius: 28px;
+
+    &:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: $text-primary;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  input:checked+.slider {
+    background-color: rgba($color-disponible, 0.25);
+    border-color: rgba($color-disponible, 0.4);
+
+    &:before {
+      transform: translateX(24px);
+      background-color: $color-disponible;
+    }
+  }
+
+  input:focus+.slider {
+    box-shadow: 0 0 0 2px rgba($accent, 0.3);
+  }
+
+  &--disabled {
+    opacity: 0.5;
+
+    .slider {
+      cursor: not-allowed;
+    }
+  }
+}
+
 // Acciones separadas para mejor layout móvil
 .acciones-row {
   display: flex;
@@ -360,11 +488,25 @@ $color-default: #a78bfa;
   animation: slideUp 0.3s ease-out both;
 
   // Stagger animation for list items
-  &:nth-child(1) { animation-delay: 0.05s; }
-  &:nth-child(2) { animation-delay: 0.1s; }
-  &:nth-child(3) { animation-delay: 0.15s; }
-  &:nth-child(4) { animation-delay: 0.2s; }
-  &:nth-child(5) { animation-delay: 0.25s; }
+  &:nth-child(1) {
+    animation-delay: 0.05s;
+  }
+
+  &:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.15s;
+  }
+
+  &:nth-child(4) {
+    animation-delay: 0.2s;
+  }
+
+  &:nth-child(5) {
+    animation-delay: 0.25s;
+  }
 
   &--no-leida {
     background: rgba($accent, 0.05);
@@ -715,8 +857,13 @@ $color-default: #a78bfa;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
@@ -724,6 +871,7 @@ $color-default: #a78bfa;
     opacity: 0;
     transform: translateY(20px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -732,7 +880,7 @@ $color-default: #a78bfa;
 
 .accion-borrar {
   font-size: 1.25rem;
-  color: #ef4444; 
+  color: #ef4444;
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
@@ -746,7 +894,7 @@ $color-default: #a78bfa;
 .btn-danger {
   background-color: rgba(239, 68, 68, 0.1) !important;
   color: #ef4444 !important;
-  
+
   &:hover {
     background-color: rgba(239, 68, 68, 0.2) !important;
   }
@@ -776,7 +924,8 @@ $color-default: #a78bfa;
 
 .accion-borrar {
   font-size: 1.25rem;
-  color: #ef4444; /* Rojo */
+  color: #ef4444;
+  /* Rojo */
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
@@ -790,8 +939,35 @@ $color-default: #a78bfa;
 .btn-danger {
   background-color: rgba(239, 68, 68, 0.1) !important;
   color: #ef4444 !important;
-  
+
   &:hover {
     background-color: rgba(239, 68, 68, 0.2) !important;
+  }
+}
+
+// Estilos para el detalle de sesión destacado
+.sesion-detalle-highlight {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(184, 178, 158, 0.1); // $accent with opacity
+  border: 1px solid rgba(184, 178, 158, 0.3); // $accent border
+  border-radius: 12px;
+  margin: 0.5rem 0 1.5rem;
+  width: 100%;
+}
+
+.detalle-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #ebe9e3; // $text-primary
+  font-weight: 500;
+  font-size: 1.1rem;
+
+  .material-symbols-rounded {
+    color: #b8b29e; // $accent
+    font-size: 1.4rem;
   }
 }

@@ -738,10 +738,12 @@
       </header>
 
       <div class="modal-body">
+        <!-- Vista inicial: mostrar info y opciones -->
+        @if (!opcionReclamarSeleccionada()) {
         <div class="info-sesion-reclamar">
           <p class="sesion-fecha">
             <span class="material-symbols-rounded">event</span>
-            {{ sesion.fecha | date:'EEEE d MMMM':'':'es' | titlecase }}
+            {{ formatearFechaCambio(sesion.fecha) }}
           </p>
           <p class="sesion-hora">
             <span class="material-symbols-rounded">schedule</span>
@@ -754,56 +756,28 @@
 
           <!-- Opción 1: Cambiar reserva existente -->
           @if (misReservasParaCambio().length > 0) {
-          <button class="btn-opcion-reclamar" [class.selected]="opcionReclamarSeleccionada() === 'cambiar'"
+          <button class="btn-opcion-reclamar"
             (click)="opcionReclamarSeleccionada.set('cambiar'); recuperacionSeleccionada.set(null)">
             <span class="material-symbols-rounded">swap_horiz</span>
             <div class="opcion-texto">
               <strong>Cambiar una reserva existente</strong>
               <span>Intercambia una de tus clases por esta</span>
             </div>
+            <span class="material-symbols-rounded opcion-arrow">chevron_right</span>
           </button>
-
-          @if (opcionReclamarSeleccionada() === 'cambiar') {
-          <div class="sub-opciones animate-fade-in">
-            <p class="sub-titulo">Selecciona la reserva a cambiar:</p>
-            <div class="reservas-lista-cambio">
-              @for (reserva of misReservasParaCambio(); track reserva.id) {
-              <button class="reserva-cambio-chip" [class.selected]="reservaSeleccionadaParaCambio() === reserva.id"
-                (click)="reservaSeleccionadaParaCambio.set(reserva.id)">
-                <span class="reserva-fecha">{{ reserva.fecha | date:'EEE d MMM':'':'es' }}</span>
-                <span class="reserva-hora">{{ reserva.hora }}</span>
-              </button>
-              }
-            </div>
-          </div>
-          }
           }
 
           <!-- Opción 2: Usar recuperación -->
           @if (recuperacionesDisponibles().length > 0) {
-          <button class="btn-opcion-reclamar" [class.selected]="opcionReclamarSeleccionada() === 'recuperacion'"
+          <button class="btn-opcion-reclamar"
             (click)="opcionReclamarSeleccionada.set('recuperacion'); reservaSeleccionadaParaCambio.set(null)">
             <span class="material-symbols-rounded">replay</span>
             <div class="opcion-texto">
               <strong>Usar una recuperación</strong>
-              <span>Tienes {{ recuperacionesDisponibles().length }} recuperación(es) disponible(s)</span>
+              <span>Tienes {{ recuperacionesDisponibles().length }} recuperación(es)</span>
             </div>
+            <span class="material-symbols-rounded opcion-arrow">chevron_right</span>
           </button>
-
-          @if (opcionReclamarSeleccionada() === 'recuperacion') {
-          <div class="sub-opciones animate-fade-in">
-            <p class="sub-titulo">Selecciona la recuperación:</p>
-            <div class="recuperaciones-lista">
-              @for (recup of recuperacionesDisponibles(); track recup.id) {
-              <button class="recuperacion-chip" [class.selected]="recuperacionSeleccionada() === recup.id"
-                (click)="recuperacionSeleccionada.set(recup.id)">
-                <span class="recup-modalidad">{{ recup.modalidad | titlecase }}</span>
-                <span class="recup-origen">de {{ recup.mes_origen }}/{{ recup.anio_origen }}</span>
-              </button>
-              }
-            </div>
-          </div>
-          }
           }
 
           <!-- Mensaje si no hay opciones -->
@@ -814,6 +788,103 @@
           </div>
           }
         </div>
+        }
+
+        <!-- Vista de cambiar reserva -->
+        @if (opcionReclamarSeleccionada() === 'cambiar') {
+        <div class="cambiar-reserva-view animate-fade-in">
+          <button class="btn-volver-opcion"
+            (click)="opcionReclamarSeleccionada.set(null); reservaSeleccionadaParaCambio.set(null)">
+            <span class="material-symbols-rounded">arrow_back</span>
+            Volver
+          </button>
+
+          <div class="cambiar-header-info">
+            <p class="cambiar-instruccion">Selecciona tu clase a intercambiar</p>
+            <p class="cambiar-destino">
+              <span class="material-symbols-rounded">arrow_forward</span>
+              {{ formatearFechaCambio(sesion.fecha) }} · {{ sesion.hora }}
+            </p>
+          </div>
+
+          <div class="mini-calendario-grid">
+            <div class="mini-calendario-header">
+              <span class="dia-header-mini">Lun</span>
+              <span class="dia-header-mini">Mar</span>
+              <span class="dia-header-mini">Mié</span>
+              <span class="dia-header-mini">Jue</span>
+              <span class="dia-header-mini">Vie</span>
+            </div>
+            @for (semana of semanasReclamarCalendario(); track $index) {
+            <div class="mini-calendario-semana">
+              @for (dia of semana; track dia?.fecha ?? $index) {
+              @if (dia) {
+              @if (dia.tieneReserva && !dia.esPasado && !dia.esSesionTarget) {
+              <button type="button" class="dia-cambio-btn dia-reserva"
+                [class.selected]="reservaSeleccionadaParaCambio() === dia.reservaId"
+                (click)="reservaSeleccionadaParaCambio.set(dia.reservaId)">
+                <span class="dia-numero">{{ dia.dia }}</span>
+                <span class="dia-hora">{{ dia.hora }}</span>
+              </button>
+              } @else if (dia.esSesionTarget) {
+              <button type="button" class="dia-cambio-btn dia-target" disabled>
+                <span class="dia-numero">{{ dia.dia }}</span>
+                <span class="dia-target-badge">Nueva</span>
+              </button>
+              } @else {
+              <div class="dia-cambio-btn dia-vacio" [class.dia-pasado]="dia.esPasado">
+                <span class="dia-numero">{{ dia.dia }}</span>
+              </div>
+              }
+              } @else {
+              <div class="dia-cambio-placeholder"></div>
+              }
+              }
+            </div>
+            }
+          </div>
+
+          <div class="leyenda-cambio">
+            <span class="leyenda-item-cambio">
+              <span class="leyenda-color leyenda-reserva"></span>
+              Tu clase
+            </span>
+            <span class="leyenda-item-cambio">
+              <span class="leyenda-color leyenda-target"></span>
+              Plaza libre
+            </span>
+          </div>
+        </div>
+        }
+
+        <!-- Vista de usar recuperación -->
+        @if (opcionReclamarSeleccionada() === 'recuperacion') {
+        <div class="recuperacion-view animate-fade-in">
+          <button class="btn-volver-opcion"
+            (click)="opcionReclamarSeleccionada.set(null); recuperacionSeleccionada.set(null)">
+            <span class="material-symbols-rounded">arrow_back</span>
+            Volver
+          </button>
+
+          <div class="cambiar-header-info">
+            <p class="cambiar-instruccion">Selecciona la recuperación a usar</p>
+            <p class="cambiar-destino">
+              <span class="material-symbols-rounded">arrow_forward</span>
+              {{ formatearFechaCambio(sesion.fecha) }} · {{ sesion.hora }}
+            </p>
+          </div>
+
+          <div class="recuperaciones-lista">
+            @for (recup of recuperacionesDisponibles(); track recup.id) {
+            <button class="recuperacion-chip" [class.selected]="recuperacionSeleccionada() === recup.id"
+              (click)="recuperacionSeleccionada.set(recup.id)">
+              <span class="recup-modalidad">{{ recup.modalidad | titlecase }}</span>
+              <span class="recup-origen">de {{ recup.mes_origen }}/{{ recup.anio_origen }}</span>
+            </button>
+            }
+          </div>
+        </div>
+        }
       </div>
 
       <div class="modal-footer">

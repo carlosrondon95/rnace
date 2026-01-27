@@ -197,6 +197,96 @@ export class CalendarioComponent implements OnInit {
   reservaSeleccionadaParaCambio = signal<number | null>(null);
   recuperacionSeleccionada = signal<number | null>(null);
 
+  // Computed: Mini-calendario de las reservas del usuario en el mismo mes
+  semanasReclamarCalendario = computed(() => {
+    const sesion = this.sesionReclamar();
+    if (!sesion?.fecha) return [];
+
+    const reservas = this.misReservasParaCambio();
+    const reservasMap = new Map(reservas.map(r => [r.fecha, r]));
+
+    const fechaSesion = new Date(sesion.fecha + 'T12:00:00');
+    const anio = fechaSesion.getFullYear();
+    const mes = fechaSesion.getMonth();
+
+    const primerDiaMes = new Date(anio, mes, 1);
+    const ultimoDiaMes = new Date(anio, mes + 1, 0).getDate();
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    type DiaCalendarioReclamar = {
+      fecha: string;
+      dia: number;
+      tieneReserva: boolean;
+      reservaId: number | null;
+      hora: string | null;
+      esPasado: boolean;
+      esSesionTarget: boolean;
+    } | null;
+
+    const semanas: DiaCalendarioReclamar[][] = [];
+    let semanaActual: DiaCalendarioReclamar[] = [];
+
+    // Get the weekday of the first day (0=Sun, 1=Mon, ... 6=Sat)
+    // We need to find the first WEEKDAY of the month and its position
+    let primerDiaSemanaOriginal = primerDiaMes.getDay();
+    // Convert to Monday=0, Tue=1, ... Fri=4, Sat=5, Sun=6
+    let primerDiaSemana = primerDiaSemanaOriginal === 0 ? 6 : primerDiaSemanaOriginal - 1;
+
+    // If first day is weekend (Sat=5 or Sun=6), start fresh (no placeholders for first week)
+    // Only add initial placeholders if first weekday falls after Monday
+    if (primerDiaSemana < 5) { // First day is a weekday
+      for (let i = 0; i < primerDiaSemana; i++) {
+        semanaActual.push(null);
+      }
+    }
+
+    for (let dia = 1; dia <= ultimoDiaMes; dia++) {
+      const fecha = `${anio}-${(mes + 1).toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
+      const fechaDate = new Date(anio, mes, dia);
+      let diaSemanaOriginal = fechaDate.getDay();
+      // Convert: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4
+      let diaSemana = diaSemanaOriginal === 0 ? 6 : diaSemanaOriginal - 1;
+
+      // Only process weekdays (Mon-Fri = 0-4)
+      if (diaSemana >= 0 && diaSemana <= 4) {
+        const reserva = reservasMap.get(fecha);
+        const esPasado = fechaDate < hoy;
+        const esSesionTarget = sesion.fecha === fecha;
+
+        semanaActual.push({
+          fecha,
+          dia,
+          tieneReserva: !!reserva,
+          reservaId: reserva?.id ?? null,
+          hora: reserva?.hora ?? null,
+          esPasado,
+          esSesionTarget
+        });
+
+        // If it's Friday (4), close the week
+        if (diaSemana === 4) {
+          // Pad from the left if needed
+          while (semanaActual.length < 5) {
+            semanaActual.unshift(null);
+          }
+          semanas.push(semanaActual);
+          semanaActual = [];
+        }
+      }
+    }
+
+    if (semanaActual.length > 0) {
+      while (semanaActual.length < 5) {
+        semanaActual.push(null);
+      }
+      semanas.push(semanaActual);
+    }
+
+    return semanas;
+  });
+
   // Computed: Sesiones del día seleccionado en modo cambio
   sesionesCambioDia = computed(() => {
     const diaSelec = this.diaCambioSeleccionado();
@@ -259,21 +349,26 @@ export class CalendarioComponent implements OnInit {
     const semanas: Array<Array<{ fecha: string; dia: number; diaSemana: number; tienePlazas: boolean; esMismodia: boolean; esFestivo: boolean; esPasado: boolean; esDelMes: boolean } | null>> = [];
     let semanaActual: Array<{ fecha: string; dia: number; diaSemana: number; tienePlazas: boolean; esMismodia: boolean; esFestivo: boolean; esPasado: boolean; esDelMes: boolean } | null> = [];
 
-    // Determinar el día de la semana del primer día (0=Dom -> 6=Sab, convertir a 0=Lun)
-    let primerDiaSemana = primerDiaMes.getDay();
-    primerDiaSemana = primerDiaSemana === 0 ? 6 : primerDiaSemana - 1;
+    // Get the weekday of the first day (0=Sun, 1=Mon, ... 6=Sat)
+    // Convert to Monday=0, Tue=1, ... Fri=4, Sat=5, Sun=6
+    let primerDiaSemanaOriginal = primerDiaMes.getDay();
+    let primerDiaSemana = primerDiaSemanaOriginal === 0 ? 6 : primerDiaSemanaOriginal - 1;
 
-    // Rellenar días vacíos antes del primer día
-    for (let i = 0; i < primerDiaSemana; i++) {
-      semanaActual.push(null);
+    // If first day is weekend (Sat=5 or Sun=6), start fresh (no placeholders for first week)
+    // Only add initial placeholders if first weekday falls after Monday
+    if (primerDiaSemana < 5) { // First day is a weekday
+      for (let i = 0; i < primerDiaSemana; i++) {
+        semanaActual.push(null);
+      }
     }
 
     // Añadir todos los días del mes
     for (let dia = 1; dia <= ultimoDiaMes; dia++) {
       const fecha = `${anio}-${(mes + 1).toString().padStart(2, '0')}-${dia.toString().padStart(2, '0')}`;
       const fechaDate = new Date(anio, mes, dia);
-      let diaSemana = fechaDate.getDay();
-      diaSemana = diaSemana === 0 ? 6 : diaSemana - 1;
+      let diaSemanaOriginal = fechaDate.getDay();
+      // Convert: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4
+      let diaSemana = diaSemanaOriginal === 0 ? 6 : diaSemanaOriginal - 1;
 
       // Solo días laborables (Lun-Vie, es decir 0-4)
       if (diaSemana >= 0 && diaSemana <= 4) {
@@ -295,7 +390,7 @@ export class CalendarioComponent implements OnInit {
 
         // Si es viernes (4), cerrar la semana
         if (diaSemana === 4) {
-          // Asegurarse de que la semana tenga 5 elementos (Lun-Vie)
+          // Pad from the left if needed
           while (semanaActual.length < 5) {
             semanaActual.unshift(null);
           }
@@ -675,27 +770,41 @@ export class CalendarioComponent implements OnInit {
             modalidad: s.modalidad
           };
         })
+        // Filtrar solo reservas del mismo mes que la sesión objetivo
+        .filter((r: any) => {
+          const fechaSesion = new Date(sesion.fecha + 'T12:00:00');
+          const fechaReserva = new Date(r.fecha + 'T12:00:00');
+          return fechaSesion.getMonth() === fechaReserva.getMonth() &&
+            fechaSesion.getFullYear() === fechaReserva.getFullYear();
+        })
         .sort((a: any, b: any) => a.fecha.localeCompare(b.fecha));
 
       this.misReservasParaCambio.set(reservasMapeadas);
 
       // Cargar recuperaciones disponibles del usuario
-      const mesActual = new Date().getMonth() + 1;
-      const anioActual = new Date().getFullYear();
+      // Usamos el MES DE LA SESIÓN TARGET, no el mes actual
+      const fechaSesionTarget = new Date(sesion.fecha + 'T12:00:00');
+      const mesSesion = fechaSesionTarget.getMonth() + 1;
+      const anioSesion = fechaSesionTarget.getFullYear();
 
       const { data: recuperaciones } = await supabase()
         .from('recuperaciones')
-        .select('id, modalidad, mes_origen, anio_origen')
+        .select('id, modalidad, mes_origen, anio_origen, mes_limite, anio_limite')
         .eq('usuario_id', uid)
         .eq('estado', 'disponible')
         .or(`modalidad.eq.${sesion.modalidad},modalidad.eq.hibrido`);
 
-      // Filtrar por mes válido (mes_limite >= mes actual)
+      // Filtrar recuperaciones válidas para el MES DE LA SESIÓN TARGET
       const recupValidas = (recuperaciones || []).filter((rec: any) => {
-        // Simple check - recovery is valid if it's from current month or later
-        if (rec.anio_origen > anioActual) return true;
-        if (rec.anio_origen === anioActual && rec.mes_origen >= mesActual - 1) return true;
-        return false;
+        // 1. No debe ser futura respecto al mes de la sesión
+        if (anioSesion < rec.anio_origen) return false;
+        if (anioSesion === rec.anio_origen && mesSesion < rec.mes_origen) return false;
+
+        // 2. No debe estar caducada respecto al mes de la sesión
+        if (anioSesion > rec.anio_limite) return false;
+        if (anioSesion === rec.anio_limite && mesSesion > rec.mes_limite) return false;
+
+        return true;
       });
 
       this.recuperacionesDisponibles.set(recupValidas);
@@ -760,9 +869,9 @@ export class CalendarioComponent implements OnInit {
         }
 
         // Usar la función usar_recuperacion existente
+        // Nota: La función auto-selecciona la recuperación más antigua válida
         const { data, error } = await supabase().rpc('usar_recuperacion', {
           p_usuario_id: uid,
-          p_recuperacion_id: recuperacionId,
           p_sesion_id: sesion.id
         });
 
@@ -1769,7 +1878,10 @@ export class CalendarioComponent implements OnInit {
    */
   formatearFechaCambio(fecha: string): string {
     const d = new Date(fecha + 'T12:00:00');
-    return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+    const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+    const formatted = d.toLocaleDateString('es-ES', options);
+    // Capitalize first letter
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }
 
   async cancelarReserva(reservaId: number) {
