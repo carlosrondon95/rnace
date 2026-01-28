@@ -12,9 +12,9 @@
 
   <!-- Error global -->
   @if (error()) {
-  <div class="mensaje-error" role="alert">
-    <span class="material-symbols-rounded">error</span>
-    {{ error() }}
+  <div class="toast toast--error" role="alert">
+    <span class="material-symbols-rounded toast__icon">error</span>
+    <span class="toast__message">{{ error() }}</span>
   </div>
   }
 
@@ -45,35 +45,23 @@
   <div class="filtros-bar">
     <div class="filtro-group">
       <label class="filtro-label" for="filtro-grupo">Grupo:</label>
-      <select id="filtro-grupo" class="filtro-select" [value]="filtros().tipoGrupo"
-        (change)="actualizarFiltro('tipoGrupo', $any($event.target).value)">
-        <option value="todos">Todos</option>
-        <option value="focus">Focus</option>
-        <option value="reducido">Reducido</option>
-        <option value="hibrido">Híbrido</option>
-        <option value="especial">Especial</option>
-      </select>
+      <app-custom-select [options]="opcionesFiltroGrupo" [value]="filtros().tipoGrupo"
+        (valueChange)="actualizarFiltro('tipoGrupo', $event)" placeholder="Todos">
+      </app-custom-select>
     </div>
 
     <div class="filtro-group">
       <label class="filtro-label" for="filtro-rol">Rol:</label>
-      <select id="filtro-rol" class="filtro-select" [value]="filtros().rol"
-        (change)="actualizarFiltro('rol', $any($event.target).value)">
-        <option value="todos">Todos</option>
-        <option value="cliente">Clientes</option>
-        <option value="profesor">Profesores</option>
-        <option value="admin">Admins</option>
-      </select>
+      <app-custom-select [options]="opcionesFiltroRol" [value]="filtros().rol"
+        (valueChange)="actualizarFiltro('rol', $event)" placeholder="Todos">
+      </app-custom-select>
     </div>
 
     <div class="filtro-group">
       <label class="filtro-label" for="filtro-estado">Estado:</label>
-      <select id="filtro-estado" class="filtro-select" [value]="filtros().activo"
-        (change)="actualizarFiltro('activo', $any($event.target).value)">
-        <option value="todos">Todos</option>
-        <option value="activo">Activos</option>
-        <option value="inactivo">Inactivos</option>
-      </select>
+      <app-custom-select [options]="opcionesFiltroEstado" [value]="filtros().activo"
+        (valueChange)="actualizarFiltro('activo', $event)" placeholder="Todos">
+      </app-custom-select>
     </div>
 
     @if (hayFiltrosActivos()) {
@@ -162,16 +150,16 @@
     <div class="modal-body">
       <!-- Mensajes -->
       @if (errorModal()) {
-      <div class="mensaje-error-modal" role="alert">
-        <span class="material-symbols-rounded">error</span>
-        {{ errorModal() }}
+      <div class="toast toast--error" role="alert">
+        <span class="material-symbols-rounded toast__icon">error</span>
+        <span class="toast__message">{{ errorModal() }}</span>
       </div>
       }
 
       @if (exitoModal()) {
-      <div class="mensaje-exito-modal" role="status">
-        <span class="material-symbols-rounded">check_circle</span>
-        {{ exitoModal() }}
+      <div class="toast toast--success" role="status">
+        <span class="material-symbols-rounded toast__icon">check_circle</span>
+        <span class="toast__message">{{ exitoModal() }}</span>
       </div>
       }
 
@@ -199,13 +187,9 @@
               [value]="formulario().telefono" (input)="actualizarCampo('telefono', $any($event.target).value)" />
           </div>
           <div class="form-group">
-            <label class="form-label" for="select-rol">Rol *</label>
-            <select id="select-rol" class="form-select" [value]="formulario().rol"
-              (change)="actualizarCampo('rol', $any($event.target).value)">
-              @for (rol of roles; track rol.value) {
-              <option [value]="rol.value">{{ rol.label }}</option>
-              }
-            </select>
+            <app-custom-select [options]="roles" [value]="formulario().rol"
+              (valueChange)="actualizarCampo('rol', $event)" label="Rol *" placeholder="Seleccionar rol">
+            </app-custom-select>
           </div>
         </div>
       </div>
@@ -243,13 +227,10 @@
         <h3 class="section-title">Plan y horarios fijos</h3>
 
         <div class="form-group">
-          <label class="form-label" for="select-tipo-grupo">Tipo de grupo *</label>
-          <select id="select-tipo-grupo" class="form-select" [value]="formulario().tipoGrupo"
-            (change)="actualizarCampo('tipoGrupo', $any($event.target).value)">
-            @for (tipo of tiposGrupo; track tipo.value) {
-            <option [value]="tipo.value">{{ tipo.label }}</option>
-            }
-          </select>
+          <app-custom-select [options]="tiposGrupo" [value]="formulario().tipoGrupo"
+            (valueChange)="actualizarCampo('tipoGrupo', $event)" label="Tipo de grupo *"
+            placeholder="Seleccionar grupo">
+          </app-custom-select>
         </div>
 
         <!-- Configuración híbrida: número de clases por grupo -->
@@ -258,21 +239,19 @@
           <span class="form-label">Clases por semana *</span>
           <div class="hibrido-selectores">
             <div class="hibrido-grupo">
-              <label for="clases-focus" class="hibrido-label">Focus:</label>
-              <select id="clases-focus" class="form-select hibrido-select" [value]="formulario().clasesFocus"
-                (change)="actualizarCampo('clasesFocus', +$any($event.target).value)">
-                <option [value]="1">1</option>
-                <option [value]="2">2</option>
-              </select>
+              <label class="hibrido-label">Focus:</label>
+              <app-custom-select class="hibrido-select" [options]="opcionesNumeroClases"
+                [value]="formulario().clasesFocus" (valueChange)="actualizarCampo('clasesFocus', $event)"
+                placeholder="1">
+              </app-custom-select>
             </div>
             <span class="hibrido-separador">+</span>
             <div class="hibrido-grupo">
-              <label for="clases-reducido" class="hibrido-label">Reducido:</label>
-              <select id="clases-reducido" class="form-select hibrido-select" [value]="formulario().clasesReducido"
-                (change)="actualizarCampo('clasesReducido', +$any($event.target).value)">
-                <option [value]="1">1</option>
-                <option [value]="2">2</option>
-              </select>
+              <label class="hibrido-label">Reducido:</label>
+              <app-custom-select class="hibrido-select" [options]="opcionesNumeroClases"
+                [value]="formulario().clasesReducido" (valueChange)="actualizarCampo('clasesReducido', $event)"
+                placeholder="1">
+              </app-custom-select>
             </div>
           </div>
           <p class="hibrido-resumen">
@@ -476,12 +455,8 @@
 
 <!-- Feedback Overlay (Global) -->
 @if (mostrarFeedback()) {
-<div class="feedback-overlay" role="status" aria-live="polite">
-  <div class="feedback-card">
-    <div class="feedback-icon">
-      <span class="material-symbols-rounded">check</span>
-    </div>
-    <span class="feedback-message">{{ mensajeFeedback() }}</span>
-  </div>
+<div class="toast toast--success" role="status" aria-live="polite">
+  <span class="material-symbols-rounded toast__icon">check_circle</span>
+  <span class="toast__message">{{ mensajeFeedback() }}</span>
 </div>
 }

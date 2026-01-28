@@ -143,26 +143,33 @@ export class AuthService {
 
       const telefonoLimpio = datos.telefono.replace(/[^0-9]/g, '');
 
-      // INTENTO TEMPORAL PARA PRUEBA: Insertar directamente
-      // Nota: Esto asume que la tabla usuarios tiene columna password y no requiere hash específico por ahora
-      // o que hay un trigger que lo maneja.
-
-      const { data, error } = await supabase().from('usuarios').insert({
-        telefono: telefonoLimpio,
-        // password removed. Using dummy hash to bypass DB constraint for testing propurse
-        password_hash: 'dummy_hash_for_testing',
-        nombre: datos.nombre,
-        rol: datos.rol || 'cliente',
-        activo: true
-        // created_at removed as it caused schema error
-      }).select().single();
+      // Invocar función segura en el servidor
+      const { data, error } = await supabase().functions.invoke('create-user', {
+        body: {
+          telefono: telefonoLimpio,
+          password: datos.password,
+          nombre: datos.nombre,
+          rol: datos.rol || 'cliente'
+        }
+      });
 
       if (error) {
-        console.error('Error insertando usuario:', error);
-        return { success: false, error: 'Error DB: ' + error.message };
+        // Error de invocación (red, etc)
+        console.error('Error invocando create-user:', error);
+        // Intentar parsear el error si viene del backend
+        let msg = 'Error de conexión';
+        try {
+          const body = await error.context.json();
+          msg = body.error || msg;
+        } catch { }
+        return { success: false, error: msg };
       }
 
-      return { success: true, userId: data.id };
+      if (!data.success) {
+        return { success: false, error: data.error || 'Error al crear usuario' };
+      }
+
+      return { success: true, userId: data.userId };
 
     } catch (error) {
       console.error('Error:', error);

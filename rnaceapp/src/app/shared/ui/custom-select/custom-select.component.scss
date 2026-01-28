@@ -1,0 +1,145 @@
+@use 'sass:math';
+
+:host {
+    display: block;
+    width: 100%;
+}
+
+.custom-select-container {
+    position: relative;
+    width: 100%;
+}
+
+.select-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xs);
+}
+
+.select-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg-main);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    height: 40px; // Standard height to match inputs
+
+    &:hover {
+        border-color: var(--color-border-hover);
+        background: var(--color-bg-elevated);
+    }
+
+    &.is-open {
+        border-color: var(--color-accent);
+        box-shadow: 0 0 0 3px var(--color-accent-soft);
+        background: var(--color-bg-elevated);
+
+        .arrow-icon {
+            transform: rotate(180deg);
+        }
+    }
+
+    &:focus-visible {
+        outline: none;
+        border-color: var(--color-accent);
+    }
+}
+
+.selected-value {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &.is-placeholder {
+        color: var(--color-text-muted);
+    }
+}
+
+.arrow-icon {
+    font-size: 1.25rem;
+    color: var(--color-text-muted);
+    transition: transform var(--transition-base);
+    margin-left: var(--space-xs);
+}
+
+// Fixed position menu
+.dropdown-menu {
+    position: fixed;
+    z-index: 600; // Above modal (500)
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    max-height: 250px;
+    overflow: hidden; // Content scrolls inside
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: blur(12px); // Premium glass feel
+    // Support for older browsers
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.dropdown-scroll-content {
+    overflow-y: auto;
+    max-height: 250px;
+    padding: var(--space-xs);
+
+    // Custom scrollbar
+    &::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: var(--color-border);
+        border-radius: var(--radius-full);
+    }
+}
+
+.dropdown-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm) var(--space-md);
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+
+    &:hover {
+        background: var(--color-bg-main); // Slightly different from elevated
+    }
+
+    &.selected {
+        background: var(--color-accent-soft);
+        color: var(--color-accent);
+        font-weight: 500;
+    }
+}
+
+.check-icon {
+    font-size: 1rem;
+    color: var(--color-accent);
+}
+
+// Backdrop to catch clicks
+.dropdown-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 590; // Just below menu
+    background: transparent;
+    cursor: default;
+}

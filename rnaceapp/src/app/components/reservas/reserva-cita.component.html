@@ -33,16 +33,16 @@
   <section class="reserva-card">
     <!-- Mensajes de feedback (fuera de bloques condicionales) -->
     @if (mensajeExito(); as msg) {
-    <div class="mensaje-exito" role="status">
-      <span class="material-symbols-rounded">check_circle</span>
-      {{ msg }}
+    <div class="toast toast--success" role="status">
+      <span class="material-symbols-rounded toast__icon">check_circle</span>
+      <span class="toast__message">{{ msg }}</span>
     </div>
     }
 
     @if (error(); as err) {
-    <div class="mensaje-error" role="alert">
-      <span class="material-symbols-rounded">error</span>
-      {{ err }}
+    <div class="toast toast--error" role="alert">
+      <span class="material-symbols-rounded toast__icon">error</span>
+      <span class="toast__message">{{ err }}</span>
     </div>
     }
 

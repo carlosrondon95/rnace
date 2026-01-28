@@ -44,16 +44,16 @@
 
   <!-- Mensajes -->
   @if (mensajeExito()) {
-  <div class="mensaje-exito">
-    <span class="material-symbols-rounded">check_circle</span>
-    {{ mensajeExito() }}
+  <div class="toast toast--success" role="status">
+    <span class="material-symbols-rounded toast__icon">check_circle</span>
+    <span class="toast__message">{{ mensajeExito() }}</span>
   </div>
   }
 
   @if (error()) {
-  <div class="mensaje-error">
-    <span class="material-symbols-rounded">error</span>
-    {{ error() }}
+  <div class="toast toast--error" role="alert">
+    <span class="material-symbols-rounded toast__icon">error</span>
+    <span class="toast__message">{{ error() }}</span>
   </div>
   }
 
