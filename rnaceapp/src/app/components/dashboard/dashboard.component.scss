@@ -97,9 +97,17 @@
   animation: slideUp 0.4s ease-out both;
 
   // Stagger animation for multiple sections
-  &:nth-child(2) { animation-delay: 0.05s; }
-  &:nth-child(3) { animation-delay: 0.1s; }
-  &:nth-child(4) { animation-delay: 0.15s; }
+  &:nth-child(2) {
+    animation-delay: 0.05s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.1s;
+  }
+
+  &:nth-child(4) {
+    animation-delay: 0.15s;
+  }
 
   &--highlight {
     background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0.03) 100%);
@@ -114,11 +122,11 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-md);
-  
+
   &.clickable {
     cursor: pointer;
     user-select: none;
-    
+
     &:hover {
       opacity: 0.8;
     }
@@ -127,7 +135,7 @@
   .chevron {
     color: var(--color-text-muted);
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    
+
     &.rotated {
       transform: rotate(180deg);
     }
@@ -157,6 +165,64 @@
       opacity: 0.7;
     }
   }
+
+  // Variant con toggle hoy/mañana
+  &--with-toggle {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex: 1;
+    min-width: 0;
+
+    &.clickable {
+      cursor: pointer;
+      user-select: none;
+
+      &:hover {
+        opacity: 0.8;
+      }
+    }
+  }
+}
+
+// Toggle hoy/mañana
+.vista-toggle {
+  display: flex;
+  background: var(--color-bg-main);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 2px;
+
+  &__btn {
+    padding: 6px 14px;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--color-text-muted);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+
+    &:hover:not(&--active) {
+      color: var(--color-text-secondary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    &--active {
+      background: var(--color-accent);
+      color: var(--color-bg-deep);
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(212, 175, 55, 0.25);
+    }
+  }
 }
 
 // Contenido colapsable con animación
@@ -169,6 +235,7 @@
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -596,10 +663,21 @@
   animation: fadeIn 0.3s ease-out both;
 
   // Stagger animation
-  &:nth-child(1) { animation-delay: 0.1s; }
-  &:nth-child(2) { animation-delay: 0.15s; }
-  &:nth-child(3) { animation-delay: 0.2s; }
-  &:nth-child(4) { animation-delay: 0.25s; }
+  &:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+
+  &:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+
+  &:nth-child(4) {
+    animation-delay: 0.25s;
+  }
 
   &:hover {
     border-color: var(--color-accent);
@@ -690,10 +768,21 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 
   // Stagger animation for stat cards
-  &:nth-child(1) { animation-delay: 0.05s; }
-  &:nth-child(2) { animation-delay: 0.1s; }
-  &:nth-child(3) { animation-delay: 0.15s; }
-  &:nth-child(4) { animation-delay: 0.2s; }
+  &:nth-child(1) {
+    animation-delay: 0.05s;
+  }
+
+  &:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.15s;
+  }
+
+  &:nth-child(4) {
+    animation-delay: 0.2s;
+  }
 
   &:hover {
     transform: translateY(-2px);
@@ -1028,6 +1117,7 @@
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1038,6 +1128,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1048,6 +1139,7 @@
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);

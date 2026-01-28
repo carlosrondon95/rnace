@@ -5,15 +5,6 @@
     <header class="welcome-section">
       <div class="welcome-content">
         <h1>{{ saludo() }}, {{ nombreUsuario() }}</h1>
-        <p class="welcome-subtitle">
-          @if (isCliente()) {
-          Tu espacio de bienestar
-          } @else if (isProfesor()) {
-          Panel de profesor
-          } @else {
-          Panel de administración
-          }
-        </p>
       </div>
 
       <!-- Botón notificaciones -->
@@ -235,14 +226,26 @@
       }
     </section>
 
-    <!-- Clases de hoy - CARDS EXPANDIBLES CON BARRA DE PROGRESO -->
+    <!-- Clases de hoy/mañana - CARDS EXPANDIBLES CON BARRA DE PROGRESO -->
     <section class="section">
-      <div class="section-header clickable" (click)="toggleClasesHoySection()">
-        <h2>
-          <span class="material-symbols-rounded">schedule</span>
-          Clases de hoy
-        </h2>
-        <span class="material-symbols-rounded chevron" [class.rotated]="!clasesHoyExpanded()">expand_more</span>
+      <div class="section-header section-header--with-toggle">
+        <div class="section-header__left clickable" (click)="toggleClasesHoySection()">
+          <h2>
+            <span class="material-symbols-rounded">schedule</span>
+            {{ vistaClases() === 'hoy' ? 'Clases de hoy' : 'Clases de mañana' }}
+          </h2>
+          <span class="material-symbols-rounded chevron" [class.rotated]="!clasesHoyExpanded()">expand_more</span>
+        </div>
+        <div class="vista-toggle">
+          <button type="button" class="vista-toggle__btn" [class.vista-toggle__btn--active]="vistaClases() === 'hoy'"
+            (click)="setVistaClases('hoy'); $event.stopPropagation()">
+            Hoy
+          </button>
+          <button type="button" class="vista-toggle__btn" [class.vista-toggle__btn--active]="vistaClases() === 'manana'"
+            (click)="setVistaClases('manana'); $event.stopPropagation()">
+            Mañana
+          </button>
+        </div>
       </div>
 
       @if (clasesHoyExpanded()) {
@@ -306,7 +309,8 @@
       } @else {
       <div class="empty-card">
         <span class="material-symbols-rounded">event_busy</span>
-        <p>No hay más clases programadas para hoy</p>
+        <p>{{ vistaClases() === 'hoy' ? 'No hay más clases programadas para hoy' : 'No hay clases programadas para
+          mañana' }}</p>
       </div>
       }
       }

@@ -80,6 +80,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Estados de secciones admin
   hoyExpanded = signal(false);
   clasesHoyExpanded = signal(false);
+  vistaClases = signal<'hoy' | 'manana'>('hoy'); // Toggle hoy/mañana
 
   // Estados de secciones cliente
   recuperacionesExpanded = signal(false);
@@ -328,9 +329,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  async cargarClasesHoy() {
+  async cargarClasesHoy(vista?: 'hoy' | 'manana') {
     try {
-      const hoy = new Date().toISOString().split('T')[0];
+      const hoy = new Date();
+      const fechaTarget = vista === 'manana' || this.vistaClases() === 'manana'
+        ? new Date(hoy.getTime() + 24 * 60 * 60 * 1000)
+        : hoy;
+      const fechaStr = fechaTarget.toISOString().split('T')[0];
 
       const { data: sesionesData, error } = await supabase()
         .from('sesiones')
@@ -348,7 +353,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           )
         `,
         )
-        .eq('fecha', hoy)
+        .eq('fecha', fechaStr)
         .eq('cancelada', false)
         .order('hora', { ascending: true });
 
@@ -390,13 +395,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
         };
       });
 
-      // Filtrar clases pasadas (mismo criterio que próximas clases: hasta 1h después de inicio)
-      const ahora = new Date();
-      const clasesFiltradas = clases.filter((clase) => {
-        const inicioClase = new Date(hoy + 'T' + clase.hora);
-        const finClase = new Date(inicioClase.getTime() + 60 * 60 * 1000); // +1 hora
-        return finClase > ahora;
-      });
+      // Filtrar solo clases con al menos una reserva
+      let clasesFiltradas = clases.filter((clase) => clase.reservas_count > 0);
+
+      // Filtrar clases pasadas solo para hoy (no para mañana)
+      if (this.vistaClases() === 'hoy') {
+        const ahora = new Date();
+        clasesFiltradas = clasesFiltradas.filter((clase) => {
+          const inicioClase = new Date(fechaStr + 'T' + clase.hora);
+          const finClase = new Date(inicioClase.getTime() + 60 * 60 * 1000); // +1 hora
+          return finClase > ahora;
+        });
+      }
 
       this.clasesHoy.set(clasesFiltradas);
     } catch (err) {
@@ -452,6 +462,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   toggleClasesHoySection() {
     this.clasesHoyExpanded.update((v) => !v);
+  }
+
+  setVistaClases(vista: 'hoy' | 'manana') {
+    this.vistaClases.set(vista);
+    this.expandedClaseIndex.set(null); // Reset expanded card
+    this.cargarClasesHoy(vista);
   }
 
   toggleRecuperacionesSection() {
