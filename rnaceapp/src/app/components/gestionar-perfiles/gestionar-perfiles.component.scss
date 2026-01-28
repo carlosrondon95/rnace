@@ -151,6 +151,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+
+  app-custom-select {
+    width: 160px;
+  }
 }
 
 .filtro-label {

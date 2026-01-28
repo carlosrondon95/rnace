@@ -6,6 +6,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
 import { supabase } from '../../core/supabase.client';
+import { CustomSelectComponent, SelectOption } from '../../shared/ui/custom-select/custom-select.component';
 
 interface DiaCalendario {
   fecha: string;
@@ -110,12 +111,22 @@ interface SesionDia {
   fecha?: string;             // Fecha de la sesión (para modo cambio)
 }
 
+// Horario plantilla semanal
+interface HorarioDisponible {
+  id: number;
+  dia_semana: number; // 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie
+  hora: string;
+  modalidad: 'focus' | 'reducido';
+  capacidad_maxima: number;
+  activo: boolean;
+}
+
 // ...
 
 @Component({
   standalone: true,
   selector: 'app-calendario',
-  imports: [CommonModule],
+  imports: [CommonModule, CustomSelectComponent],
   templateUrl: './calendario.component.html',
   styleUrls: ['./calendario.component.scss'],
 })
@@ -144,6 +155,8 @@ export class CalendarioComponent implements OnInit {
   // Modal confirmación cierre
   mostrarModalConfirmacion = signal(false);
   conflictosCierre = signal<ConflictoCierre[]>([]);
+  tipoCierreSeleccionado = signal<'festivo' | 'vacaciones' | null>(null);
+  mesYaEstabAbierto = signal(false); // Track if month was already open when editing
 
   // Usuario
   esAdmin = computed(() => this.auth.getRol() === 'admin');
@@ -196,6 +209,70 @@ export class CalendarioComponent implements OnInit {
   opcionReclamarSeleccionada = signal<'cambiar' | 'recuperacion' | null>(null);
   reservaSeleccionadaParaCambio = signal<number | null>(null);
   recuperacionSeleccionada = signal<number | null>(null);
+
+  // === PANEL HORARIOS SEMANALES (ADMIN) ===
+  panelHorariosExpandido = signal(false);
+  horariosPlantilla = signal<HorarioDisponible[]>([]);
+  cargandoHorarios = signal(false);
+  guardandoHorario = signal(false);
+  mostrarFormularioHorario = signal(false);
+  horarioEditando = signal<HorarioDisponible | null>(null);
+  formularioHorario = signal<{ dia_semana: number; hora: string; modalidad: 'focus' | 'reducido'; capacidad_maxima: number }>({
+    dia_semana: 1,
+    hora: '09:00',
+    modalidad: 'focus',
+    capacidad_maxima: 3
+  });
+  diasSemanaLabels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+  diaSeleccionadoHorarios = signal<number | null>(null);
+
+  // Opciones para custom selects
+  opcionesDias: SelectOption[] = [
+    { value: 1, label: 'Lunes' },
+    { value: 2, label: 'Martes' },
+    { value: 3, label: 'Miércoles' },
+    { value: 4, label: 'Jueves' },
+    { value: 5, label: 'Viernes' }
+  ];
+
+  opcionesHoras: SelectOption[] = Array.from({ length: 24 }, (_, i) => ({
+    value: i.toString().padStart(2, '0'),
+    label: i.toString().padStart(2, '0')
+  }));
+
+  opcionesMinutos: SelectOption[] = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => ({
+    value: m,
+    label: m
+  }));
+
+  // Computed para extraer hora y minutos del formulario actual
+  horaFormulario = computed(() => this.formularioHorario().hora.split(':')[0] || '09');
+  minutosFormulario = computed(() => this.formularioHorario().hora.split(':')[1] || '00');
+
+  // Computed: horarios agrupados por día
+  horariosPorDia = computed(() => {
+    const horarios = this.horariosPlantilla();
+    const porDia: Map<number, HorarioDisponible[]> = new Map();
+
+    // Inicializar días 1-5
+    for (let i = 1; i <= 5; i++) {
+      porDia.set(i, []);
+    }
+
+    // Agrupar horarios activos
+    horarios.filter(h => h.activo).forEach(h => {
+      const lista = porDia.get(h.dia_semana) || [];
+      lista.push(h);
+      porDia.set(h.dia_semana, lista);
+    });
+
+    // Ordenar por hora dentro de cada día
+    porDia.forEach((lista, dia) => {
+      porDia.set(dia, lista.sort((a, b) => a.hora.localeCompare(b.hora)));
+    });
+
+    return porDia;
+  });
 
   // Computed: Mini-calendario de las reservas del usuario en el mismo mes
   semanasReclamarCalendario = computed(() => {
@@ -1249,6 +1326,8 @@ export class CalendarioComponent implements OnInit {
       }
     });
 
+    // Track if month was already open when entering edit mode
+    this.mesYaEstabAbierto.set(this.mesEstaAbierto());
     this.festivosSeleccionados.set(festivosActuales);
     this.modoEdicion.set(true);
     this.error.set(null);
@@ -1305,14 +1384,18 @@ export class CalendarioComponent implements OnInit {
   cancelarCierre() {
     this.mostrarModalConfirmacion.set(false);
     this.conflictosCierre.set([]);
+    this.tipoCierreSeleccionado.set(null);
   }
 
-  confirmarCierreConConflictos() {
+  confirmarCierreConConflictos(tipoCierre: 'festivo' | 'vacaciones') {
+    this.tipoCierreSeleccionado.set(tipoCierre);
     this.mostrarModalConfirmacion.set(false);
-    this.procesarGuardado();
+    // Only generate recoveries if closure type is 'festivo'
+    const generarRecuperaciones = tipoCierre === 'festivo';
+    this.procesarGuardado(generarRecuperaciones);
   }
 
-  async procesarGuardado() {
+  async procesarGuardado(generarRecuperaciones: boolean = true) {
     if (!this.esAdmin()) return;
 
     this.guardando.set(true);
@@ -1357,62 +1440,29 @@ export class CalendarioComponent implements OnInit {
           return;
         }
 
-        // Cancelar reservas existentes en los días festivos y generar recuperaciones
-        const reservasAfectadas: { reservaId: number; usuarioId: string }[] = [];
+        // Cancelar reservas existentes en los días festivos
+        // Only generate recuperaciones if generarRecuperaciones is true (FESTIVO type)
 
-        // Buscar reservas en los días marcados como festivos
+        // OPTIMIZACIÓN: Recoger todos los IDs de reserva afectadas primero
+        const reservaIds: number[] = [];
         for (const fecha of festivosArray) {
           const dia = this.diasCalendario().find(d => d.fecha === fecha);
           if (dia && dia.reservas.length > 0) {
             for (const reserva of dia.reservas) {
-              // Obtener usuario_id de la reserva
-              const { data: reservaData } = await client
-                .from('reservas')
-                .select('usuario_id')
-                .eq('id', reserva.id)
-                .single();
-
-              if (reservaData) {
-                reservasAfectadas.push({
-                  reservaId: reserva.id,
-                  usuarioId: reservaData.usuario_id
-                });
-              }
+              reservaIds.push(reserva.id);
             }
           }
         }
 
-        // Cancelar reservas y generar recuperaciones DIRECTAMENTE (sin RPC)
-        for (const { reservaId, usuarioId } of reservasAfectadas) {
-          try {
-            // 1. Obtener datos de la sesión para la recuperación
-            const { data: reservaCompleta } = await client
-              .from('reservas')
-              .select('sesion_id, sesiones(modalidad, fecha)')
-              .eq('id', reservaId)
-              .single();
+        if (reservaIds.length > 0) {
+          // OPTIMIZACIÓN: Una sola query para obtener todos los datos necesarios
+          const { data: reservasCompletas } = await client
+            .from('reservas')
+            .select('id, usuario_id, sesion_id, sesiones(modalidad, fecha)')
+            .in('id', reservaIds);
 
-            if (!reservaCompleta) continue;
-
-            const sesionData = Array.isArray(reservaCompleta.sesiones)
-              ? reservaCompleta.sesiones[0]
-              : reservaCompleta.sesiones;
-
-            if (!sesionData) continue;
-
-            const fechaSesion = new Date(sesionData.fecha);
-            const mesOrigen = fechaSesion.getMonth() + 1;
-            const anioOrigen = fechaSesion.getFullYear();
-
-            // Calcular mes límite (mes siguiente)
-            let mesLimite = mesOrigen + 1;
-            let anioLimite = anioOrigen;
-            if (mesLimite > 12) {
-              mesLimite = 1;
-              anioLimite++;
-            }
-
-            // 2. Cancelar la reserva
+          if (reservasCompletas && reservasCompletas.length > 0) {
+            // OPTIMIZACIÓN: Cancelar todas las reservas en una sola operación batch
             await client
               .from('reservas')
               .update({
@@ -1420,43 +1470,90 @@ export class CalendarioComponent implements OnInit {
                 cancelada_en: new Date().toISOString(),
                 cancelada_correctamente: true
               })
-              .eq('id', reservaId);
+              .in('id', reservaIds);
 
-            // 3. Insertar recuperación en la tabla principal
-            const { error: recupError } = await client
-              .from('recuperaciones')
-              .insert({
-                usuario_id: usuarioId,
-                sesion_cancelada_id: reservaCompleta.sesion_id,
-                modalidad: sesionData.modalidad,
-                mes_origen: mesOrigen,
-                anio_origen: anioOrigen,
-                mes_limite: mesLimite,
-                anio_limite: anioLimite,
-                estado: 'disponible'
-              });
+            // Preparar datos para inserciones batch
+            const recuperacionesAInsertar: any[] = [];
+            const notificacionesAInsertar: any[] = [];
 
-            if (!recupError) {
-              recuperacionesGeneradas++;
-              console.log(`Reserva ${reservaId} cancelada, recuperación generada para usuario ${usuarioId}`);
+            for (const reserva of reservasCompletas) {
+              const sesionData = Array.isArray(reserva.sesiones)
+                ? reserva.sesiones[0]
+                : reserva.sesiones;
 
-              // 4. Insertar notificación al usuario
-              const fechaFormateada = fechaSesion.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
-              await client
-                .from('notificaciones')
-                .insert({
-                  usuario_id: usuarioId,
-                  tipo: 'cancelacion',
-                  titulo: 'Clase cancelada por festivo',
-                  mensaje: `Tu clase del ${fechaFormateada} ha sido cancelada por festivo. Se ha generado una recuperación.`,
-                  leida: false
+              if (!sesionData) continue;
+
+              const fechaSesion = new Date(sesionData.fecha);
+              const mesOrigen = fechaSesion.getMonth() + 1;
+              const anioOrigen = fechaSesion.getFullYear();
+
+              // Calcular mes límite (mes siguiente)
+              let mesLimite = mesOrigen + 1;
+              let anioLimite = anioOrigen;
+              if (mesLimite > 12) {
+                mesLimite = 1;
+                anioLimite++;
+              }
+
+              // Preparar recuperación si corresponde
+              if (generarRecuperaciones) {
+                recuperacionesAInsertar.push({
+                  usuario_id: reserva.usuario_id,
+                  sesion_cancelada_id: reserva.sesion_id,
+                  modalidad: sesionData.modalidad,
+                  mes_origen: mesOrigen,
+                  anio_origen: anioOrigen,
+                  mes_limite: mesLimite,
+                  anio_limite: anioLimite,
+                  estado: 'disponible'
                 });
-            } else {
-              console.warn('Error insertando recuperación:', recupError);
+              }
+
+              // Preparar notificación
+              const fechaFormateada = fechaSesion.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+              const mensajeNotif = generarRecuperaciones
+                ? `Tu clase del ${fechaFormateada} ha sido cancelada por festivo. Se ha generado una recuperación.`
+                : `Tu clase del ${fechaFormateada} ha sido cancelada por vacaciones.`;
+
+              notificacionesAInsertar.push({
+                usuario_id: reserva.usuario_id,
+                tipo: 'cancelacion',
+                titulo: generarRecuperaciones ? 'Clase cancelada por festivo' : 'Clase cancelada por vacaciones',
+                mensaje: mensajeNotif,
+                leida: false
+              });
             }
 
-          } catch (err) {
-            console.warn(`Error cancelando reserva ${reservaId}:`, err);
+            // OPTIMIZACIÓN: Insertar recuperaciones y notificaciones en batch con Promise.all
+            const batchOperations: Promise<any>[] = [];
+
+            if (recuperacionesAInsertar.length > 0) {
+              batchOperations.push(
+                Promise.resolve(client.from('recuperaciones').insert(recuperacionesAInsertar)).then(({ error }) => {
+                  if (error) {
+                    console.warn('Error insertando recuperaciones:', error);
+                  } else {
+                    recuperacionesGeneradas = recuperacionesAInsertar.length;
+                    console.log(`${recuperacionesGeneradas} recuperaciones generadas`);
+                  }
+                })
+              );
+            }
+
+            if (notificacionesAInsertar.length > 0) {
+              batchOperations.push(
+                Promise.resolve(client.from('notificaciones').insert(notificacionesAInsertar)).then(({ error }) => {
+                  if (error) {
+                    console.warn('Error insertando notificaciones:', error);
+                  } else {
+                    console.log(`${notificacionesAInsertar.length} notificaciones enviadas`);
+                  }
+                })
+              );
+            }
+
+            // Ejecutar operaciones en paralelo
+            await Promise.all(batchOperations);
           }
         }
 
@@ -2245,5 +2342,319 @@ export class CalendarioComponent implements OnInit {
 
   volver() {
     this.router.navigateByUrl('/dashboard');
+  }
+
+  // === MÉTODOS PANEL HORARIOS SEMANALES ===
+
+  togglePanelHorarios() {
+    const nuevoEstado = !this.panelHorariosExpandido();
+    this.panelHorariosExpandido.set(nuevoEstado);
+
+    // Cargar horarios si se expande y no están cargados
+    if (nuevoEstado && this.horariosPlantilla().length === 0) {
+      this.cargarHorarios();
+    }
+  }
+
+  async cargarHorarios() {
+    this.cargandoHorarios.set(true);
+    try {
+      const { data, error } = await supabase()
+        .from('horarios_disponibles')
+        .select('*')
+        .order('dia_semana')
+        .order('hora');
+
+      if (error) throw error;
+
+      this.horariosPlantilla.set((data || []).map(h => ({
+        id: h.id,
+        dia_semana: h.dia_semana,
+        hora: h.hora.slice(0, 5), // Formato HH:MM
+        modalidad: h.modalidad as 'focus' | 'reducido',
+        capacidad_maxima: h.capacidad_maxima,
+        activo: h.activo
+      })));
+    } catch (err) {
+      console.error('Error cargando horarios:', err);
+      this.error.set('Error al cargar los horarios');
+    } finally {
+      this.cargandoHorarios.set(false);
+    }
+  }
+
+  abrirFormularioHorario(diaSemana: number) {
+    this.horarioEditando.set(null);
+    this.formularioHorario.set({
+      dia_semana: diaSemana,
+      hora: '09:00',
+      modalidad: 'focus',
+      capacidad_maxima: 3
+    });
+    this.mostrarFormularioHorario.set(true);
+  }
+
+  editarHorario(horario: HorarioDisponible) {
+    this.horarioEditando.set(horario);
+    this.formularioHorario.set({
+      dia_semana: horario.dia_semana,
+      hora: horario.hora,
+      modalidad: horario.modalidad,
+      capacidad_maxima: horario.capacidad_maxima
+    });
+    this.mostrarFormularioHorario.set(true);
+  }
+
+  cerrarFormularioHorario() {
+    this.mostrarFormularioHorario.set(false);
+    this.horarioEditando.set(null);
+  }
+
+  actualizarCampoHorario(campo: 'dia_semana' | 'hora' | 'modalidad' | 'capacidad_maxima', valor: any) {
+    this.formularioHorario.update(f => ({ ...f, [campo]: valor }));
+  }
+
+  actualizarHora(nuevaHora: string) {
+    const minutos = this.minutosFormulario();
+    this.actualizarCampoHorario('hora', `${nuevaHora}:${minutos}`);
+  }
+
+  actualizarMinutos(nuevosMinutos: string) {
+    const hora = this.horaFormulario();
+    this.actualizarCampoHorario('hora', `${hora}:${nuevosMinutos}`);
+  }
+
+  async guardarHorario() {
+    const form = this.formularioHorario();
+    const editando = this.horarioEditando();
+
+    this.guardandoHorario.set(true);
+    this.error.set(null);
+
+    try {
+      if (editando) {
+        // Update
+        const { error } = await supabase()
+          .from('horarios_disponibles')
+          .update({
+            dia_semana: form.dia_semana,
+            hora: form.hora,
+            modalidad: form.modalidad,
+            capacidad_maxima: form.capacidad_maxima
+          })
+          .eq('id', editando.id);
+
+        if (error) throw error;
+
+        // Si se actualiza, también deberíamos intentar sincronizar (crear nuevas si cambió hora/día)
+        // Por simplicidad, tratamos como nuevo para "rellenar huecos"
+        await this.sincronizarHorarioConSesiones({ ...editando, ...form, activo: true });
+
+      } else {
+        // Antes de insertar, comprobar si ya existe (aunque esté inactivo) para evitar error de constraint unique
+        const { data: existente } = await supabase()
+          .from('horarios_disponibles')
+          .select('id')
+          .eq('dia_semana', form.dia_semana)
+          .eq('hora', form.hora)
+          .eq('modalidad', form.modalidad)
+          .maybeSingle();
+
+        if (existente) {
+          // Si existe, lo reactivamos y actualizamos
+          const { error: updateError } = await supabase()
+            .from('horarios_disponibles')
+            .update({
+              capacidad_maxima: form.capacidad_maxima,
+              activo: true
+            })
+            .eq('id', existente.id);
+
+          if (updateError) throw updateError;
+
+          // Sincronizar con ID existente
+          await this.sincronizarHorarioConSesiones({ ...form, id: existente.id, activo: true });
+
+        } else {
+          // Insert normal si no existe
+          const { data, error } = await supabase()
+            .from('horarios_disponibles')
+            .insert({
+              dia_semana: form.dia_semana,
+              hora: form.hora,
+              modalidad: form.modalidad,
+              capacidad_maxima: form.capacidad_maxima,
+              activo: true
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          if (data) {
+            await this.sincronizarHorarioConSesiones(data);
+          }
+        }
+      }
+
+      await this.cargarHorarios();
+      this.cerrarFormularioHorario();
+
+      // Finalmente, regenerar reservas futuras para todos los usuarios
+      // Esto asegura que si el cambio de horario afecta a usuarios existentes, se actualicen sus reservas
+      try {
+        await supabase().rpc('regenerar_reservas_futuras');
+      } catch (rpcError) {
+        console.error('Error regenerando reservas:', rpcError);
+        // No bloqueamos el éxito, pero logueamos
+      }
+
+      this.mensajeExito.set('Horario guardado correctamente. Las sesiones y reservas futuras se han actualizado.');
+      setTimeout(() => this.mensajeExito.set(null), 3000);
+
+    } catch (e: any) {
+      console.error('Error guardando horario:', e);
+      this.error.set('Error al guardar horario: ' + e.message);
+    } finally {
+      this.guardandoHorario.set(false);
+    }
+  }
+
+  // Sincroniza un horario plantilla con las sesiones reales de los meses abiertos
+  private async sincronizarHorarioConSesiones(horario: HorarioDisponible) {
+    if (!horario.activo) return;
+
+    try {
+      // 1. Obtener meses abiertos (agenda_mes)
+      const { data: mesesAbiertos, error: errorMeses } = await supabase()
+        .from('agenda_mes')
+        .select('*')
+        .eq('abierto', true);
+
+      if (errorMeses || !mesesAbiertos || mesesAbiertos.length === 0) {
+        console.log('No hay meses abiertos para sincronizar');
+        return;
+      }
+
+      const sesionesAInsertar: any[] = [];
+      const fechaActual = new Date();
+      fechaActual.setHours(0, 0, 0, 0);
+
+      // 2. Para cada mes abierto, buscar los días correspondientes
+      for (const mesAgenda of mesesAbiertos) {
+        const anio = mesAgenda.anio;
+        const mes = mesAgenda.mes; // 1-12
+
+        const primerDia = new Date(anio, mes - 1, 1);
+        const ultimoDia = new Date(anio, mes, 0);
+
+        // Iterar días del mes
+        for (let d = new Date(primerDia); d <= ultimoDia; d.setDate(d.getDate() + 1)) {
+          // d.getDay(): 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
+          // horario.dia_semana en BD: 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie
+          // Para convertir getDay() a formato BD: si getDay()=0 (Dom)->7, sino getDay()
+          let diaSemanaISO = d.getDay();
+          if (diaSemanaISO === 0) diaSemanaISO = 7; // Domingo = 7
+
+          if (diaSemanaISO === horario.dia_semana) {
+            // Solo fechas futuras o de hoy
+            if (d < fechaActual) continue;
+
+            const fechaStr = this.formatearFechaISO(d);
+
+            // Campos correctos de la tabla sesiones: fecha, hora, modalidad, capacidad, cancelada
+            sesionesAInsertar.push({
+              fecha: fechaStr,
+              hora: horario.hora,
+              modalidad: horario.modalidad,
+              capacidad: horario.capacidad_maxima,
+              cancelada: false
+            });
+          }
+        }
+      }
+
+      if (sesionesAInsertar.length === 0) {
+        console.log('No hay sesiones nuevas para crear');
+        return;
+      }
+
+      // 3. Buscar sesiones existentes para evitar duplicados
+      const fechas = sesionesAInsertar.map(s => s.fecha);
+      const hora = horario.hora;
+
+      const { data: existentes } = await supabase()
+        .from('sesiones')
+        .select('fecha, hora, modalidad')
+        .in('fecha', fechas)
+        .eq('hora', hora)
+        .eq('modalidad', horario.modalidad);
+
+      const existentesSet = new Set(existentes?.map(s => `${s.fecha}_${s.hora}_${s.modalidad}`));
+
+      const paraInsertar = sesionesAInsertar.filter(s =>
+        !existentesSet.has(`${s.fecha}_${s.hora}_${s.modalidad}`)
+      );
+
+      if (paraInsertar.length > 0) {
+        const { error: insertError } = await supabase()
+          .from('sesiones')
+          .insert(paraInsertar);
+
+        if (insertError) {
+          console.error('Error sincronizando sesiones:', insertError);
+        } else {
+          console.log(`Sincronizadas ${paraInsertar.length} nuevas sesiones para el horario día ${horario.dia_semana} ${horario.hora}`);
+        }
+      } else {
+        console.log('Todas las sesiones ya existían');
+      }
+
+    } catch (err) {
+      console.error('Error en sincronización de sesiones:', err);
+    }
+  }
+
+  private formatearFechaISO(date: Date): string {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  async eliminarHorario(horario: HorarioDisponible) {
+    if (!await this.confirmation.confirm({
+      titulo: 'Eliminar horario',
+      mensaje: `¿Eliminar el turno de las ${horario.hora} (${horario.modalidad}) del ${this.diasSemanaLabels[horario.dia_semana - 1]}?`,
+      tipo: 'warning',
+      textoConfirmar: 'Eliminar'
+    })) {
+      return;
+    }
+
+    this.guardandoHorario.set(true);
+
+    try {
+      // Desactivar en lugar de eliminar (soft delete)
+      const { error } = await supabase()
+        .from('horarios_disponibles')
+        .update({ activo: false })
+        .eq('id', horario.id);
+
+      if (error) throw error;
+
+      this.mensajeExito.set('Horario eliminado');
+      setTimeout(() => this.mensajeExito.set(null), 3000);
+      await this.cargarHorarios();
+    } catch (err) {
+      console.error('Error eliminando horario:', err);
+      this.error.set('Error al eliminar el horario');
+    } finally {
+      this.guardandoHorario.set(false);
+    }
+  }
+
+  getCapacidadDefault(modalidad: 'focus' | 'reducido'): number {
+    return modalidad === 'focus' ? 3 : 8;
   }
 }

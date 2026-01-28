@@ -42,6 +42,79 @@
       </button>
     </div>
 
+    <!-- Panel Horarios Semanales (solo admin) -->
+    @if (esAdmin()) {
+    <div class="panel-horarios" [class.panel-horarios--expandido]="panelHorariosExpandido()">
+      <button type="button" class="panel-horarios-header" (click)="togglePanelHorarios()">
+        <span class="panel-horarios-title">
+          <span class="material-symbols-rounded">schedule</span>
+          Configurar horarios semanales
+        </span>
+        <span class="material-symbols-rounded panel-horarios-icon">
+          {{ panelHorariosExpandido() ? 'expand_less' : 'expand_more' }}
+        </span>
+      </button>
+
+      @if (panelHorariosExpandido()) {
+      <div class="panel-horarios-content">
+        @if (cargandoHorarios()) {
+        <div class="loading-inline">
+          <span class="spinner-small"></span>
+          <span>Cargando horarios...</span>
+        </div>
+        } @else {
+        <!-- Tabs de días -->
+        <div class="dias-tabs">
+          @for (dia of [1, 2, 3, 4, 5]; track dia) {
+          <button type="button" class="dia-tab" [class.dia-tab--active]="diaSeleccionadoHorarios() === dia"
+            (click)="diaSeleccionadoHorarios.set(diaSeleccionadoHorarios() === dia ? null : dia)">
+            <span class="dia-tab-label">{{ diasSemanaLabels[dia - 1].slice(0, 3) }}</span>
+            <span class="dia-tab-count">{{ horariosPorDia().get(dia)?.length || 0 }}</span>
+          </button>
+          }
+        </div>
+
+        <!-- Detalle del día seleccionado -->
+        @if (diaSeleccionadoHorarios()) {
+        <div class="dia-detalle">
+          <div class="dia-detalle-header">
+            <h4>{{ diasSemanaLabels[diaSeleccionadoHorarios()! - 1] }}</h4>
+            <button class="btn-agregar-turno" (click)="abrirFormularioHorario(diaSeleccionadoHorarios()!)"
+              [disabled]="guardandoHorario()">
+              <span class="material-symbols-rounded">add</span>
+              Añadir
+            </button>
+          </div>
+          <div class="turnos-lista">
+            @for (horario of horariosPorDia().get(diaSeleccionadoHorarios()!); track horario.id) {
+            <div class="turno-card" [class.turno-focus]="horario.modalidad === 'focus'"
+              [class.turno-reducido]="horario.modalidad === 'reducido'">
+              <div class="turno-info">
+                <span class="turno-hora">{{ horario.hora }}</span>
+                <span class="turno-modalidad">{{ horario.modalidad | titlecase }}</span>
+                <span class="turno-capacidad">{{ horario.capacidad_maxima }} plazas</span>
+              </div>
+              <div class="turno-actions">
+                <button class="btn-turno-action btn-turno-delete" title="Eliminar" (click)="eliminarHorario(horario)"
+                  [disabled]="guardandoHorario()">
+                  <span class="material-symbols-rounded">delete</span>
+                </button>
+              </div>
+            </div>
+            } @empty {
+            <div class="turnos-empty">No hay turnos configurados para este día</div>
+            }
+          </div>
+        </div>
+        } @else {
+        <p class="hint-text">Pulsa en un día para ver sus horarios</p>
+        }
+        }
+      </div>
+      }
+    </div>
+    }
+
     <!-- Panel de control (solo admin) -->
     @if (esAdmin()) {
     <div class="panel-admin">
@@ -136,19 +209,19 @@
 
     <!-- Mensajes -->
     @if (mensajeExito()) {
-    <div class="mensaje-exito">
-      <span class="material-symbols-rounded">check_circle</span>
-      {{ mensajeExito() }}
-      <button class="btn-cerrar-mensaje" (click)="mensajeExito.set(null)" aria-label="Cerrar">
+    <div class="toast toast--success" role="status">
+      <span class="material-symbols-rounded toast__icon">check_circle</span>
+      <span class="toast__message">{{ mensajeExito() }}</span>
+      <button class="toast__close" (click)="mensajeExito.set(null)" aria-label="Cerrar">
         <span class="material-symbols-rounded">close</span>
       </button>
     </div>
     }
 
     @if (error()) {
-    <div class="mensaje-error">
-      <span class="material-symbols-rounded">error</span>
-      {{ error() }}
+    <div class="toast toast--error" role="alert">
+      <span class="material-symbols-rounded toast__icon">error</span>
+      <span class="toast__message">{{ error() }}</span>
     </div>
     }
 
@@ -550,34 +623,66 @@
 
   <!-- Modal Confirmación Cierre con Conflictos -->
   @if (mostrarModalConfirmacion()) {
-  <div class="modal-overlay modal-danger">
-    <div class="modal-confirmacion">
+  <div class="modal-overlay modal-danger" (click)="cancelarCierre()">
+    <div class="modal-confirmacion modal-cierre-tipo" (click)="$event.stopPropagation()">
       <header class="modal-header header-danger">
         <span class="material-symbols-rounded icon-warn">warning</span>
-        <h3>¡Atención! Conflictos detectados</h3>
+        <h3>Reservas afectadas</h3>
+        <button class="btn-cerrar" (click)="cancelarCierre()" aria-label="Cerrar" [disabled]="guardando()">
+          <span class="material-symbols-rounded">close</span>
+        </button>
       </header>
 
       <div class="modal-body">
-        <p class="warn-text">Has marcado días festivos que contienen reservas activas. Si continúas:</p>
+        <div class="info-conflictos">
+          <p class="conflictos-intro">
+            <span class="material-symbols-rounded">event_busy</span>
+            Has marcado días con reservas activas:
+          </p>
+          <ul class="lista-conflictos">
+            @for (conflicto of conflictosCierre(); track conflicto.fecha) {
+            <li>
+              <span class="conflicto-fecha">{{ conflicto.fecha | date:'dd/MM/yyyy' }}</span>
+              <span class="conflicto-count">{{ conflicto.numReservas }} reserva{{ conflicto.numReservas > 1 ? 's' : ''
+                }}</span>
+            </li>
+            }
+          </ul>
+        </div>
 
-        <ul class="lista-conflictos">
-          @for (conflicto of conflictosCierre(); track conflicto.fecha) {
-          <li>
-            <span class="conflicto-fecha">{{ conflicto.fecha | date:'dd/MM/yyyy' }}</span>
-            <span class="conflicto-count">{{ conflicto.numReservas }} reserva(s)</span>
-          </li>
-          }
-        </ul>
+        <div class="opciones-cancelacion">
+          <p class="opciones-titulo">¿Cómo deseas cerrar estos días?</p>
 
-        <p class="warn-subtext">Se cancelarán estas reservas y se notificará a los usuarios generando recuperaciones.
-        </p>
+          <button class="btn-opcion btn-opcion--festivo" [disabled]="guardando()"
+            (click)="confirmarCierreConConflictos('festivo')">
+            @if (guardando()) {
+            <span class="spinner-small"></span>
+            } @else {
+            <span class="material-symbols-rounded">celebration</span>
+            }
+            <div class="opcion-texto">
+              <strong>Cerrar como Festivo</strong>
+              <span>Se generarán recuperaciones para los clientes</span>
+            </div>
+          </button>
+
+          <button class="btn-opcion btn-opcion--vacaciones" [disabled]="guardando()"
+            (click)="confirmarCierreConConflictos('vacaciones')">
+            @if (guardando()) {
+            <span class="spinner-small"></span>
+            } @else {
+            <span class="material-symbols-rounded">beach_access</span>
+            }
+            <div class="opcion-texto">
+              <strong>Cerrar como Vacaciones</strong>
+              <span>No se generarán recuperaciones</span>
+            </div>
+          </button>
+        </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-cancelar" (click)="cancelarCierre()">Cancelar</button>
-        <button class="btn-confirmar-peligro" (click)="confirmarCierreConConflictos()">
-          Entendido, cerrar día
-        </button>
+        <button class="btn-cancelar" (click)="cancelarCierre()" [disabled]="guardando()">Cancelar</button>
       </div>
     </div>
   </div>
@@ -901,6 +1006,80 @@
           } @else {
           <span class="material-symbols-rounded">check</span>
           Reclamar Plaza
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Modal Añadir/Editar Horario -->
+  @if (mostrarFormularioHorario()) {
+  <div class="modal-overlay" (click)="cerrarFormularioHorario()">
+    <div class="modal-confirmacion modal-horario" (click)="$event.stopPropagation()">
+      <header class="modal-header">
+        <span class="material-symbols-rounded icon-add">schedule</span>
+        <h3>{{ horarioEditando() ? 'Editar' : 'Añadir' }} Horario</h3>
+        <button class="btn-cerrar" (click)="cerrarFormularioHorario()" aria-label="Cerrar">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <div class="form-group-modal">
+          <label>Día de la semana</label>
+          <app-custom-select [options]="opcionesDias" [value]="formularioHorario().dia_semana"
+            (valueChange)="actualizarCampoHorario('dia_semana', $event)" placeholder="Seleccionar día">
+          </app-custom-select>
+        </div>
+
+        <div class="form-group-modal">
+          <label>Hora</label>
+          <div class="time-inputs-container">
+            <app-custom-select [options]="opcionesHoras" [value]="horaFormulario()"
+              (valueChange)="actualizarHora($event)" placeholder="HH" class="time-select">
+            </app-custom-select>
+            <span class="time-separator">:</span>
+            <app-custom-select [options]="opcionesMinutos" [value]="minutosFormulario()"
+              (valueChange)="actualizarMinutos($event)" placeholder="MM" class="time-select">
+            </app-custom-select>
+          </div>
+        </div>
+
+        <div class="form-group-modal">
+          <label>Modalidad</label>
+          <div class="modalidad-btns">
+            <button type="button" class="modalidad-btn" [class.active]="formularioHorario().modalidad === 'focus'"
+              (click)="actualizarCampoHorario('modalidad', 'focus'); actualizarCampoHorario('capacidad_maxima', 3)">
+              <span class="material-symbols-rounded">fitness_center</span>
+              Focus
+            </button>
+            <button type="button" class="modalidad-btn" [class.active]="formularioHorario().modalidad === 'reducido'"
+              (click)="actualizarCampoHorario('modalidad', 'reducido'); actualizarCampoHorario('capacidad_maxima', 8)">
+              <span class="material-symbols-rounded">groups</span>
+              Reducido
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group-modal">
+          <label>Capacidad máxima</label>
+          <input type="number" class="form-input" min="1" max="20" [value]="formularioHorario().capacidad_maxima"
+            (input)="actualizarCampoHorario('capacidad_maxima', +$any($event.target).value)">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancelar" (click)="cerrarFormularioHorario()" [disabled]="guardandoHorario()">
+          Cancelar
+        </button>
+        <button class="btn-confirmar" (click)="guardarHorario()" [disabled]="guardandoHorario()">
+          @if (guardandoHorario()) {
+          <span class="spinner-small"></span>
+          Guardando...
+          } @else {
+          <span class="material-symbols-rounded">check</span>
+          {{ horarioEditando() ? 'Guardar cambios' : 'Crear horario' }}
           }
         </button>
       </div>
