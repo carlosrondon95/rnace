@@ -1,0 +1,479 @@
+// Modo Cambio de Cita
+.modo-cambio-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--color-accent-soft);
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-md);
+}
+
+.cambio-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-accent);
+
+    .material-symbols-rounded {
+        font-size: 1.1rem;
+    }
+}
+
+// Mini calendario grid
+.mini-calendario-cambio {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.dia-cambio-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: var(--space-sm);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+    aspect-ratio: 1;
+
+    .dia-nombre {
+        font-size: 10px;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+    }
+
+    .dia-numero {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--color-text-primary);
+    }
+
+    .dia-estado {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+
+        .material-symbols-rounded {
+            font-size: 12px;
+        }
+
+        &.dia-estado--libre {
+            color: var(--color-success);
+        }
+
+        &.dia-estado--lleno {
+            color: var(--color-danger);
+        }
+
+        &.dia-estado--festivo {
+            color: var(--color-danger);
+        }
+    }
+
+    &:hover:not(:disabled) {
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+        transform: translateY(-1px);
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+    }
+
+    // Día actual (la clase que se está cambiando)
+    &.dia-actual {
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+
+        .dia-numero {
+            color: var(--color-accent);
+            font-weight: 700;
+        }
+    }
+
+    // Día festivo - bloqueado
+    &.dia-festivo {
+        background: var(--color-danger-soft);
+        border-color: var(--color-danger-border);
+        opacity: 0.8;
+
+        .dia-numero {
+            color: var(--color-danger);
+            opacity: 0.6;
+        }
+    }
+
+    // Día pasado - deshabilitado
+    &.dia-pasado {
+        opacity: 0.35;
+        background: var(--color-bg-input);
+        border-color: transparent;
+
+        .dia-numero {
+            color: var(--color-text-muted);
+        }
+    }
+
+    &.dia-lleno {
+        opacity: 0.6;
+        background: var(--color-bg-main);
+
+        .dia-numero {
+            color: var(--color-text-muted);
+        }
+    }
+
+    &.dia-reserva {
+        background: rgba(96, 165, 250, 0.15);
+        border-color: rgba(96, 165, 250, 0.4);
+        cursor: pointer;
+
+        .dia-numero {
+            color: #60a5fa;
+        }
+
+        .dia-hora {
+            font-size: 0.65rem;
+            color: rgba(96, 165, 250, 0.8);
+            margin-top: 2px;
+        }
+
+        &:hover {
+            background: rgba(96, 165, 250, 0.25);
+            border-color: #60a5fa;
+            transform: translateY(-1px);
+        }
+
+        &.selected {
+            background: rgba(74, 222, 128, 0.2);
+            border-color: #4ade80;
+            box-shadow: 0 4px 12px rgba(74, 222, 128, 0.15);
+
+            .dia-numero {
+                color: #4ade80;
+                font-weight: 700;
+            }
+
+            .dia-hora {
+                color: #4ade80;
+            }
+        }
+    }
+
+    // Día de la sesión disponible (target)
+    &.dia-target {
+        background: rgba(74, 222, 128, 0.15);
+        border: 2px dashed rgba(74, 222, 128, 0.5);
+        cursor: default;
+
+        .dia-numero {
+            color: #4ade80;
+            font-weight: 700;
+        }
+
+        .dia-target-badge {
+            font-size: 0.55rem;
+            color: #4ade80;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-top: 2px;
+        }
+    }
+
+    // Día vacío (sin reserva ni sesión target)
+    &.dia-vacio {
+        background: var(--color-bg-input);
+        border-color: transparent;
+        cursor: default;
+
+        .dia-numero {
+            color: var(--color-text-muted);
+            opacity: 0.6;
+        }
+
+        &.dia-pasado {
+            opacity: 0.35;
+        }
+    }
+}
+
+.dia-cambio-placeholder {
+    min-height: 52px;
+    background: transparent;
+}
+
+// Leyenda
+.leyenda-cambio {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    justify-content: center;
+    padding: var(--space-sm);
+    background: var(--color-bg-input);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    margin-bottom: var(--space-lg);
+}
+
+.leyenda-item-cambio {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    color: var(--color-text-secondary);
+}
+
+.leyenda-reserva {
+    background: rgba(96, 165, 250, 0.3);
+    border: 1px solid rgba(96, 165, 250, 0.6);
+}
+
+.leyenda-target {
+    background: rgba(74, 222, 128, 0.3);
+    border: 1px solid rgba(74, 222, 128, 0.6);
+}
+
+.leyenda-festivo-cambio {
+    background: var(--color-danger-soft);
+    border: 1px solid var(--color-danger-border);
+}
+
+.cambio-dia-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-md);
+}
+
+.dia-seleccionado-badge {
+    padding: 4px 12px;
+    background: var(--color-accent);
+    color: var(--color-bg-deep);
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+}
+
+.lista-cambio-sesiones {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: var(--space-xs);
+}
+
+.cambio-sesion-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md);
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+
+    &:hover:not(.sesion-llena):not(.es-misma-sesion) {
+        border-color: var(--color-accent);
+        background: var(--color-bg-elevated);
+    }
+
+    &.sesion-llena {
+        opacity: 0.6;
+    }
+
+    &.es-misma-sesion {
+        border-color: var(--color-border);
+        background: var(--color-bg-main);
+        opacity: 0.7;
+    }
+}
+
+.cambio-sesion-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.cambio-plazas {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    font-style: italic;
+
+    &.plazas-disponibles {
+        color: var(--color-success);
+        font-weight: 500;
+        font-style: normal;
+    }
+}
+
+.cambio-hora {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--color-accent);
+}
+
+.cambio-sesion-acciones {
+    flex-shrink: 0;
+}
+
+.badge-actual,
+.badge-ya-tienes {
+    display: inline-block;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-main);
+    color: var(--color-text-muted);
+}
+
+.btn-seleccionar-cambio {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-accent);
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--color-bg-deep);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    .material-symbols-rounded {
+        font-size: 1rem;
+    }
+
+    &:hover:not(:disabled) {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+// Tu clase con botones cambiar y cancelar
+.tu-clase-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.tu-clase-botones {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.btn-cambiar-clase {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    background: transparent;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    color: var(--color-accent);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    .material-symbols-rounded {
+        font-size: 0.9rem;
+    }
+
+    &:hover:not(:disabled) {
+        background: var(--color-accent-soft);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+// Alerta de plaza libre en lista de espera
+.alerta-plaza-libre {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #10b981;
+    /* Verde éxito */
+    background: rgba(16, 185, 129, 0.1);
+    padding: 4px 8px;
+    border-radius: 999px;
+    margin-right: 8px;
+    animation: pulse-green 2s infinite;
+
+    .material-symbols-rounded {
+        font-size: 14px;
+    }
+}
+
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+// ============ MINI-CALENDARIO CAMBIO DE TURNO (Móvil) ============
+.mini-calendario-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: var(--space-sm);
+}
+
+.mini-calendario-header {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    margin-bottom: 2px;
+}
+
+.dia-header-mini {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 4px 0;
+}
+
+.mini-calendario-semana {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+}
+
+// Vista de cambiar reserva
+.cambiar-reserva-view {
+    animation: fadeIn 0.2s ease-out;
+}

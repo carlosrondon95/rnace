@@ -298,7 +298,6 @@ button {
 
   to {
     opacity: 1;
-    transform: scale(1);
   }
 }
 
@@ -625,4 +624,41 @@ button {
     max-width: calc(100% - 2rem);
     padding: var(--space-sm) var(--space-md);
   }
+}
+
+/* ============ CRITICAL OVERRIDES ============ */
+/* Fix for admin detail cards overlap - GLOBAL override */
+.reservas-hora-list .reserva-detalle-card {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  padding: 12px 16px !important;
+  padding-right: 36px !important;
+  /* Force space for cancel button */
+  gap: 6px !important;
+  width: 100% !important;
+}
+
+.reservas-hora-list .reserva-detalle-card .reserva-contenido {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+  gap: 4px !important;
+  justify-content: flex-start !important;
+}
+
+.reservas-hora-list .reserva-detalle-card .reserva-tipo-grupo-mini {
+  align-self: flex-start !important;
+  margin-top: 4px !important;
+  margin-left: 0 !important;
+}
+
+.reservas-hora-list .reserva-detalle-card .btn-cancelar-admin {
+  position: absolute !important;
+  top: 6px !important;
+  right: 6px !important;
+  z-index: 50 !important;
+  margin: 0 !important;
 }

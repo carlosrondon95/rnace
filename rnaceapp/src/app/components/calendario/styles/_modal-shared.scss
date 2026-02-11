@@ -1,0 +1,422 @@
+// Modales Compartidos y Utilidades
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-md);
+}
+
+// Modal Confirmación Conflictos
+.modal-confirmacion {
+    position: relative;
+    width: 90%;
+    max-width: 450px;
+    background: #32332f;
+    /* Fondo oscuro sólido */
+    border-radius: 12px;
+    border: 2px solid rgba(248, 113, 113, 0.6);
+    /* Borde rojo más visible */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+    animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    color: #ebe9e3;
+
+    // Remove border for non-danger modals
+    &.modal-agregar-usuario,
+    &.modal-normal {
+        border: 1px solid var(--color-border);
+    }
+}
+
+.header-danger {
+    padding: 1.25rem 1.5rem;
+    background: rgba(248, 113, 113, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(248, 113, 113, 0.3);
+
+    h3 {
+        color: #f87171;
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+
+    .icon-warn {
+        color: #f87171;
+        font-size: 1.6rem;
+    }
+}
+
+.header-success {
+    padding: 1rem 1.25rem;
+    background: rgba(74, 222, 128, 0.12);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(74, 222, 128, 0.25);
+
+    h3 {
+        color: #4ade80;
+        margin: 0;
+        flex: 1;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .icon-success {
+        color: #4ade80;
+        font-size: 1.5rem;
+    }
+}
+
+.warn-text {
+    color: #ebe9e3;
+    font-size: 0.95rem;
+    margin: 0 0 1rem;
+    line-height: 1.6;
+    padding: 1.5rem 1.5rem 0;
+}
+
+.warn-subtext {
+    font-size: 0.85rem;
+    color: rgba(235, 233, 227, 0.6);
+    margin: 0 1.5rem 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-style: italic;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+// Botones Generales para Modales
+.btn-confirmar-peligro {
+    padding: 0.75rem 1.5rem;
+    background: #f87171;
+    border: 1px solid #f87171;
+    color: #1a1a1a;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px rgba(248, 113, 113, 0.2);
+
+    &:hover {
+        background: #ef4444;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 12px rgba(248, 113, 113, 0.3);
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+}
+
+.btn-confirmar {
+    padding: 0.6rem 1.25rem;
+    background: var(--color-accent);
+    border: 1px solid var(--color-accent);
+    color: #1a1a1a;
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    &:hover:not(:disabled) {
+        background: #d4cfba; // Slightly darker accent
+        transform: translateY(-1px);
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+}
+
+.btn-cancelar {
+    padding: 0.6rem 1.25rem;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-base);
+
+    &:hover:not(:disabled) {
+        background: var(--color-bg-elevated);
+        color: var(--color-text-primary);
+        border-color: var(--color-border-hover);
+    }
+}
+
+.btn-cerrar {
+    background: transparent;
+    border: 1px solid transparent; // Transparent initially 
+    color: var(--color-text-muted);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+
+    .material-symbols-rounded {
+        font-size: 1.2rem;
+    }
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--color-text-primary);
+    }
+}
+
+// Botón volver en vistas de opción
+.btn-volver-opcion {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.8rem;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: rgba(235, 233, 227, 0.7);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 1rem;
+
+    .material-symbols-rounded {
+        font-size: 1.1rem;
+    }
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.25);
+        color: #ebe9e3;
+    }
+}
+
+// Header info para vistas de cambio/recuperación
+.cambiar-header-info {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.cambiar-instruccion {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #ebe9e3;
+}
+
+.cambiar-destino {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+
+    .material-symbols-rounded {
+        font-size: 1rem;
+    }
+}
+
+// Flecha en opciones
+.opcion-arrow {
+    color: rgba(235, 233, 227, 0.4);
+    font-size: 1.25rem;
+    margin-left: auto;
+    transition: all 0.15s ease;
+}
+
+// Info box for conflicts list
+.info-conflictos {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+
+    .conflictos-intro {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0 0 0.75rem 0;
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #ebe9e3;
+
+        .material-symbols-rounded {
+            font-size: 1.2rem;
+            color: rgba(248, 113, 113, 0.8);
+        }
+    }
+
+    .lista-conflictos {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+
+        li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.2);
+            border-radius: 8px;
+        }
+
+        .conflicto-fecha {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #ebe9e3;
+        }
+
+        .conflicto-count {
+            font-size: 0.75rem;
+            color: rgba(248, 113, 113, 0.9);
+            background: rgba(248, 113, 113, 0.15);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+    }
+}
+
+// Chips de reserva/recuperación
+.reservas-lista-cambio,
+.recuperaciones-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.reserva-cambio-chip,
+.recuperacion-chip {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #ebe9e3;
+    width: 100%;
+    text-align: left;
+    flex-direction: row; // Ensure row direction
+
+    .reserva-fecha,
+    .recup-modalidad {
+        font-size: 0.95rem;
+        font-weight: 600;
+        line-height: 1.2;
+        flex: 1;
+    }
+
+    .reserva-hora,
+    .recup-origen {
+        font-size: 0.9rem;
+        color: rgba(235, 233, 227, 0.6);
+        margin-top: 0;
+        font-weight: 500;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+    }
+
+    &:hover {
+        border-color: rgba(184, 178, 158, 0.4);
+        background: rgba(184, 178, 158, 0.08);
+        transform: translateY(-1px);
+    }
+
+    &.selected {
+        border-color: #4ade80;
+        background: rgba(74, 222, 128, 0.12);
+        box-shadow: 0 4px 12px rgba(74, 222, 128, 0.1);
+
+        .reserva-fecha,
+        .recup-modalidad {
+            color: #4ade80;
+        }
+
+        .reserva-hora,
+        .recup-origen {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+        }
+    }
+}
+
+.no-opciones {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    border-radius: 10px;
+    color: #fbbf24;
+
+    .material-symbols-rounded {
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    p {
+        margin: 0;
+        font-size: 0.85rem;
+        line-height: 1.4;
+    }
+}
+
+.no-opciones-mini {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    border-radius: 8px;
+    color: #fbbf24;
+    font-size: 0.85rem;
+
+    .material-symbols-rounded {
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+}
