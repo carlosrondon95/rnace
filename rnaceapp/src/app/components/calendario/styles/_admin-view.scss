@@ -1,0 +1,201 @@
+// Vista Admin: Panel y Estadísticas
+.panel-admin {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.btn-admin {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid;
+
+    .material-symbols-rounded {
+        font-size: 1.1rem;
+    }
+
+    &--primary {
+        background: var(--color-accent);
+        border-color: var(--color-accent);
+        color: var(--color-bg-deep);
+
+        &:hover:not(:disabled) {
+            opacity: 0.9;
+        }
+    }
+
+    &--secondary {
+        background: transparent;
+        border-color: var(--color-border);
+        color: var(--color-text-secondary);
+
+        &:hover:not(:disabled) {
+            border-color: var(--color-accent);
+            color: var(--color-accent);
+        }
+    }
+
+    &--danger {
+        background: transparent;
+        border-color: var(--color-danger-border);
+        color: var(--color-danger);
+
+        &:hover:not(:disabled) {
+            background: var(--color-danger-soft);
+        }
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+// Estadísticas
+.estadisticas {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-sm);
+
+    @media (min-width: 480px) {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.stat-card {
+    text-align: center;
+    padding: var(--space-sm);
+    background: var(--color-bg-main);
+    border-radius: var(--radius-md);
+}
+
+.stat-label {
+    display: block;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-2xs);
+}
+
+.stat-value {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-accent);
+
+    &.stat-focus {
+        color: var(--color-focus);
+    }
+
+    &.stat-reducido {
+        color: var(--color-reducido);
+    }
+}
+
+// Modo Edición
+.edicion-panel {
+    background: var(--color-warning-soft);
+    border: 1px solid var(--color-warning-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+}
+
+.edicion-info {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+
+    .material-symbols-rounded {
+        color: var(--color-warning);
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+}
+
+.edicion-texto {
+    strong {
+        display: block;
+        font-size: var(--font-size-sm);
+        color: var(--color-warning);
+        margin-bottom: var(--space-2xs);
+    }
+
+    p {
+        font-size: var(--font-size-xs);
+        color: var(--color-text-secondary);
+        margin: 0;
+    }
+}
+
+.edicion-resumen {
+    margin-bottom: var(--space-md);
+}
+
+.festivos-count {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.edicion-actions {
+    display: flex;
+    gap: var(--space-sm);
+    justify-content: flex-end;
+}
+
+.btn-edicion {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid;
+
+    .material-symbols-rounded {
+        font-size: 1rem;
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+.btn-cancelar {
+    background: transparent;
+    border-color: var(--color-border);
+    color: var(--color-text-secondary);
+
+    &:hover:not(:disabled) {
+        border-color: var(--color-text-muted);
+    }
+}
+
+.btn-guardar {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-bg-deep);
+
+    &:hover:not(:disabled) {
+        opacity: 0.9;
+    }
+}

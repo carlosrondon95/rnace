@@ -1,0 +1,287 @@
+// Panel de Horarios Semanales (Admin)
+.panel-horarios {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-lg);
+    overflow: hidden;
+
+    &--expandido {
+        .panel-horarios-icon {
+            transform: rotate(180deg);
+        }
+    }
+}
+
+.panel-horarios-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: var(--space-md);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    transition: background 0.2s ease;
+
+    &:hover {
+        background: var(--color-bg-hover);
+    }
+}
+
+.panel-horarios-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+
+    .material-symbols-rounded {
+        font-size: 1.25rem;
+        color: var(--color-accent);
+    }
+}
+
+.panel-horarios-icon {
+    font-size: 1.25rem;
+    color: var(--color-text-muted);
+    transition: transform 0.3s ease;
+}
+
+.panel-horarios-content {
+    padding: var(--space-md);
+    padding-top: 0;
+    animation: fadeIn 0.2s ease;
+}
+
+.dias-tabs {
+    display: flex;
+    gap: var(--space-xs);
+    overflow-x: auto;
+    padding-bottom: var(--space-xs);
+    margin-bottom: var(--space-md);
+
+    // Hide scrollbar but allow scrolling
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+.dia-tab {
+    flex: 1;
+    min-width: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--space-sm) var(--space-xs);
+    background: var(--color-bg-main);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        border-color: var(--color-border-hover);
+        background: var(--color-bg-hover);
+    }
+
+    &--active {
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+
+        .dia-tab-label {
+            color: var(--color-accent);
+        }
+
+        .dia-tab-count {
+            background: var(--color-accent);
+            color: var(--color-bg-deep);
+        }
+    }
+}
+
+.dia-tab-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.dia-tab-count {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    background: var(--color-bg-hover);
+    color: var(--color-text-secondary);
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    min-width: 20px;
+    text-align: center;
+}
+
+.dia-detalle {
+    background: var(--color-bg-main);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    animation: fadeIn 0.2s ease;
+}
+
+.dia-detalle-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-md);
+
+    h4 {
+        margin: 0;
+        font-size: var(--font-size-md);
+        font-weight: 600;
+        color: var(--color-text-primary);
+    }
+}
+
+.hint-text {
+    text-align: center;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    padding: var(--space-md) 0;
+    margin: 0;
+}
+
+.turnos-lista {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.turno-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+
+    &:hover {
+        border-color: var(--color-border-hover);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    &.turno-focus {
+        border-left-color: var(--color-focus);
+        background: var(--color-focus-soft);
+    }
+
+    &.turno-reducido {
+        border-left-color: var(--color-reducido);
+        background: var(--color-reducido-soft);
+    }
+}
+
+.turno-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.turno-hora {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.turno-modalidad {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-transform: capitalize;
+}
+
+.turno-capacidad {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+.turno-actions {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.btn-turno-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--color-text-muted);
+
+    .material-symbols-rounded {
+        font-size: 1rem;
+    }
+
+    &:hover {
+        background: var(--color-bg-hover);
+        border-color: var(--color-border-hover);
+        color: var(--color-text-primary);
+    }
+
+    &.btn-turno-delete:hover {
+        background: var(--color-danger-soft);
+        border-color: var(--color-danger-border);
+        color: var(--color-danger);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+.turnos-empty {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: var(--space-md) 0;
+}
+
+.btn-agregar-turno {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    background: transparent;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    .material-symbols-rounded {
+        font-size: 1rem;
+    }
+
+    &:hover {
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+        color: var(--color-accent);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}

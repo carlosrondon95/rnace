@@ -1,0 +1,62 @@
+// Navegación del Calendario
+.calendario-container {
+    max-width: 100%;
+}
+
+.mes-navegacion {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-lg);
+}
+
+.btn-nav {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    &:hover:not(:disabled) {
+        border-color: var(--color-accent);
+        color: var(--color-accent);
+    }
+
+    &:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    .material-symbols-rounded {
+        font-size: 1.3rem;
+    }
+}
+
+.mes-info {
+    text-align: center;
+    min-width: 160px;
+
+    h2 {
+        font-size: var(--font-size-lg);
+        font-weight: 600;
+        color: var(--color-text-primary);
+        margin: 0;
+    }
+}
+
+.mes-estado {
+    font-size: var(--font-size-xs);
+    color: var(--color-danger);
+    font-weight: 500;
+
+    &.mes-abierto {
+        color: var(--color-success);
+    }
+}

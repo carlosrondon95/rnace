@@ -1,0 +1,171 @@
+// Vista Cliente: Reservas y Lista
+.reservas-container {
+    max-width: var(--max-width-content);
+    margin: 0 auto;
+}
+
+.reservas-lista {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.reserva-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+    transition: all var(--transition-base);
+
+    &:hover {
+        border-color: var(--color-border-hover);
+    }
+
+    &.reserva-focus {
+        border-left: 3px solid var(--color-focus);
+    }
+
+    &.reserva-reducido {
+        border-left: 3px solid var(--color-reducido);
+    }
+}
+
+.reserva-icono {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+
+    .reserva-focus & {
+        background: var(--color-focus-soft);
+        color: var(--color-focus);
+    }
+
+    .reserva-reducido & {
+        background: var(--color-reducido-soft);
+        color: var(--color-reducido);
+    }
+
+    .material-symbols-rounded {
+        font-size: 1.3rem;
+    }
+}
+
+.reserva-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+}
+
+.reserva-tipo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.reserva-modalidad {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.reserva-badge {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    padding: 2px 8px;
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
+    border-radius: var(--radius-full);
+}
+
+.reserva-fecha {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.reserva-hora {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+.reserva-acciones {
+    flex-shrink: 0;
+}
+
+.btn-cancelar-reserva {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    background: transparent;
+    border: 1px solid var(--color-danger-border);
+    border-radius: var(--radius-md);
+    color: var(--color-danger);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    .material-symbols-rounded {
+        font-size: 1rem;
+    }
+
+    &:hover:not(:disabled) {
+        background: var(--color-danger-soft);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+}
+
+.reserva-no-cancelable {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+
+    .material-symbols-rounded {
+        font-size: 1rem;
+    }
+}
+
+// Empty State
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-2xl) var(--space-md);
+    text-align: center;
+
+    .material-symbols-rounded {
+        font-size: 4rem;
+        color: var(--color-text-muted);
+        opacity: 0.5;
+        margin-bottom: var(--space-md);
+    }
+
+    h3 {
+        font-size: var(--font-size-lg);
+        font-weight: 600;
+        color: var(--color-text-primary);
+        margin: 0 0 var(--space-sm);
+    }
+
+    p {
+        font-size: var(--font-size-sm);
+        color: var(--color-text-muted);
+        margin: 0;
+    }
+}

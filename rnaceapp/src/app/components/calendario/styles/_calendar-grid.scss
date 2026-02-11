@@ -1,0 +1,286 @@
+// Calendario Grid
+.calendario-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2px;
+    margin-bottom: var(--space-lg);
+    animation: fadeIn 0.4s ease-out;
+}
+
+.dia-header {
+    text-align: center;
+    padding: var(--space-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: transparent;
+    margin-bottom: var(--space-xs);
+    opacity: 0.8;
+}
+
+// Celda de día
+.dia-celda {
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg); // Más redondeado para elegancia
+    min-height: 80px;
+    padding: var(--space-sm);
+    position: relative;
+    transition: all var(--transition-fast);
+
+    @media (max-width: 479px) {
+        min-height: 60px;
+        padding: var(--space-xs);
+    }
+
+    &:hover:not(.dia-vacio):not(.dia-festivo):not(:disabled) {
+        border-color: var(--color-border-hover);
+    }
+
+    &.dia-vacio {
+        background: transparent;
+        border-color: transparent;
+    }
+
+    &.dia-hoy {
+        border-color: var(--color-accent);
+
+        .dia-numero {
+            background: var(--color-accent);
+            color: var(--color-bg-deep);
+        }
+    }
+
+    &.dia-festivo {
+        background: var(--color-danger-soft);
+        border-color: var(--color-danger-border);
+
+        .dia-numero {
+            background: rgba(248, 113, 113, 0.2);
+            color: var(--color-danger);
+        }
+    }
+
+    // Estilo para días con reservas (Cliente y Admin)
+    &.dia-celda--con-reservas {
+        border-color: var(--color-accent);
+        background: var(--color-accent-soft);
+
+        .dia-numero {
+            background: var(--color-accent);
+            color: var(--color-bg-deep);
+            font-weight: 700;
+        }
+
+        &:hover {
+            background: var(--color-accent);
+
+            .dia-numero {
+                background: var(--color-bg-deep);
+                color: var(--color-accent);
+            }
+
+            .indicador {
+                background: var(--color-bg-deep);
+            }
+        }
+    }
+
+    // Días de otro mes (mes anterior o siguiente que aparecen en las semanas)
+    &.dia-celda--otro-mes {
+        opacity: 0.25;
+        background: var(--color-bg-input);
+        border-color: transparent;
+        pointer-events: none;
+
+        .dia-numero {
+            color: var(--color-text-muted);
+            opacity: 0.6;
+        }
+    }
+
+    &.clickable {
+        cursor: pointer;
+
+        // Efecto sutil al hover para días clickeables
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+    }
+
+    &:disabled {
+        cursor: default;
+    }
+}
+
+.dia-numero {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    border-radius: var(--radius-full);
+    margin-bottom: var(--space-xs);
+
+    @media (max-width: 479px) {
+        width: 24px;
+        height: 24px;
+        font-size: var(--font-size-xs);
+    }
+}
+
+.festivo-badge {
+    position: absolute;
+    top: var(--space-xs);
+    right: var(--space-xs);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 6px;
+    background: var(--color-danger-soft);
+    border-radius: var(--radius-sm);
+    font-size: 9px;
+    color: var(--color-danger);
+
+    .material-symbols-rounded {
+        font-size: 10px;
+    }
+
+    @media (max-width: 479px) {
+        padding: 1px 4px;
+        font-size: 8px;
+    }
+}
+
+// Indicadores en el calendario
+.dia-indicadores {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+.indicador {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 4px;
+    line-height: 1.2;
+}
+
+.indicador-focus {
+    background-color: var(--color-focus-soft);
+    color: var(--color-focus);
+}
+
+.indicador-reducido {
+    background-color: var(--color-reducido-soft);
+    color: var(--color-reducido);
+}
+
+.reserva-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-weight: 500;
+
+    @media (max-width: 479px) {
+        padding: 2px 4px;
+        font-size: 9px;
+    }
+
+    &.reserva-focus {
+        background: var(--color-focus-soft);
+        color: var(--color-focus);
+    }
+
+    &.reserva-reducido {
+        background: var(--color-reducido-soft);
+        color: var(--color-reducido);
+    }
+
+    &.reserva-propia {
+        border: 1px solid var(--color-accent);
+    }
+}
+
+.reserva-hora {
+    font-weight: 600;
+}
+
+.reserva-modalidad {
+    opacity: 0.7;
+}
+
+.reserva-usuario {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60px;
+}
+
+.reserva-label {
+    font-size: 8px;
+    opacity: 0.8;
+}
+
+// Leyenda
+.leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--color-bg-elevated);
+    border-radius: var(--radius-lg);
+}
+
+.leyenda-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
+.leyenda-color {
+    width: 12px;
+    height: 12px;
+    border-radius: var(--radius-sm);
+
+    &.leyenda-hoy {
+        background: var(--color-accent);
+    }
+
+    &.leyenda-bloqueado {
+        background: var(--color-bg-main);
+        border: 1px solid var(--color-border);
+    }
+
+    &.leyenda-festivo {
+        background: var(--color-danger);
+    }
+
+    &.leyenda-reserva-propia {
+        background: var(--color-accent-soft);
+        border: 1px solid var(--color-accent);
+    }
+
+    &.leyenda-focus {
+        background: var(--color-focus);
+    }
+
+    &.leyenda-reducido {
+        background: var(--color-reducido);
+    }
+}
