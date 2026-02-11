@@ -259,8 +259,8 @@
         </div>
         }
 
-        <!-- Indicadores de reservas (Solo admin, vista general) -->
-        @if (dia.reservas.length > 0 && !modoEdicion()) {
+        <!-- Indicadores de reservas (Solo admin, vista general) - Ocultar si es festivo -->
+        @if (dia.reservas.length > 0 && !modoEdicion() && !dia.esFestivo) {
         <div class="dia-indicadores">
           @if (getReservasCount(dia, 'focus') > 0) {
           <span class="indicador indicador-focus">F: {{ getReservasCount(dia, 'focus') }}</span>

@@ -74,7 +74,6 @@
           [class.recup-reducido]="recup.modalidad === 'reducido'">
           <div class="recup-info">
             <span class="recup-modalidad-text">{{ recup.modalidad === 'focus' ? 'Focus' : 'Reducido' }}</span>
-            <span class="recup-validez">{{ getTextoValidez(recup) }}</span>
           </div>
           @if (recup.motivo === 'festivo') {
           <span class="recup-origen">Festivo</span>
