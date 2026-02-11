@@ -250,7 +250,7 @@
 
       @if (clasesHoyExpanded()) {
       @if (clasesHoy().length > 0) {
-      <div class="clases-timeline collapsible-content">
+      <div class="clases-timeline collapsible-content" [class.clases-transitioning]="animatingClases()">
         @for (clase of clasesHoy(); track trackByClaseId($index, clase); let i = $index) {
         <article class="timeline-card" [class.timeline-card--expanded]="expandedClaseIndex() === i"
           [class.timeline-card--full]="clase.reservas_count >= clase.capacidad" (click)="toggleClaseExpand(i)">

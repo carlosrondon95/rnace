@@ -820,10 +820,40 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
 
   &.animate-slide-down {
     animation: slideDown 0.3s ease-out;
     transform-origin: top;
+  }
+
+  // Transición al cambiar hoy/mañana
+  &.clases-transitioning {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  // Animación de entrada individual para cada card
+  .timeline-card {
+    animation: fadeSlideIn 0.3s ease-out both;
+
+    @for $i from 1 through 10 {
+      &:nth-child(#{$i}) {
+        animation-delay: #{$i * 0.04}s;
+      }
+    }
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

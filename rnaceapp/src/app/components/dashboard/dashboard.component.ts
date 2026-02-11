@@ -81,6 +81,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   hoyExpanded = signal(false);
   clasesHoyExpanded = signal(false);
   vistaClases = signal<'hoy' | 'manana'>('hoy'); // Toggle hoy/mañana
+  animatingClases = signal(false); // Para animación de transición
 
   // Estados de secciones cliente
   recuperacionesExpanded = signal(false);
@@ -465,9 +466,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   setVistaClases(vista: 'hoy' | 'manana') {
-    this.vistaClases.set(vista);
+    if (this.vistaClases() === vista) return;
+    this.animatingClases.set(true);
     this.expandedClaseIndex.set(null); // Reset expanded card
-    this.cargarClasesHoy(vista);
+
+    // Breve fade-out, luego cambiar datos y fade-in
+    setTimeout(() => {
+      this.vistaClases.set(vista);
+      this.cargarClasesHoy(vista).then(() => {
+        // Pequeño delay para que Angular renderice el nuevo contenido
+        setTimeout(() => this.animatingClases.set(false), 30);
+      });
+    }, 150);
   }
 
   toggleRecuperacionesSection() {
