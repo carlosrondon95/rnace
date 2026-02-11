@@ -1254,9 +1254,9 @@ export class CalendarioComponent implements OnInit {
         esDelMes: true,
         esHoy: fecha === hoy,
         esLaborable,
-        esFestivo,
+        esFestivo: mesAbierto ? esFestivo : false,
         mesAbierto,
-        reservas: reservasPorFecha.get(fecha) || [],
+        reservas: mesAbierto ? (reservasPorFecha.get(fecha) || []) : [],
       });
     }
 
@@ -1475,6 +1475,7 @@ export class CalendarioComponent implements OnInit {
             // Preparar datos para inserciones batch
             const recuperacionesAInsertar: any[] = [];
             const notificacionesAInsertar: any[] = [];
+            const usuariosNotificados = new Set<string>(); // Evitar duplicados por usuario
 
             for (const reserva of reservasCompletas) {
               const sesionData = Array.isArray(reserva.sesiones)
@@ -1509,19 +1510,22 @@ export class CalendarioComponent implements OnInit {
                 });
               }
 
-              // Preparar notificación
-              const fechaFormateada = fechaSesion.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
-              const mensajeNotif = generarRecuperaciones
-                ? `Tu clase del ${fechaFormateada} ha sido cancelada por festivo. Se ha generado una recuperación.`
-                : `Tu clase del ${fechaFormateada} ha sido cancelada por vacaciones.`;
+              // Preparar notificación (solo una por usuario)
+              if (!usuariosNotificados.has(reserva.usuario_id)) {
+                usuariosNotificados.add(reserva.usuario_id);
+                const fechaFormateada = fechaSesion.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+                const mensajeNotif = generarRecuperaciones
+                  ? `Tu clase del ${fechaFormateada} ha sido cancelada por festivo. Se ha generado una recuperación.`
+                  : `Tu clase del ${fechaFormateada} ha sido cancelada por vacaciones.`;
 
-              notificacionesAInsertar.push({
-                usuario_id: reserva.usuario_id,
-                tipo: 'cancelacion',
-                titulo: generarRecuperaciones ? 'Clase cancelada por festivo' : 'Clase cancelada por vacaciones',
-                mensaje: mensajeNotif,
-                leida: false
-              });
+                notificacionesAInsertar.push({
+                  usuario_id: reserva.usuario_id,
+                  tipo: 'cancelacion',
+                  titulo: generarRecuperaciones ? 'Clase cancelada por festivo' : 'Clase cancelada por vacaciones',
+                  mensaje: mensajeNotif,
+                  leida: false
+                });
+              }
             }
 
             // OPTIMIZACIÓN: Insertar recuperaciones y notificaciones en batch con Promise.all
@@ -1712,7 +1716,8 @@ export class CalendarioComponent implements OnInit {
       }
     }
 
-    if (dia.reservas.length > 0 && !this.modoEdicion()) {
+    // Solo mostrar indicador de reservas si no es día festivo
+    if (dia.reservas.length > 0 && !this.modoEdicion() && !dia.esFestivo) {
       clases.push('dia-celda--con-reservas');
     }
 
@@ -2625,7 +2630,7 @@ export class CalendarioComponent implements OnInit {
   async eliminarHorario(horario: HorarioDisponible) {
     if (!await this.confirmation.confirm({
       titulo: 'Eliminar horario',
-      mensaje: `¿Eliminar el turno de las ${horario.hora} (${horario.modalidad}) del ${this.diasSemanaLabels[horario.dia_semana - 1]}?`,
+      mensaje: `¿Eliminar el turno de las ${horario.hora} (${horario.modalidad}) del ${this.diasSemanaLabels[horario.dia_semana - 1]}? Se cancelarán todas las sesiones futuras y reservas asociadas sin generar recuperaciones.`,
       tipo: 'warning',
       textoConfirmar: 'Eliminar'
     })) {
@@ -2635,17 +2640,96 @@ export class CalendarioComponent implements OnInit {
     this.guardandoHorario.set(true);
 
     try {
-      // Desactivar en lugar de eliminar (soft delete)
-      const { error } = await supabase()
+      const client = supabase();
+      const hoy = new Date().toISOString().split('T')[0];
+
+      // 1. Buscar sesiones futuras que coincidan con este horario (día de semana, hora, modalidad)
+      const { data: sesionesFuturas, error: sesionesError } = await client
+        .from('sesiones')
+        .select('id')
+        .eq('hora', horario.hora)
+        .eq('modalidad', horario.modalidad)
+        .eq('cancelada', false)
+        .gte('fecha', hoy);
+
+      if (sesionesError) {
+        console.error('Error buscando sesiones:', sesionesError);
+      }
+
+      // Filtrar solo las sesiones que corresponden al mismo día de la semana
+      const sesionesDelDia = (sesionesFuturas || []).filter(s => {
+        // Necesitamos obtener la fecha de cada sesión para verificar el día de la semana
+        // Como solo tenemos el id, haremos una segunda consulta o usamos los datos del calendario
+        return true; // Por ahora incluimos todas y filtramos abajo
+      });
+
+      if (sesionesFuturas && sesionesFuturas.length > 0) {
+        // Obtener datos completos de las sesiones para filtrar por día de semana
+        const { data: sesionesCompletas } = await client
+          .from('sesiones')
+          .select('id, fecha')
+          .in('id', sesionesFuturas.map(s => s.id));
+
+        const sesionesAEliminar = (sesionesCompletas || []).filter(s => {
+          const fecha = new Date(s.fecha + 'T12:00:00');
+          let diaSemana = fecha.getDay();
+          // Convertir: Dom(0)->7, Lun(1)->1, etc. para comparar con horario.dia_semana (1-5)
+          diaSemana = diaSemana === 0 ? 7 : diaSemana;
+          return diaSemana === horario.dia_semana;
+        });
+
+        if (sesionesAEliminar.length > 0) {
+          const sesionIds = sesionesAEliminar.map(s => s.id);
+
+          // 2. Cancelar todas las reservas de esas sesiones SIN generar recuperaciones
+          const { error: reservasError } = await client
+            .from('reservas')
+            .update({
+              estado: 'cancelada',
+              cancelada_en: new Date().toISOString(),
+              cancelada_correctamente: true
+            })
+            .in('sesion_id', sesionIds)
+            .eq('estado', 'activa');
+
+          if (reservasError) {
+            console.warn('Error cancelando reservas:', reservasError);
+          }
+
+          // 3. Marcar las sesiones como canceladas
+          const { error: cancelarSesionesError } = await client
+            .from('sesiones')
+            .update({ cancelada: true })
+            .in('id', sesionIds);
+
+          if (cancelarSesionesError) {
+            console.warn('Error cancelando sesiones:', cancelarSesionesError);
+          }
+
+          // 4. Eliminar de lista de espera de esas sesiones
+          const { error: esperaError } = await client
+            .from('lista_espera')
+            .delete()
+            .in('sesion_id', sesionIds);
+
+          if (esperaError) {
+            console.warn('Error eliminando lista de espera:', esperaError);
+          }
+        }
+      }
+
+      // 5. Desactivar el horario (soft delete)
+      const { error } = await client
         .from('horarios_disponibles')
         .update({ activo: false })
         .eq('id', horario.id);
 
       if (error) throw error;
 
-      this.mensajeExito.set('Horario eliminado');
+      this.mensajeExito.set('Horario eliminado correctamente');
       setTimeout(() => this.mensajeExito.set(null), 3000);
       await this.cargarHorarios();
+      await this.cargarCalendario(); // Recargar calendario para reflejar cambios
     } catch (err) {
       console.error('Error eliminando horario:', err);
       this.error.set('Error al eliminar el horario');

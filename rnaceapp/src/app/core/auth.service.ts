@@ -229,6 +229,36 @@ export class AuthService {
     telefonoOId: string,
     nuevaPassword: string,
   ): Promise<{ success: boolean; error?: string }> {
-    return { success: false, error: 'Cambio de contraseña requiere migración a función de servidor.' };
+    try {
+      if (this.getRol() !== 'admin') {
+        return { success: false, error: 'Solo los administradores pueden cambiar contraseñas' };
+      }
+
+      const { data, error } = await supabase().functions.invoke('change-password', {
+        body: {
+          userId: telefonoOId,
+          newPassword: nuevaPassword,
+        }
+      });
+
+      if (error) {
+        console.error('Error invocando change-password:', error);
+        let msg = 'Error de conexión';
+        try {
+          const body = await error.context.json();
+          msg = body.error || msg;
+        } catch { }
+        return { success: false, error: msg };
+      }
+
+      if (!data.success) {
+        return { success: false, error: data.error || 'Error al cambiar contraseña' };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error:', error);
+      return { success: false, error: 'Error inesperado al cambiar contraseña' };
+    }
   }
 }

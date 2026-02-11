@@ -34,6 +34,7 @@
     "@angular/router": "^20.3.0",
     "@angular/ssr": "^20.3.8",
     "@supabase/supabase-js": "^2.79.0",
+    "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",
     "express": "^5.1.0",
     "firebase": "^12.7.0",
@@ -59,7 +60,8 @@
     "karma-jasmine-html-reporter": "~2.1.0",
     "prettier": "^3.6.2",
     "typescript": "~5.9.2",
-    "typescript-eslint": "8.46.2"
+    "typescript-eslint": "8.46.2",
+    "xlsx": "^0.18.5"
   },
   "packageManager": "pnpm@10.20.0+sha512.cf9998222162dd85864d0a8102e7892e7ba4ceadebbf5a31f9c2fce48dfce317a9c53b9f6464d1ef9042cba2e02ae02a9f7c143a2b438cd93c91840f0192b9dd"
 }
