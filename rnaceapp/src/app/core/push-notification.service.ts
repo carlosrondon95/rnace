@@ -179,35 +179,38 @@ export class PushNotificationService {
   }
 
   private async saveTokenToSupabase(token: string): Promise<void> {
+    const userId = this.getUserId();
+    console.log('[Push] Intentando guardar token para usuario:', userId);
+
+    if (!userId) {
+      console.warn('[Push] Usuario no autenticado, no se guarda token');
+      return;
+    }
+
+    // Check navigator safety
+    const userAgent = isPlatformBrowser(this.platformId) ? navigator.userAgent : 'Server';
+    const deviceInfo = /iPhone|iPad|iPod/.test(userAgent) ? 'iOS' :
+      /Android/.test(userAgent) ? 'Android' : 'Web';
+
     try {
-      const userId = this.getUserId();
-      if (!userId) {
-        console.warn('[Push] Usuario no autenticado, no se guarda token');
-        return;
-      }
-
-      // Check navigator safety
-      const userAgent = isPlatformBrowser(this.platformId) ? navigator.userAgent : 'Server';
-      const deviceInfo = /iPhone|iPad|iPod/.test(userAgent) ? 'iOS' :
-        /Android/.test(userAgent) ? 'Android' : 'Web';
-
-      const { error } = await supabase()
+      const { data, error } = await supabase()
         .from('fcm_tokens')
         .upsert({
           user_id: userId,
           token: token,
           device_info: deviceInfo,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,token' });
+        }, { onConflict: 'user_id,token' })
+        .select();
 
       if (error) {
-        console.error('[Push] Error en upsert:', error);
+        console.error('[Push] SQL Error guardando token:', error.message, error.details, error.hint);
       } else {
-        console.log('[Push] Token guardado correctamente');
+        console.log('[Push] Token guardado correctamente en Supabase:', data);
       }
 
-    } catch (error) {
-      console.error('[Push] Error guardando token:', error);
+    } catch (err) {
+      console.error('[Push] Excepción guardando token:', err);
     }
   }
 
