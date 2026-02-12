@@ -245,17 +245,31 @@ export class ListaEsperaComponent implements OnInit {
         return;
       }
 
-      // Crear notificación
+      // Crear notificación en BD
+      const mensajePlaza = `Se te ha asignado plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}`;
       await supabase()
         .from('notificaciones')
         .insert({
           usuario_id: usuarioId,
           tipo: 'plaza_asignada',
           titulo: '¡Plaza asignada!',
-          mensaje: `Se te ha asignado plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}`,
+          mensaje: mensajePlaza,
           sesion_id: sesion.sesion_id,
           accion_url: '/calendario',
         });
+
+      // Enviar push notification real
+      try {
+        await supabase().functions.invoke('send-push', {
+          body: {
+            user_id: usuarioId,
+            tipo: 'plaza_asignada',
+            data: { mensaje: mensajePlaza, url: '/calendario' }
+          }
+        });
+      } catch (pushErr) {
+        console.warn('[Push] Error enviando push plaza_asignada:', pushErr);
+      }
 
       this.mensajeExito.set('Plaza asignada correctamente');
       await this.cargarListaEspera();
@@ -306,16 +320,30 @@ export class ListaEsperaComponent implements OnInit {
     this.procesando.set(true);
 
     try {
+      const mensajeHueco = `Hay plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}. ¡Date prisa!`;
       await supabase()
         .from('notificaciones')
         .insert({
           usuario_id: usuarioId,
           tipo: 'hueco_disponible',
           titulo: '¡Hay una plaza disponible!',
-          mensaje: `Hay plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}. ¡Date prisa!`,
+          mensaje: mensajeHueco,
           sesion_id: sesion.sesion_id,
           accion_url: `/calendario?sesion=${sesion.sesion_id}`,
         });
+
+      // Enviar push notification real
+      try {
+        await supabase().functions.invoke('send-push', {
+          body: {
+            user_id: usuarioId,
+            tipo: 'hueco_disponible',
+            data: { mensaje: mensajeHueco, url: `/calendario?sesion=${sesion.sesion_id}` }
+          }
+        });
+      } catch (pushErr) {
+        console.warn('[Push] Error enviando push hueco_disponible:', pushErr);
+      }
 
       this.mensajeExito.set(`Notificación enviada a ${nombre}`);
       setTimeout(() => this.mensajeExito.set(null), 3000);

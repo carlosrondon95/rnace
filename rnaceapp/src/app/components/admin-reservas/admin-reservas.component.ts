@@ -452,6 +452,22 @@ export class AdminReservasComponent implements OnInit {
       if (data && data.length > 0 && data[0].ok) {
         this.mensajeExito.set(data[0].mensaje);
         this.cerrarModalEliminar();
+
+        // Enviar push notification al usuario afectado
+        if (usuario) {
+          try {
+            await supabase().functions.invoke('send-push', {
+              body: {
+                user_id: usuario.id,
+                tipo: 'reserva_cancelada',
+                data: { mensaje: data[0].mensaje }
+              }
+            });
+          } catch (pushErr) {
+            console.warn('[Push] Error enviando push cancelación admin:', pushErr);
+          }
+        }
+
         if (usuario) this.cargarReservasUsuario(usuario);
       } else {
         this.error.set(data?.[0]?.mensaje || 'Error al eliminar la reserva');
