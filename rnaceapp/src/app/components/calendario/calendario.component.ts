@@ -1546,11 +1546,23 @@ export class CalendarioComponent implements OnInit {
 
             if (notificacionesAInsertar.length > 0) {
               batchOperations.push(
-                Promise.resolve(client.from('notificaciones').insert(notificacionesAInsertar)).then(({ error }) => {
+                Promise.resolve(client.from('notificaciones').insert(notificacionesAInsertar)).then(async ({ error }) => {
                   if (error) {
                     console.warn('Error insertando notificaciones:', error);
                   } else {
                     console.log(`${notificacionesAInsertar.length} notificaciones enviadas`);
+
+                    // Enviar push notifications reales a cada usuario afectado
+                    const pushPromises = notificacionesAInsertar.map(notif =>
+                      supabase().functions.invoke('send-push', {
+                        body: {
+                          user_id: notif.usuario_id,
+                          tipo: 'cancelacion',
+                          data: { titulo: notif.titulo, mensaje: notif.mensaje }
+                        }
+                      }).catch(err => console.warn('[Push] Error enviando push cancelacion:', err))
+                    );
+                    await Promise.allSettled(pushPromises);
                   }
                 })
               );
@@ -2151,6 +2163,28 @@ export class CalendarioComponent implements OnInit {
         this.mensajeExito.set(data[0].mensaje);
         setTimeout(() => this.mensajeExito.set(null), 3000);
         this.cerrarModalCancelarAdmin();
+
+        // Enviar push notification al usuario afectado
+        try {
+          const { data: reservaData } = await supabase()
+            .from('reservas')
+            .select('usuario_id')
+            .eq('id', reserva.id)
+            .single();
+
+          if (reservaData?.usuario_id) {
+            await supabase().functions.invoke('send-push', {
+              body: {
+                user_id: reservaData.usuario_id,
+                tipo: 'reserva_cancelada',
+                data: { mensaje: data[0].mensaje }
+              }
+            });
+          }
+        } catch (pushErr) {
+          console.warn('[Push] Error enviando push cancelación admin:', pushErr);
+        }
+
         // Recargar calendario para reflejar los cambios
         await this.cargarCalendario();
         // Cerrar el modal del día también

@@ -206,22 +206,33 @@ export class AdminAvisosComponent {
     this.success.set(null);
 
     try {
-      // Usamos la nueva función filtrada
+      const titulo = this.titulo();
+      const mensaje = this.mensaje();
+      const grupo = this.grupoObjetivo();
+
+      // 1. Insertar notificaciones en la BD
       const { data, error } = await supabase().rpc('enviar_aviso_filtrado', {
         p_usuario_id: this.auth.userId(),
-        p_titulo: this.titulo(),
-        p_mensaje: this.mensaje(),
+        p_titulo: titulo,
+        p_mensaje: mensaje,
         p_tipo: this.tipo(),
-        p_grupo_objetivo: this.grupoObjetivo()
+        p_grupo_objetivo: grupo
       });
 
       if (error) throw error;
 
       if (data && data[0]?.ok) {
-        this.success.set('¡Aviso enviado correctamente a todos los usuarios!');
+        // 2. Enviar push notifications reales via Edge Function
+        const pushResult = await this.enviarPushNotifications(titulo, mensaje, grupo);
+
+        const pushMsg = pushResult.sent > 0
+          ? ` Push enviado a ${pushResult.sent} dispositivo(s).`
+          : ' (Sin dispositivos con push activo)';
+
+        this.success.set(`¡Aviso enviado correctamente!${pushMsg}`);
         this.titulo.set('');
         this.mensaje.set('');
-        setTimeout(() => this.success.set(null), 5000);
+        setTimeout(() => this.success.set(null), 7000);
       } else {
         throw new Error(data?.[0]?.mensaje || 'Error desconocido');
       }
@@ -231,6 +242,81 @@ export class AdminAvisosComponent {
       this.error.set(err.message || 'Error al enviar el aviso');
     } finally {
       this.enviando.set(false);
+    }
+  }
+
+  /**
+   * Envía push notifications reales via la Edge Function send-push
+   * para cada usuario con token FCM registrado del grupo objetivo.
+   */
+  private async enviarPushNotifications(
+    titulo: string,
+    mensaje: string,
+    grupo: 'todos' | 'focus' | 'reducido'
+  ): Promise<{ sent: number; errors: number }> {
+    try {
+      // 1. Obtener todos los user_ids con tokens FCM
+      const { data: allTokens } = await supabase()
+        .from('fcm_tokens')
+        .select('user_id');
+
+      if (!allTokens?.length) return { sent: 0, errors: 0 };
+
+      let targetUserIds = [...new Set(allTokens.map(t => t.user_id))];
+
+      // 2. Si no es "todos", filtrar por grupo
+      if (grupo !== 'todos') {
+        const allowedGroups = grupo === 'focus'
+          ? ['focus', 'hibrido']
+          : ['reducido', 'hibrido'];
+
+        const { data: planUsers } = await supabase()
+          .from('plan_usuario')
+          .select('usuario_id')
+          .in('usuario_id', targetUserIds)
+          .eq('activo', true)
+          .in('tipo_grupo', allowedGroups);
+
+        targetUserIds = planUsers?.map(p => p.usuario_id) || [];
+      }
+
+      if (!targetUserIds.length) return { sent: 0, errors: 0 };
+
+      // 3. Enviar push a cada usuario (en paralelo, máximo 5 simultáneos)
+      let sent = 0;
+      let errors = 0;
+      const batchSize = 5;
+
+      for (let i = 0; i < targetUserIds.length; i += batchSize) {
+        const batch = targetUserIds.slice(i, i + batchSize);
+        const results = await Promise.allSettled(
+          batch.map(userId =>
+            supabase().functions.invoke('send-push', {
+              body: {
+                user_id: userId,
+                tipo: 'admin',
+                data: { titulo, mensaje }
+              }
+            })
+          )
+        );
+
+        for (const result of results) {
+          if (result.status === 'fulfilled' && !result.value.error) {
+            sent++;
+          } else {
+            errors++;
+            console.warn('[Push] Error enviando push:', result);
+          }
+        }
+      }
+
+      console.log(`[Push] Resultado: ${sent} enviados, ${errors} errores de ${targetUserIds.length} usuarios`);
+      return { sent, errors };
+
+    } catch (error) {
+      console.error('[Push] Error general enviando push notifications:', error);
+      return { sent: 0, errors: 0 };
     }
   }
 }

@@ -39,6 +39,11 @@ const TEMPLATES: Record<string, (data: Record<string, string>) => { titulo: stri
     mensaje: `Tu reserva del ${data.fecha || ''} a las ${data.hora || ''} ha sido cancelada.`
   }),
 
+  cancelacion: (data) => ({
+    titulo: data.titulo || '📅 Clase Cancelada',
+    mensaje: data.mensaje || 'Una de tus clases ha sido cancelada.'
+  }),
+
   recordatorio: (data) => ({
     titulo: '⏰ Recordatorio',
     mensaje: `Tu sesión comienza en ${data.minutos || '30'} minutos. ¡No llegues tarde!`
@@ -49,11 +54,22 @@ const TEMPLATES: Record<string, (data: Record<string, string>) => { titulo: stri
     mensaje: `Se ha liberado una plaza para el ${data.fecha || ''} a las ${data.hora || ''}. ¡Confírmala!`
   }),
 
+  plaza_asignada: (data) => ({
+    titulo: '🎉 ¡Plaza Asignada!',
+    mensaje: data.mensaje || 'Se te ha asignado una plaza. ¡Revisa tu calendario!'
+  }),
+
+  hueco_disponible: (data) => ({
+    titulo: '🔔 ¡Hay una plaza disponible!',
+    mensaje: data.mensaje || 'Hay una plaza disponible en una clase. ¡Date prisa!'
+  }),
+
   admin: (data) => ({
     titulo: data.titulo || '📢 Aviso del Centro',
     mensaje: data.mensaje || 'Tienes un nuevo mensaje del centro.'
   })
 };
+
 
 // Headers CORS
 const corsHeaders = {
