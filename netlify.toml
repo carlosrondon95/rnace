@@ -1,0 +1,7 @@
+[build]
+  base = "rnaceapp"
+  command = "pnpm run build"
+  publish = "dist/rnaceapp/browser"
+
+[[plugins]]
+  package = "@netlify/angular-runtime"
