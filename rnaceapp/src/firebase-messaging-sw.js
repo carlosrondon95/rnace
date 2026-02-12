@@ -62,11 +62,13 @@ const NOTIFICATION_CONFIG = {
 messaging.onBackgroundMessage((payload) => {
   console.log('[SW] Notificación recibida:', payload);
 
-  const notificationTitle = payload.notification?.title || payload.data?.titulo || 'RNACE';
+  // Priorizar datos del payload 'data' que envía ahora la Edge Function
+  const notificationTitle = payload.data?.title || payload.notification?.title || payload.data?.titulo || 'RNACE';
   const notificationOptions = {
-    body: payload.notification?.body || payload.data?.mensaje || '',
-    icon: '/assets/icon/logofull.JPG', // Asegurar que esta ruta existe
-    data: payload.data
+    body: payload.data?.body || payload.notification?.body || payload.data?.mensaje || '',
+    icon: payload.data?.icon || '/assets/icon/logofull.JPG',
+    data: payload.data,
+    tag: payload.data?.tag || 'notification-default'
   };
 
   return self.registration.showNotification(notificationTitle, notificationOptions);
