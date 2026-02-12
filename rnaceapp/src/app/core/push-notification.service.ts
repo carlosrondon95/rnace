@@ -102,6 +102,12 @@ export class PushNotificationService {
 
       this.setupForegroundListener(onMessage);
       this.checkPermissionStatus();
+
+      // Auto-restore token if we have permission
+      if (Notification.permission === 'granted' && !this.isOptedOut()) {
+        console.log('[Push] Restaurando token al iniciar...');
+        this.getAndSaveToken().catch(e => console.error('[Push] Error restaurando token:', e));
+      }
     } catch (error) {
       console.error('[Push] Error inicializando Firebase:', error);
     }
