@@ -65,6 +65,18 @@ export class PushNotificationService {
         'Notification' in window;
 
       this._isSupported.next(isSupported);
+
+      // Actualizar estado de permiso INMEDIATAMENTE (el navegador ya lo sabe)
+      if (isSupported) {
+        this.checkPermissionStatus();
+      }
+
+      // Si está soportado, ya tenemos permiso y NO se ha salido explícitamente, restaurar el estado
+      if (isSupported && Notification.permission === 'granted' && !this.isOptedOut()) {
+        // Inicializar sin bloquear
+        this.initializeFirebase().catch(err => console.error('[Push] Auto-init error:', err));
+      }
+
     } catch (e) {
       this._isSupported.next(false);
     }
