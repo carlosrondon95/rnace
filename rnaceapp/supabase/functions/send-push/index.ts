@@ -211,21 +211,29 @@ serve(async (req: Request) => {
               body: JSON.stringify({
                 message: {
                   token: token,
-                  notification: {
-                    title: content.titulo,
-                    body: content.mensaje,
-                    icon: '/assets/icon/logofull.JPG',
-                    click_action: url
-                  },
+                  // Usamos data para todo, el SW se encargará de mostrarla
+                  // Esto evita que el navegador muestre notificaciones por defecto duplicadas o sin icono
                   data: {
+                    title: content.titulo, // Mapeado a title en SW
+                    body: content.mensaje, // Mapeado a body en SW
+                    icon: '/assets/icon/logofull.JPG',
+                    click_action: url,
                     tipo: payload.tipo,
                     url: url,
                     tag: `${payload.tipo}-${Date.now()}`,
                     ...payload.data
                   },
+                  // Opcional: Android requiere a veces el objeto notification para despertar
+                  android: {
+                    priority: 'high'
+                  },
                   webpush: {
-                    fcm_options: { link: url },
-                    headers: { Urgency: 'high' }
+                    headers: {
+                      Urgency: 'high'
+                    },
+                    fcm_options: {
+                      link: url
+                    }
                   }
                 }
               })

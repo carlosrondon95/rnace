@@ -205,10 +205,15 @@ export class PushNotificationService {
     onMessageFn(this.messaging, (payload: any) => {
       console.log('[Push] Notificación en foreground:', payload);
 
+      // Priorizar data sobre notification
+      const titulo = payload.data?.title || payload.notification?.title || 'RNACE';
+      const mensaje = payload.data?.body || payload.notification?.body || '';
+      const icon = payload.data?.icon || '/assets/icon/logofull.JPG';
+
       const notification: PushNotification = {
         tipo: payload.data?.['tipo'] || 'default',
-        titulo: payload.notification?.title || 'RNACE',
-        mensaje: payload.notification?.body || '',
+        titulo: titulo,
+        mensaje: mensaje,
         data: payload.data,
         timestamp: Date.now()
       };
@@ -217,9 +222,10 @@ export class PushNotificationService {
 
       // Mostrar notificación nativa en foreground
       if (Notification.permission === 'granted') {
-        new Notification(notification.titulo, {
-          body: notification.mensaje,
-          icon: '/icons/icon-192x192.png'
+        new Notification(titulo, {
+          body: mensaje,
+          icon: icon,
+          data: payload.data
         });
       }
     });
