@@ -59,8 +59,10 @@ const NOTIFICATION_CONFIG = {
 };
 
 // Notificaciones en background
+// NOTA: Si el payload incluye 'notification', este handler puede NO ejecutarse ya que
+// el navegador/OS maneja la visualización automáticamente.
 messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] Notificación recibida:', payload);
+  console.log('[SW] Notificación recibida en background (puede ser override):', payload);
 
   // Priorizar datos del payload 'data' que envía ahora la Edge Function
   const notificationTitle = payload.data?.title || payload.notification?.title || payload.data?.titulo || 'RNACE';

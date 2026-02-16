@@ -631,6 +631,7 @@ $color-default: #a78bfa;
   flex-shrink: 0;
 }
 
+
 .accion-ir {
   font-size: 1.25rem;
   color: $text-muted;
@@ -639,6 +640,35 @@ $color-default: #a78bfa;
   .notificacion-item:hover & {
     color: $accent;
     transform: translateX(2px);
+  }
+}
+
+.btn-marcar-leidas {
+  @include button-reset;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: $text-primary;
+  border: 1px solid $border-color;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: $text-primary;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  .material-symbols-rounded {
+    font-size: 1.1rem;
   }
 }
 

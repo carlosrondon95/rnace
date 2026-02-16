@@ -169,6 +169,7 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   -webkit-tap-highlight-color: transparent;
+  background-color: var(--color-bg-deep); /* Dark background for overscroll */
 }
 
 body {
@@ -183,6 +184,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
+  overscroll-behavior-y: none; /* Disables pull-to-refresh rubber banding */
 }
 
 /* ============ SCROLLBAR ELEGANTE ============ */
@@ -535,10 +537,12 @@ button {
 }
 
 /* Toast variants */
+/* Toast variants */
 .toast--success {
-  background: linear-gradient(135deg, rgba(74, 222, 128, 0.15) 0%, rgba(74, 222, 128, 0.08) 100%);
-  border: 1px solid var(--color-success-border);
+  background: #2a2b27;
+  border: 1px solid var(--color-success);
   color: var(--color-success);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .toast--success .toast__icon {
@@ -546,9 +550,10 @@ button {
 }
 
 .toast--error {
-  background: linear-gradient(135deg, rgba(248, 113, 113, 0.15) 0%, rgba(248, 113, 113, 0.08) 100%);
-  border: 1px solid var(--color-danger-border);
+  background: #2a2b27;
+  border: 1px solid var(--color-danger);
   color: var(--color-danger);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .toast--error .toast__icon {
@@ -556,9 +561,10 @@ button {
 }
 
 .toast--info {
-  background: linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(96, 165, 250, 0.08) 100%);
-  border: 1px solid var(--color-info-border);
+  background: #2a2b27;
+  border: 1px solid var(--color-info);
   color: var(--color-info);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .toast--info .toast__icon {
@@ -566,9 +572,10 @@ button {
 }
 
 .toast--warning {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.08) 100%);
-  border: 1px solid var(--color-warning-border);
+  background: #2a2b27;
+  border: 1px solid var(--color-warning);
   color: var(--color-warning);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .toast--warning .toast__icon {

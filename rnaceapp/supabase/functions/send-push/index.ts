@@ -70,6 +70,32 @@ const TEMPLATES: Record<string, (data: Record<string, string>) => { titulo: stri
   })
 };
 
+// Acciones para webpush
+function getActionsForType(tipo: string): Array<{ action: string; title: string }> {
+  switch (tipo) {
+    case 'reserva_confirmada':
+      return [
+        { action: 'ver', title: '📅 Ver reserva' },
+        { action: 'calendario', title: '🗓️ Calendario' }
+      ];
+    case 'reserva_cancelada':
+      return [
+        { action: 'nueva', title: '➕ Nueva reserva' }
+      ];
+    case 'recordatorio':
+      return [
+        { action: 'ver', title: '👀 Ver detalles' }
+      ];
+    case 'lista_espera':
+      return [
+        { action: 'confirmar', title: '✅ Confirmar' },
+        { action: 'rechazar', title: '❌ Rechazar' }
+      ];
+    default:
+      return [];
+  }
+}
+
 
 // Headers CORS
 const corsHeaders = {
@@ -211,11 +237,15 @@ serve(async (req: Request) => {
               body: JSON.stringify({
                 message: {
                   token: token,
-                  // Usamos data para todo, el SW se encargará de mostrarla
-                  // Esto evita que el navegador muestre notificaciones por defecto duplicadas o sin icono
+                  // BLOQUE NOTIFICACIÓN: Crítico para iOS y Android background
+                  notification: {
+                    title: content.titulo,
+                    body: content.mensaje,
+                  },
+                  // Data para manejo en foreground o info extra
                   data: {
-                    title: content.titulo, // Mapeado a title en SW
-                    body: content.mensaje, // Mapeado a body en SW
+                    title: content.titulo,
+                    body: content.mensaje,
                     icon: '/assets/icon/logofull.JPG',
                     click_action: url,
                     tipo: payload.tipo,
@@ -223,13 +253,49 @@ serve(async (req: Request) => {
                     tag: `${payload.tipo}-${Date.now()}`,
                     ...payload.data
                   },
-                  // Opcional: Android requiere a veces el objeto notification para despertar
+                  // Configuración específica ANDROID
                   android: {
-                    priority: 'high'
+                    priority: 'high',
+                    notification: {
+                      channel_id: 'default',
+                      icon: 'stock_ticker_update', // Icono nativo si existe, o default
+                      click_action: url
+                    }
                   },
+                  // Configuración específica APPLE (iOS/macOS)
+                  apns: {
+                    payload: {
+                      aps: {
+                        alert: {
+                          title: content.titulo,
+                          body: content.mensaje
+                        },
+                        sound: 'default',
+                        badge: 1,
+                        'content-available': 1 // Para despertar la app en background
+                      }
+                    },
+                    headers: {
+                      'apns-priority': '10', // 10 = High (entrega inmediata), 5 = Low
+                      'apns-push-type': 'alert'
+                    }
+                  },
+                  // Configuración específica WEB (PWA)
                   webpush: {
                     headers: {
                       Urgency: 'high'
+                    },
+                    notification: {
+                      title: content.titulo,
+                      body: content.mensaje,
+                      icon: '/assets/icon/logofull.JPG',
+                      badge: '/assets/icon/logofull.JPG',
+                      vibrate: [200, 100, 200],
+                      data: { url: url }, // URL para el click listener del SW
+                      tag: `${payload.tipo}-${Date.now()}`,
+                      renotify: true,
+                      requireInteraction: ['reserva_cancelada', 'lista_espera', 'admin_urgent'].includes(payload.tipo),
+                      actions: getActionsForType(payload.tipo)
                     },
                     fcm_options: {
                       link: url
