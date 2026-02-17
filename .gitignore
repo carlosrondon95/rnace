@@ -1,0 +1,19 @@
+# Environments (contienen claves de API)
+rnaceapp/src/environments/environment.ts
+rnaceapp/src/environments/environment.prod.ts
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.angular/
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
