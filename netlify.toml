@@ -1,6 +1,6 @@
 [build]
   base = "rnaceapp"
-  command = "pnpm run build"
+  command = "npm run config && pnpm run build"
   publish = "dist/rnaceapp/browser"
 
 [[plugins]]
