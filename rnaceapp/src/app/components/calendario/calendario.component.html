@@ -235,9 +235,9 @@
       <!-- Celdas de días (solo L-V) -->
       @for (dia of diasCalendarioLaborables(); track dia.fecha) {
       <button type="button" [class]="getDiaClases(dia)"
-        [class.clickable]="(modoEdicion() && dia.esDelMes && dia.esLaborable) || (!modoEdicion() && dia.reservas.length > 0)"
-        [disabled]="!((modoEdicion() && dia.esDelMes && dia.esLaborable) || (!modoEdicion() && dia.reservas.length > 0))"
-        [attr.aria-label]="'Día ' + dia.dia + (dia.esFestivo ? ' - Festivo' : '')" (click)="onClickDia(dia)">
+        [class.clickable]="(modoEdicion() && dia.esDelMes && dia.esLaborable && !dia.esPasado) || (!modoEdicion() && dia.reservas.length > 0 && !dia.esPasado)"
+        [disabled]="!((modoEdicion() && dia.esDelMes && dia.esLaborable && !dia.esPasado) || (!modoEdicion() && dia.reservas.length > 0 && !dia.esPasado))"
+        [attr.aria-label]="'Día ' + dia.dia + (dia.esFestivo ? ' - Festivo' : '') + (dia.esPasado ? ' - Pasado' : '')" (click)="onClickDia(dia)">
         <!-- Número del día -->
         <div class="dia-numero">
           {{ dia.dia }}
@@ -569,6 +569,7 @@
                     Tu clase
                   </div>
                   <div class="tu-clase-botones">
+                    @if (!diaSeleccionado()!.esPasado) {
                     <button class="btn-cambiar-clase" [disabled]="guardando()"
                       (click)="iniciarCambio({ id: sesion.mi_reserva_id!, sesion_id: sesion.id, hora: sesion.hora }, diaSeleccionado()!.fecha, sesion.modalidad)">
                       <span class="material-symbols-rounded">sync_alt</span>
@@ -579,6 +580,7 @@
                       <span class="material-symbols-rounded">cancel</span>
                       Cancelar
                     </button>
+                    }
                   </div>
                 </div>
                 } @else if (sesion.en_lista_espera) {

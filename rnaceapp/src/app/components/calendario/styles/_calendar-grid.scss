@@ -88,6 +88,20 @@
         }
     }
 
+    // Días pasados (antes de hoy) - bloqueados visualmente
+    &.dia-celda--pasado {
+        opacity: 0.4;
+        background: var(--color-bg-input);
+        cursor: not-allowed;
+        pointer-events: none;
+
+        .dia-numero {
+            color: var(--color-text-muted);
+            text-decoration: line-through;
+            text-decoration-color: var(--color-text-muted);
+        }
+    }
+
     // Días de otro mes (mes anterior o siguiente que aparecen en las semanas)
     &.dia-celda--otro-mes {
         opacity: 0.25;

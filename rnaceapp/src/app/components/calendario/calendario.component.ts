@@ -14,6 +14,7 @@ interface DiaCalendario {
   diaSemana: number;
   esDelMes: boolean;
   esHoy: boolean;
+  esPasado: boolean;
   esLaborable: boolean;
   esFestivo: boolean;
   mesAbierto: boolean;
@@ -579,6 +580,8 @@ export class CalendarioComponent implements OnInit {
       this.toggleFestivo(dia);
       return;
     }
+    // Block past days for everyone
+    if (dia.esPasado) return;
     if (this.esAdmin()) {
       if (dia.reservas.length > 0) {
         this.pasoModalDetalle.set('tipo');
@@ -642,28 +645,53 @@ export class CalendarioComponent implements OnInit {
         this.misReservasDelDia.set([]);
         return;
       }
-      const { data: espera } = await supabase().from('lista_espera').select('sesion_id').eq('usuario_id', uid).in('sesion_id', sesiones.map(s => s.id));
+
+      // Filtrar sesiones huérfanas: solo mostrar las que corresponden a un horario activo
+      const { data: horariosActivos } = await supabase()
+        .from('horarios_disponibles')
+        .select('hora, modalidad, dia_semana')
+        .eq('activo', true);
+
+      const fechaObj = new Date(fecha + 'T12:00:00');
+      let diaSemanaFecha = fechaObj.getDay();
+      if (diaSemanaFecha === 0) diaSemanaFecha = 7;
+
+      const sesionesValidas = (horariosActivos && horariosActivos.length > 0)
+        ? sesiones.filter(s => horariosActivos.some(h =>
+          h.hora.slice(0, 5) === s.hora.slice(0, 5) &&
+          h.modalidad === s.modalidad &&
+          h.dia_semana === diaSemanaFecha
+        ))
+        : sesiones;
+
+      if (sesionesValidas.length === 0) {
+        this.sesionesDiaSeleccionado.set([]);
+        this.misReservasDelDia.set([]);
+        return;
+      }
+
+      const { data: espera } = await supabase().from('lista_espera').select('sesion_id').eq('usuario_id', uid).in('sesion_id', sesionesValidas.map(s => s.id));
       const esperaSet = new Set(espera?.map(e => e.sesion_id) || []);
-      const { data: reservas } = await supabase().from('reservas').select('id, sesion_id, estado').eq('usuario_id', uid).eq('estado', 'activa').in('sesion_id', sesiones.map(s => s.id));
+      const { data: reservas } = await supabase().from('reservas').select('id, sesion_id, estado').eq('usuario_id', uid).eq('estado', 'activa').in('sesion_id', sesionesValidas.map(s => s.id));
 
       const reservasMap = new Map();
       const misReservas: { id: number; sesion_id: number; hora: string }[] = [];
       if (reservas) {
         reservas.forEach(r => {
           reservasMap.set(r.sesion_id, r.id);
-          const s = sesiones.find(ses => ses.id === r.sesion_id);
+          const s = sesionesValidas.find(ses => ses.id === r.sesion_id);
           if (s) misReservas.push({ id: r.id, sesion_id: r.sesion_id, hora: s.hora.slice(0, 5) });
         });
       }
       this.misReservasDelDia.set(misReservas);
 
-      const sesionesDia = sesiones.map(s => ({
+      const sesionesDia = sesionesValidas.map(s => ({
         id: s.id, hora: s.hora.slice(0, 5), modalidad: s.modalidad, capacidad: s.capacidad,
         plazas_ocupadas: 0, plazas_disponibles: 0,
         tiene_reserva: reservasMap.has(s.id), mi_reserva_id: reservasMap.get(s.id), en_lista_espera: esperaSet.has(s.id)
       }));
 
-      const { data: disponibilidad } = await supabase().from('vista_sesiones_disponibilidad').select('sesion_id, plazas_ocupadas, plazas_disponibles').in('sesion_id', sesiones.map(s => s.id));
+      const { data: disponibilidad } = await supabase().from('vista_sesiones_disponibilidad').select('sesion_id, plazas_ocupadas, plazas_disponibles').in('sesion_id', sesionesValidas.map(s => s.id));
       if (disponibilidad) {
         const dispMap = new Map(disponibilidad.map(d => [d.sesion_id, d]));
         sesionesDia.forEach(s => {
@@ -1170,6 +1198,7 @@ export class CalendarioComponent implements OnInit {
 
     // Fecha de hoy para comparar
     const hoyDate = new Date();
+    hoyDate.setHours(0, 0, 0, 0);
     const hoy = `${hoyDate.getFullYear()}-${(hoyDate.getMonth() + 1).toString().padStart(2, '0')}-${hoyDate.getDate().toString().padStart(2, '0')}`;
 
     const mesAbierto = this.mesAgenda()?.abierto ?? false;
@@ -1225,6 +1254,7 @@ export class CalendarioComponent implements OnInit {
           diaSemana,
           esDelMes: false,
           esHoy: false,
+          esPasado: true,
           esLaborable: false,
           esFestivo: false,
           mesAbierto: false,
@@ -1247,12 +1277,14 @@ export class CalendarioComponent implements OnInit {
       const esLaborable = diaSemana >= 0 && diaSemana <= 4;
       const esFestivo = festivos.has(fecha);
 
+      const esPasado = new Date(anio, mes - 1, dia) < hoyDate;
       dias.push({
         fecha,
         dia,
         diaSemana,
         esDelMes: true,
         esHoy: fecha === hoy,
+        esPasado,
         esLaborable,
         esFestivo: mesAbierto ? esFestivo : false,
         mesAbierto,
@@ -1281,6 +1313,7 @@ export class CalendarioComponent implements OnInit {
           diaSemana,
           esDelMes: false,
           esHoy: false,
+          esPasado: false,
           esLaborable: false,
           esFestivo: false,
           mesAbierto: false,
@@ -1715,6 +1748,9 @@ export class CalendarioComponent implements OnInit {
     if (!dia.esDelMes) clases.push('dia-celda--otro-mes');
     if (dia.esHoy) clases.push('dia-celda--hoy');
 
+    // Días pasados (antes de hoy)
+    if (dia.esPasado && dia.esDelMes) clases.push('dia-celda--pasado');
+
     // Fin de semana (Sáb=5, Dom=6) o festivo = bloqueado
     if (!dia.esLaborable && dia.esDelMes) clases.push('dia-celda--bloqueado');
 
@@ -1728,8 +1764,8 @@ export class CalendarioComponent implements OnInit {
       }
     }
 
-    // Solo mostrar indicador de reservas si no es día festivo
-    if (dia.reservas.length > 0 && !this.modoEdicion() && !dia.esFestivo) {
+    // Solo mostrar indicador de reservas si no es día festivo y no es pasado
+    if (dia.reservas.length > 0 && !this.modoEdicion() && !dia.esFestivo && !dia.esPasado) {
       clases.push('dia-celda--con-reservas');
     }
 
@@ -1873,14 +1909,38 @@ export class CalendarioComponent implements OnInit {
 
       // Filtrar sesiones que ya han comenzado (pero NO excluir festivos - se mostrarán bloqueados)
       const ahoras = ahora.getTime();
+
+      // Cargar horarios activos para filtrar sesiones huérfanas (sesiones de horarios eliminados)
+      const { data: horariosActivos } = await supabase()
+        .from('horarios_disponibles')
+        .select('hora, modalidad, dia_semana')
+        .eq('activo', true);
+
       const sesionesFuturas = sesiones.filter(s => {
         // Excluir sesiones en días festivos del listado de sesiones disponibles
         // (los festivos se muestran en el calendario pero bloqueados, sin sesiones)
         if (festivosSet.has(s.fecha)) return false;
 
         const fechaHoraSesion = new Date(`${s.fecha}T${s.hora}`).getTime();
-        return fechaHoraSesion > ahoras;
+        if (fechaHoraSesion <= ahoras) return false;
+
+        // Filtrar sesiones huérfanas: solo incluir si corresponde a un horario activo
+        if (horariosActivos && horariosActivos.length > 0) {
+          const fechaObj = new Date(s.fecha + 'T12:00:00');
+          let diaSemana = fechaObj.getDay(); // 0=Dom, 1=Lun...
+          if (diaSemana === 0) diaSemana = 7; // Dom->7 (no laborable)
+          const horaCorta = s.hora.slice(0, 5);
+          const tieneHorarioActivo = horariosActivos.some(h =>
+            h.hora.slice(0, 5) === horaCorta &&
+            h.modalidad === s.modalidad &&
+            h.dia_semana === diaSemana
+          );
+          if (!tieneHorarioActivo) return false;
+        }
+
+        return true;
       });
+
 
       // Obtener reservas activas del usuario en estas sesiones
       const { data: reservas } = await supabase()
@@ -1918,7 +1978,7 @@ export class CalendarioComponent implements OnInit {
           modalidad: s.modalidad,
           capacidad: s.capacidad,
           plazas_ocupadas: disp?.plazas_ocupadas || 0,
-          plazas_disponibles: disp?.plazas_disponibles || s.capacidad,
+          plazas_disponibles: disp?.plazas_disponibles ?? s.capacidad,
           tiene_reserva: tieneReservaSet.has(s.id),
           en_lista_espera: esperaSet.has(s.id),
           // Campo extra para mostrar fecha en el cambio
@@ -2752,10 +2812,10 @@ export class CalendarioComponent implements OnInit {
         }
       }
 
-      // 5. Desactivar el horario (soft delete)
+      // 5. Eliminar el horario definitivamente (hard delete)
       const { error } = await client
         .from('horarios_disponibles')
-        .update({ activo: false })
+        .delete()
         .eq('id', horario.id);
 
       if (error) throw error;
