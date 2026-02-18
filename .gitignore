@@ -1,0 +1,24 @@
+# Environments (contienen claves de API)
+rnaceapp/src/environments/environment.ts
+rnaceapp/src/environments/environment.prod.ts
+rnaceapp/src/environments/environment.development.ts
+
+# Firebase service workers (contienen config de Firebase)
+rnaceapp/src/firebase-messaging-sw.js
+rnaceapp/public/firebase-messaging-sw.js
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.angular/
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -47,4 +47,3 @@ users, and notifications for a high-performance sports center.
 
 ## 📸 Screenshots
 
-_(Add your app screenshots here: Calendar, User Profile, Admin Panel)_
