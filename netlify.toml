@@ -1,7 +1,10 @@
 [build]
   base = "rnaceapp"
-  command = "npm run config && pnpm run build"
+  command = "npm run config && npm run build"
   publish = "dist/rnaceapp/browser"
+
+[build.environment]
+  NODE_ENV = "development"
 
 [[plugins]]
   package = "@netlify/angular-runtime"
