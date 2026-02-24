@@ -1,7 +1,7 @@
 {
     "name": "RNACE",
     "short_name": "RNACE",
-    "description": "App de gestión de citas y reservas del centro RNACE",
+    "description": "Centro RNACE",
     "theme_color": "#32332f",
     "background_color": "#32332f",
     "display": "standalone",
