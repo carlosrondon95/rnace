@@ -38,6 +38,7 @@ interface DiaAgrupado {
   diaNombre: string;
   fechaFormateada: string;
   sesiones: Sesion[];
+  esFestivo: boolean;
 }
 
 interface SemanaAgrupada {
@@ -73,6 +74,7 @@ export class ReservaCitaComponent implements OnInit {
   sesionSeleccionada = signal<Sesion | null>(null);
   modalidad = signal<Modalidad>('focus');
   tipoGrupo = signal<string>('focus');
+  festivosMes = signal<Set<string>>(new Set());
 
   esAdmin = computed(() => this.auth.getRol() === 'admin');
 
@@ -113,11 +115,12 @@ export class ReservaCitaComponent implements OnInit {
   // Sesiones agrupadas por semanas
   semanasAgrupadas = computed((): SemanaAgrupada[] => {
     const mod = this.modalidad();
+    const festivos = this.festivosMes();
     const sesionesFiltradas = this.sesiones().filter(
       s => s.modalidad === mod && s.estado !== 'pasada'
     );
 
-    if (sesionesFiltradas.length === 0) return [];
+    if (sesionesFiltradas.length === 0 && festivos.size === 0) return [];
 
     // Agrupar sesiones por fecha
     const sesionesPorFecha = new Map<string, Sesion[]>();
@@ -129,8 +132,10 @@ export class ReservaCitaComponent implements OnInit {
       sesionesPorFecha.get(fecha)!.push(sesion);
     });
 
-    const fechasConSesiones = Array.from(sesionesPorFecha.keys()).sort();
-    if (fechasConSesiones.length === 0) return [];
+    // Combinar fechas con sesiones y fechas festivas para determinar rango de semanas
+    const todasLasFechas = new Set([...sesionesPorFecha.keys(), ...festivos]);
+    const fechasOrdenadas = Array.from(todasLasFechas).sort();
+    if (fechasOrdenadas.length === 0) return [];
 
     const semanas: SemanaAgrupada[] = [];
     let numeroSemana = 1;
@@ -142,8 +147,8 @@ export class ReservaCitaComponent implements OnInit {
       return new Date(d.setDate(diff));
     };
 
-    const primerLunes = getLunes(fechasConSesiones[0]);
-    const ultimaFechaConSesion = new Date(fechasConSesiones[fechasConSesiones.length - 1] + 'T12:00:00');
+    const primerLunes = getLunes(fechasOrdenadas[0]);
+    const ultimaFechaConSesion = new Date(fechasOrdenadas[fechasOrdenadas.length - 1] + 'T12:00:00');
     const currentLunes = new Date(primerLunes);
 
     while (currentLunes <= ultimaFechaConSesion) {
@@ -156,27 +161,34 @@ export class ReservaCitaComponent implements OnInit {
         const diaFecha = new Date(currentLunes);
         diaFecha.setDate(diaFecha.getDate() + i);
         const fechaStr = diaFecha.toISOString().split('T')[0];
+        const esFestivo = festivos.has(fechaStr);
 
         const dia: DiaAgrupado = {
           fecha: fechaStr,
           diaNombre: diaFecha.toLocaleDateString('es-ES', { weekday: 'short' }),
           fechaFormateada: diaFecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
-          sesiones: sesionesPorFecha.get(fechaStr) || [],
+          sesiones: esFestivo ? [] : (sesionesPorFecha.get(fechaStr) || []),
+          esFestivo,
         };
 
         semanaActual.push(dia);
       }
 
-      const tieneSesiones = semanaActual.some(d => d.sesiones.length > 0);
+      const tieneSesiones = semanaActual.some(d => d.sesiones.length > 0 || d.esFestivo);
 
       if (tieneSesiones) {
         const primerDia = currentLunes.getDate();
         const ultimoDia = currentViernes.getDate();
-        const mes = currentLunes.toLocaleDateString('es-ES', { month: 'short' });
+        const mesLunes = currentLunes.toLocaleDateString('es-ES', { month: 'short' });
+        const mesViernes = currentViernes.toLocaleDateString('es-ES', { month: 'short' });
+
+        const tituloSemana = mesLunes === mesViernes
+          ? `Semana del ${primerDia} al ${ultimoDia} ${mesLunes}`
+          : `Semana del ${primerDia} ${mesLunes} al ${ultimoDia} ${mesViernes}`;
 
         semanas.push({
           numeroSemana,
-          tituloSemana: `Semana del ${primerDia} al ${ultimoDia} ${mes}`,
+          tituloSemana,
           dias: semanaActual,
         });
 
@@ -287,11 +299,28 @@ export class ReservaCitaComponent implements OnInit {
 
     const { anio, mes } = this.mesActual();
 
+    // Cargar festivos del mes para filtrar sesiones de días cerrados
+    const primerDia = `${anio}-${mes.toString().padStart(2, '0')}-01`;
+    const ultimoDiaMes = new Date(anio, mes, 0).getDate();
+    const ultimoDia = `${anio}-${mes.toString().padStart(2, '0')}-${ultimoDiaMes.toString().padStart(2, '0')}`;
+
+    const festivosSet = new Set<string>();
+    try {
+      const { data: festivosData } = await supabase()
+        .from('festivos')
+        .select('fecha')
+        .gte('fecha', primerDia)
+        .lte('fecha', ultimoDia);
+      (festivosData || []).forEach(f => festivosSet.add(f.fecha));
+    } catch (err) {
+      console.warn('Error cargando festivos:', err);
+    }
+
     // Obtener sesiones con disponibilidad
     const { data: sesionesData, error } = await supabase()
       .from('vista_sesiones_disponibilidad')
       .select('*')
-      .gte('fecha', `${anio}-${mes.toString().padStart(2, '0')}-01`)
+      .gte('fecha', primerDia)
       .lt('fecha', mes === 12 ? `${anio + 1}-01-01` : `${anio}-${(mes + 1).toString().padStart(2, '0')}-01`)
       .eq('cancelada', false)
       .order('fecha')
@@ -322,8 +351,11 @@ export class ReservaCitaComponent implements OnInit {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
+    // Guardar festivos para usarlos en la vista
+    this.festivosMes.set(festivosSet);
+
     const sesiones: Sesion[] = (sesionesData || [])
-      .filter(s => !tieneReserva.has(s.sesion_id)) // Excluir donde ya tiene reserva
+      .filter(s => !tieneReserva.has(s.sesion_id) && !festivosSet.has(s.fecha)) // Excluir donde ya tiene reserva o es festivo
       .map(s => {
         const fechaSesion = new Date(s.fecha + 'T' + s.hora);
         const esPasada = fechaSesion < hoy;

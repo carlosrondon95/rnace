@@ -125,13 +125,18 @@
 
         <div class="semana-grid">
           @for (dia of semana.dias; track dia.fecha) {
-          <div class="dia-col">
+          <div class="dia-col" [class.dia-festivo]="dia.esFestivo">
             <div class="dia-header">
               <span class="dia-nombre">{{ dia.diaNombre }}</span>
               <span class="dia-fecha">{{ dia.fechaFormateada }}</span>
             </div>
 
-            @if (dia.sesiones.length === 0) {
+            @if (dia.esFestivo) {
+            <div class="dia-bloqueado">
+              <span class="material-symbols-rounded">lock</span>
+              <span>Cerrado</span>
+            </div>
+            } @else if (dia.sesiones.length === 0) {
             <div class="dia-vacio">
               <span>Sin sesiones</span>
             </div>
@@ -179,6 +184,10 @@
       <div class="leyenda-item">
         <span class="leyenda-color leyenda-seleccionada"></span>
         <span>Seleccionada</span>
+      </div>
+      <div class="leyenda-item">
+        <span class="leyenda-color leyenda-festivo"></span>
+        <span>Cerrado</span>
       </div>
     </div>
     }

@@ -618,6 +618,23 @@ export class CalendarioComponent implements OnInit {
   async cargarSesionesDia(fecha: string) {
     const uid = this.userId();
     if (!uid) return;
+
+    // Verificar si el día es festivo - no cargar sesiones de días cerrados
+    try {
+      const { data: festivoData } = await supabase()
+        .from('festivos')
+        .select('fecha')
+        .eq('fecha', fecha)
+        .maybeSingle();
+      if (festivoData) {
+        this.sesionesDiaSeleccionado.set([]);
+        this.misReservasDelDia.set([]);
+        return;
+      }
+    } catch (err) {
+      console.warn('Error verificando festivo:', err);
+    }
+
     this.cargando.set(true);
     try {
       // Asegurar que tenemos el tipo de grupo cargado
@@ -1492,7 +1509,8 @@ export class CalendarioComponent implements OnInit {
           const { data: reservasCompletas } = await client
             .from('reservas')
             .select('id, usuario_id, sesion_id, sesiones(modalidad, fecha)')
-            .in('id', reservaIds);
+            .in('id', reservaIds)
+            .eq('estado', 'activa');
 
           if (reservasCompletas && reservasCompletas.length > 0) {
             // OPTIMIZACIÓN: Cancelar todas las reservas en una sola operación batch
@@ -1543,18 +1561,19 @@ export class CalendarioComponent implements OnInit {
                 });
               }
 
-              // Preparar notificación (solo una por usuario)
-              if (!usuariosNotificados.has(reserva.usuario_id)) {
-                usuariosNotificados.add(reserva.usuario_id);
+              // Preparar notificación por cada fecha afectada
+              const claveNotif = `${reserva.usuario_id}_${sesionData.fecha}`;
+              if (!usuariosNotificados.has(claveNotif)) {
+                usuariosNotificados.add(claveNotif);
                 const fechaFormateada = fechaSesion.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
                 const mensajeNotif = generarRecuperaciones
-                  ? `Tu clase del ${fechaFormateada} ha sido cancelada por festivo. Se ha generado una recuperación.`
+                  ? `Tu clase del ${fechaFormateada} ha sido cancelada. Se ha generado una recuperación.`
                   : `Tu clase del ${fechaFormateada} ha sido cancelada por vacaciones.`;
 
                 notificacionesAInsertar.push({
                   usuario_id: reserva.usuario_id,
-                  tipo: 'cancelacion',
-                  titulo: generarRecuperaciones ? 'Clase cancelada por festivo' : 'Clase cancelada por vacaciones',
+                  tipo: generarRecuperaciones ? 'festivo' : 'cancelacion',
+                  titulo: generarRecuperaciones ? 'Clase cancelada' : 'Clase cancelada por vacaciones',
                   mensaje: mensajeNotif,
                   leida: false
                 });
@@ -1663,7 +1682,8 @@ export class CalendarioComponent implements OnInit {
       // Mensaje de éxito según lo que se hizo
       const numFestivos = festivosArray.length;
       if (numFestivos > 0) {
-        let mensaje = `Configuración guardada: ${numFestivos} día${numFestivos > 1 ? 's' : ''} marcado${numFestivos > 1 ? 's' : ''} como festivo.`;
+        const tipoCierre = generarRecuperaciones ? 'cerrado' : 'cerrado por vacaciones';
+        let mensaje = `Configuración guardada: ${numFestivos} día${numFestivos > 1 ? 's' : ''} ${tipoCierre}.`;
         if (recuperacionesGeneradas > 0) {
           mensaje += ` Se generaron ${recuperacionesGeneradas} recuperación${recuperacionesGeneradas > 1 ? 'es' : ''}.`;
         }
