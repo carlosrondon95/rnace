@@ -30,6 +30,7 @@ interface ReservaCalendario {
   modalidad: 'focus' | 'reducido';
   estado: string;
   es_propia: boolean;
+  usuario_id: string; // ID único del usuario para seguimiento robusto
 }
 
 interface MesAgenda {
@@ -967,6 +968,20 @@ export class CalendarioComponent implements OnInit {
           return;
         }
 
+        // VALIDACIÓN LOCAL: Verificar si falta menos de 1 hora
+        const reservaParaCambio = this.misReservasParaCambio().find(r => r.id === reservaId);
+        if (reservaParaCambio) {
+          const fechaHoraReserva = new Date(`${reservaParaCambio.fecha}T${reservaParaCambio.hora}:00`);
+          const ahora = new Date();
+          const diferenciaMs = fechaHoraReserva.getTime() - ahora.getTime();
+          const unaHoraMs = 60 * 60 * 1000;
+  
+          if (diferenciaMs < unaHoraMs) {
+            this.error.set('No se puede cambiar una clase que empieza en menos de 1 hora.');
+            return;
+          }
+        }
+
         // Usar la función cambiar_turno existente
         const { data, error } = await supabase().rpc('cambiar_turno', {
           p_usuario_id: uid,
@@ -1242,6 +1257,7 @@ export class CalendarioComponent implements OnInit {
         modalidad: sesion.modalidad as 'focus' | 'reducido',
         estado: r.estado,
         es_propia: r.usuario_id === userId,
+        usuario_id: r.usuario_id
       };
 
       if (!reservasPorFecha.has(fecha)) {
@@ -1815,6 +1831,17 @@ export class CalendarioComponent implements OnInit {
    * Inicia el modo cambio: guarda la reserva a cambiar y carga sesiones disponibles
    */
   async iniciarCambio(reserva: { id: number; sesion_id: number; hora: string }, fecha: string, modalidad: string) {
+    // VALIDACIÓN LOCAL: Verificar si falta menos de 1 hora
+    const fechaHoraReserva = new Date(`${fecha}T${reserva.hora}:00`);
+    const ahora = new Date();
+    const diferenciaMs = fechaHoraReserva.getTime() - ahora.getTime();
+    const unaHoraMs = 60 * 60 * 1000;
+
+    if (diferenciaMs < unaHoraMs) {
+      this.error.set('No se puede cambiar el turno con menos de 1 hora de antelación.');
+      return;
+    }
+
     this.reservaACambiar.set({ ...reserva, fecha, modalidad });
     this.modoCambio.set(true);
     await this.cargarSesionesParaCambio(modalidad);
@@ -2030,6 +2057,15 @@ export class CalendarioComponent implements OnInit {
       tipo: 'info',
       textoConfirmar: 'Sí, cambiar'
     })) {
+      return;
+    }
+
+    // VALIDACIÓN LOCAL: Verificar si falta menos de 1 hora
+    const fechaHoraReserva = new Date(`${reserva.fecha}T${reserva.hora}:00`);
+    const ahora = new Date();
+    const diferenciaMs = fechaHoraReserva.getTime() - ahora.getTime();
+    if (diferenciaMs < 60 * 60 * 1000) {
+      this.error.set('No se puede cambiar el turno con menos de 1 hora de antelación.');
       return;
     }
 
@@ -2390,18 +2426,14 @@ export class CalendarioComponent implements OnInit {
 
     if (!sesionId || !dia) return usuarios;
 
-    // Obtener usuarios que ya tienen reserva en esta sesión
+    // Obtener usuarios que ya tienen reserva activa en esta sesión
     const usuariosEnSesion = new Set(
       dia.reservas
-        .filter(r => r.sesion_id === sesionId)
-        .map(r => {
-          // Necesitamos el usuario_id pero solo tenemos nombre
-          // Vamos a excluir por nombre como aproximación
-          return r.usuario_nombre;
-        })
+        .filter(r => r.sesion_id === sesionId && r.estado === 'activa')
+        .map(r => r.usuario_id)
     );
 
-    return usuarios.filter(u => !usuariosEnSesion.has(u.nombre));
+    return usuarios.filter(u => !usuariosEnSesion.has(u.id));
   });
 
   async agregarUsuarioASesion() {
@@ -2417,32 +2449,49 @@ export class CalendarioComponent implements OnInit {
     this.error.set(null);
 
     try {
-      // Verificar que no exista ya una reserva activa
-      const { data: existente } = await supabase()
+      // Verificar si ya existe una reserva (sea activa o cancelada)
+      const { data: existente, error: checkError } = await supabase()
         .from('reservas')
-        .select('id')
+        .select('id, estado')
         .eq('sesion_id', sesionId)
         .eq('usuario_id', usuarioId)
-        .eq('estado', 'activa')
         .maybeSingle();
 
+      if (checkError) throw checkError;
+
       if (existente) {
-        this.error.set('Este usuario ya tiene una reserva en esta sesión');
-        return;
+        if (existente.estado === 'activa') {
+          this.error.set('Este usuario ya tiene una reserva activa en esta sesión');
+          return;
+        } else {
+          // Si existe pero está cancelada, la reactivamos en lugar de insertar (evita error de duplicado)
+          const { error: updateError } = await supabase()
+            .from('reservas')
+            .update({
+              estado: 'activa',
+              es_recuperacion: false,
+              es_desde_horario_fijo: false,
+              cancelada_en: null,
+              cancelada_correctamente: null
+            })
+            .eq('id', existente.id);
+
+          if (updateError) throw updateError;
+        }
+      } else {
+        // No existe reserva previa, creamos una nueva
+        const { error: insertError } = await supabase()
+          .from('reservas')
+          .insert({
+            sesion_id: sesionId,
+            usuario_id: usuarioId,
+            estado: 'activa',
+            es_recuperacion: false,
+            es_desde_horario_fijo: false
+          });
+
+        if (insertError) throw insertError;
       }
-
-      // Crear la reserva
-      const { error: insertError } = await supabase()
-        .from('reservas')
-        .insert({
-          sesion_id: sesionId,
-          usuario_id: usuarioId,
-          estado: 'activa',
-          es_recuperacion: false,
-          es_desde_horario_fijo: false
-        });
-
-      if (insertError) throw insertError;
 
       this.mensajeExito.set('Usuario añadido correctamente a la sesión');
       setTimeout(() => this.mensajeExito.set(null), 3000);
@@ -2451,9 +2500,9 @@ export class CalendarioComponent implements OnInit {
       // Recargar calendario para reflejar cambios
       await this.cargarCalendario();
       this.diaSeleccionado.set(null);
-    } catch (err) {
-      console.error('Error:', err);
-      this.error.set('Error al añadir usuario a la sesión');
+    } catch (err: any) {
+      console.error('Error al añadir usuario a la sesión:', err);
+      this.error.set(err.message || 'Error al añadir usuario a la sesión');
     } finally {
       this.agregandoUsuario.set(false);
     }

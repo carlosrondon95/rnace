@@ -132,7 +132,7 @@
   --z-fixed: 300;
   --z-modal-backdrop: 400;
   --z-modal: 500;
-  --z-toast: 600;
+  --z-toast: 12000;
 
   /* === Layout === */
   --navbar-height: 56px;

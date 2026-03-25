@@ -394,7 +394,7 @@
       <button class="btn-cancelar" (click)="cerrarModal()" [disabled]="guardando()">
         Cancelar
       </button>
-      <button class="btn-guardar" (click)="guardarUsuario()" [disabled]="guardando() || !formularioValido()">
+      <button class="btn-guardar" (click)="guardarUsuario()" [disabled]="guardando()">
         @if (guardando()) {
         <span class="spinner-small"></span>
         Guardando...

@@ -493,6 +493,12 @@ export class GestionarPerfilesComponent implements OnInit {
     });
     this.errorModal.set(null);
     this.exitoModal.set(null);
+    
+    // Reset Calendar State just like in abrirModalNuevo
+    this.vistaAsignacion.set('semana');
+    this.fechaCalendario.set(new Date());
+    this.reservasSeleccionadas.set(new Set());
+
     this.mostrarModal.set(true);
   }
 
@@ -706,7 +712,8 @@ export class GestionarPerfilesComponent implements OnInit {
     const tieneTelefono = f.telefono.trim().length >= 9;
 
     const necesitaHorarios = f.rol === 'cliente';
-    const tieneHorarios = !necesitaHorarios || f.horariosSeleccionados.length > 0;
+    const esEspecial = f.tipoGrupo === 'especial';
+    const tieneHorarios = !necesitaHorarios || f.horariosSeleccionados.length > 0 || this.reservasSeleccionadas().size > 0 || esEspecial;
 
     const baseValido = tieneNombre && tieneTelefono && tieneHorarios;
 
@@ -723,7 +730,27 @@ export class GestionarPerfilesComponent implements OnInit {
 
   async guardarUsuario() {
     if (!this.formularioValido()) {
-      this.errorModal.set('Por favor, completa todos los campos correctamente.');
+      const f = this.formulario();
+      let errores = [];
+      
+      if (f.nombre.trim().length === 0) errores.push('Nombre es obligatorio');
+      if (f.telefono.trim().length < 9) errores.push('Teléfono min. 9 dígitos');
+      
+      if (!this.modoEdicion() && f.password.length < 6) {
+        errores.push('Contraseña min. 6 caracteres');
+      }
+      if (this.modoEdicion() && f.password && f.password.length < 6) {
+        errores.push('La nueva contraseña debe tener min. 6 caracteres');
+      }
+      
+      const necesitaHorarios = f.rol === 'cliente';
+      const esEspecial = f.tipoGrupo === 'especial';
+      if (necesitaHorarios && !esEspecial && f.horariosSeleccionados.length === 0 && this.reservasSeleccionadas().size === 0) {
+        errores.push('Debes seleccionar al menos un horario (semanal o mensual)');
+      }
+
+      const mensaje = errores.length > 0 ? 'Faltan datos: ' + errores.join(', ') : 'Por favor, completa todos los campos correctamente.';
+      this.errorModal.set(mensaje);
       return;
     }
 
@@ -904,6 +931,39 @@ export class GestionarPerfilesComponent implements OnInit {
         }));
 
         await client.from('horario_fijo_usuario').insert(horariosInsert);
+      }
+
+      // 4. Crear Reservas Manuales (si hay seleccionadas en Vista Mes)
+      const reservasIds = Array.from(this.reservasSeleccionadas());
+      if (reservasIds.length > 0) {
+        // Obtenemos primero si ya existen para no duplicar
+        const { data: reservasExistentes } = await client
+          .from('reservas')
+          .select('sesion_id')
+          .eq('usuario_id', userId)
+          .in('sesion_id', reservasIds)
+          .eq('estado', 'activa');
+
+        const existentesSet = new Set(reservasExistentes?.map(r => r.sesion_id) || []);
+        const nuevasReservasIds = reservasIds.filter(id => !existentesSet.has(id));
+
+        if (nuevasReservasIds.length > 0) {
+          const reservasInsert = nuevasReservasIds.map(sesionId => ({
+            sesion_id: sesionId,
+            usuario_id: userId,
+            estado: 'activa',
+            es_recuperacion: false,
+            es_desde_horario_fijo: false
+          }));
+
+          const { error: reservasError } = await client
+            .from('reservas')
+            .insert(reservasInsert);
+
+          if (reservasError) {
+            console.error('Error creando reservas manuales en actualizarUsuario:', reservasError);
+          }
+        }
       }
     }
 
