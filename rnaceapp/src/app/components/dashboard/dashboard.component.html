@@ -122,6 +122,20 @@
       }
     </section>
 
+    <!-- Resumen de actividad -->
+    <section class="section">
+      <div class="stats-grid stats-grid--client">
+        <div class="stat-card">
+          <span class="stat-value">{{ clasesResumen().realizadas }}</span>
+          <span class="stat-label">Clases Realizadas</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">{{ clasesResumen().futuras }}</span>
+          <span class="stat-label">Clases Próximas</span>
+        </div>
+      </div>
+    </section>
+
     <!-- Recuperaciones disponibles -->
     @if (tieneRecuperaciones()) {
     <section class="section section--highlight">

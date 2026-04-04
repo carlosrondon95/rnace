@@ -52,6 +52,8 @@ interface Usuario {
   clases_reducido?: number;
   clases_por_mes?: number;
   horarios_fijos?: HorarioFijoUsuario[];
+  clases_realizadas?: number;
+  clases_futuras?: number;
 }
 
 interface FormularioUsuario {
@@ -137,6 +139,11 @@ export class GestionarPerfilesComponent implements OnInit {
   mostrarModal = signal(false);
   modoEdicion = signal(false);
   usuarioEditandoId = signal<string | null>(null);
+  usuarioEditando = computed(() => {
+    const id = this.usuarioEditandoId();
+    if (!id) return null;
+    return this.usuarios().find(u => u.id === id) || null;
+  });
   guardando = signal(false);
   errorModal = signal<string | null>(null);
   exitoModal = signal<string | null>(null);
@@ -405,8 +412,45 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
+    // NEW: Fetch reservation counts
+    const { data: reservasData } = await client
+      .from('reservas')
+      .select(`
+        usuario_id,
+        estado,
+        sesiones!inner (
+          fecha,
+          hora
+        )
+      `)
+      .eq('estado', 'activa');
+
+    const countsMap = new Map<string, { realizadas: number, futuras: number }>();
+    const ahora = new Date();
+
+    if (reservasData) {
+      for (const r of (reservasData as any[])) {
+        const sesion = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
+        if (!sesion) continue;
+        
+        const fechaSesion = new Date(`${sesion.fecha}T${sesion.hora}`);
+        
+        if (!countsMap.has(r.usuario_id)) {
+          countsMap.set(r.usuario_id, { realizadas: 0, futuras: 0 });
+        }
+        
+        const counts = countsMap.get(r.usuario_id)!;
+        if (fechaSesion < ahora) {
+          counts.realizadas++;
+        } else {
+          counts.futuras++;
+        }
+      }
+    }
+
     const usuarios: Usuario[] = (usuariosData || []).map((u) => {
       const plan = planesMap.get(u.id);
+      const counts = countsMap.get(u.id) || { realizadas: 0, futuras: 0 };
       return {
         id: u.id,
         telefono: u.telefono || '',
@@ -419,6 +463,8 @@ export class GestionarPerfilesComponent implements OnInit {
         clases_reducido: plan?.clases_reducido,
         clases_por_mes: plan?.clases_por_mes,
         horarios_fijos: horariosMap.get(u.id) || [],
+        clases_realizadas: counts.realizadas,
+        clases_futuras: counts.futuras,
       };
     });
 

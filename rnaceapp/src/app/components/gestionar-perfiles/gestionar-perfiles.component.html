@@ -101,6 +101,16 @@
           <span class="plan-badge" [class]="obtenerClaseGrupo(usuario.tipo_grupo)">
             {{ obtenerEtiquetaGrupo(usuario) }}
           </span>
+          <div class="usuario-stats">
+            <span class="stat-pill realizada" title="Clases realizadas">
+              <span class="material-symbols-rounded">check_circle</span>
+              {{ usuario.clases_realizadas || 0 }} Realizadas
+            </span>
+            <span class="stat-pill futura" title="Clases próximas">
+              <span class="material-symbols-rounded">upcoming</span>
+              {{ usuario.clases_futuras || 0 }} Próximas
+            </span>
+          </div>
         </div>
         @if (obtenerHorariosTexto(usuario)) {
         <div class="usuario-horarios">
@@ -160,6 +170,29 @@
       <div class="toast toast--success" role="status">
         <span class="material-symbols-rounded toast__icon">check_circle</span>
         <span class="toast__message">{{ exitoModal() }}</span>
+      </div>
+      }
+
+      <!-- Resumen de actividad (Solo en edición) -->
+      @if (modoEdicion()) {
+      <div class="form-section resumen-clases-modal">
+        <h3 class="section-title">Resumen de actividad</h3>
+        <div class="resumen-stats-modal">
+          <div class="resumen-stat stat-realizada">
+            <span class="material-symbols-rounded">check_circle</span>
+            <div class="resumen-info">
+              <span class="resumen-label">Clases Realizadas</span>
+              <span class="resumen-valor">{{ usuarioEditando()?.clases_realizadas || 0 }}</span>
+            </div>
+          </div>
+          <div class="resumen-stat stat-futura">
+            <span class="material-symbols-rounded">upcoming</span>
+            <div class="resumen-info">
+              <span class="resumen-label">Clases Próximas</span>
+              <span class="resumen-valor">{{ usuarioEditando()?.clases_futuras || 0 }}</span>
+            </div>
+          </div>
+        </div>
       </div>
       }
 

@@ -93,7 +93,7 @@
 
 // ============ SECCIONES ============
 .section {
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-sm);
   animation: slideUp 0.4s ease-out both;
 
   // Stagger animation for multiple sections
@@ -114,6 +114,7 @@
     border: 1px solid rgba(251, 191, 36, 0.2);
     border-radius: var(--radius-lg);
     padding: var(--space-md);
+    margin-bottom: var(--space-sm);
   }
 }
 
@@ -121,7 +122,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-sm);
 
   &.clickable {
     cursor: pointer;
@@ -310,7 +311,7 @@
 
 .stack-container {
   position: relative;
-  padding-bottom: var(--space-lg);
+  padding-bottom: var(--space-sm);
 }
 
 .stack-wrapper {
@@ -544,7 +545,7 @@
   display: flex;
   justify-content: center;
   gap: var(--space-xs);
-  margin-top: var(--space-md);
+  margin-top: var(--space-xs);
 }
 
 .stack-dot {
@@ -573,7 +574,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-xs);
-  margin-top: var(--space-sm);
+  margin-top: var(--space-xs);
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 
@@ -764,14 +765,56 @@
   flex-shrink: 0;
 }
 
-// ============ STATS ADMIN ============
+// ============ STATS ADMIN & CLIENT ============
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-sm);
 
+  &--client {
+    margin-bottom: var(--space-xs);
+
+    .stat-card {
+      min-height: 70px;
+      padding: var(--space-sm) var(--space-md);
+      justify-content: center;
+      gap: 2px; /* Reducir gap interno */
+
+      .stat-value {
+        font-size: 1.35rem;
+        line-height: 1.1;
+      }
+
+      .stat-label {
+        font-size: 0.65rem;
+        letter-spacing: 0.3px;
+        opacity: 0.8;
+      }
+
+      &:nth-child(1) {
+        border-color: var(--color-success-border);
+        background: linear-gradient(135deg, var(--color-success-soft) 0%, transparent 100%);
+        .stat-value { color: var(--color-success); }
+      }
+
+      &:nth-child(2) {
+        border-color: var(--color-info-border);
+        background: linear-gradient(135deg, var(--color-info-soft) 0%, transparent 100%);
+        .stat-value { color: var(--color-info); }
+      }
+    }
+  }
+
   @media (min-width: 480px) {
     grid-template-columns: repeat(4, 1fr);
+
+    &--client {
+      grid-template-columns: repeat(2, 1fr);
+      // Mantener tamaño compacto en desktop también
+      .stat-card {
+        min-height: 80px;
+      }
+    }
   }
 }
 

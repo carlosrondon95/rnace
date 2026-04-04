@@ -348,6 +348,43 @@
 
 .usuario-plan {
   margin-bottom: var(--space-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.usuario-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+
+  .material-symbols-rounded {
+    font-size: 14px;
+  }
+
+  &.realizada {
+    background: var(--color-success-soft);
+    color: var(--color-success);
+    border-color: var(--color-success-border);
+  }
+
+  &.futura {
+    background: var(--color-info-soft);
+    color: var(--color-info);
+    border-color: var(--color-info-border);
+  }
 }
 
 .plan-badge {
@@ -602,6 +639,58 @@
   margin: 0 0 var(--space-md);
   padding-bottom: var(--space-xs);
   border-bottom: 1px solid var(--color-border);
+}
+
+.resumen-stats-modal {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+
+  @media (max-width: 479px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.resumen-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-bg-main);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+
+  .material-symbols-rounded {
+    font-size: 2rem;
+    opacity: 0.8;
+  }
+
+  &.stat-realizada {
+    border-color: var(--color-success-border);
+    .material-symbols-rounded { color: var(--color-success); }
+  }
+
+  &.stat-futura {
+    border-color: var(--color-info-border);
+    .material-symbols-rounded { color: var(--color-info); }
+  }
+}
+
+.resumen-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.resumen-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.resumen-valor {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
 }
 
 .form-row {

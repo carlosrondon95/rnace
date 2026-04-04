@@ -73,6 +73,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Cliente
   proximasClases = signal<ProximaClase[]>([]);
   recuperaciones = signal<Recuperacion[]>([]);
+  clasesResumen = signal({ realizadas: 0, futuras: 0 });
   notificacionesNoLeidas = signal(0);
 
   // Stack de cards (cliente)
@@ -158,6 +159,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cargarTipoGrupo(),
         this.cargarProximasClases(),
         this.cargarRecuperaciones(),
+        this.cargarResumenClases(),
       ]);
     } else if (this.isAdmin()) {
       await Promise.all([this.cargarEstadisticasAdmin(), this.cargarClasesHoy(), this.cargarCambiosRecientes()]);
@@ -282,6 +284,49 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.proximasClases.set(clases);
     } catch (err) {
       console.error('Error:', err);
+    }
+  }
+
+  async cargarResumenClases() {
+    const uid = this.userId();
+    if (!uid) return;
+
+    try {
+      const { data, error } = await supabase()
+        .from('reservas')
+        .select(`
+          estado,
+          sesiones!inner (
+            fecha,
+            hora
+          )
+        `)
+        .eq('usuario_id', uid)
+        .eq('estado', 'activa');
+
+      if (error) throw error;
+
+      const ahora = new Date();
+      let realizadas = 0;
+      let futuras = 0;
+
+      if (data) {
+        for (const r of (data as any[])) {
+          const sesion = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
+          if (!sesion) continue;
+          
+          const fechaSesion = new Date(`${sesion.fecha}T${sesion.hora}`);
+          if (fechaSesion < ahora) {
+            realizadas++;
+          } else {
+            futuras++;
+          }
+        }
+      }
+
+      this.clasesResumen.set({ realizadas, futuras });
+    } catch (err) {
+      console.error('Error cargando resumen de clases:', err);
     }
   }
 
