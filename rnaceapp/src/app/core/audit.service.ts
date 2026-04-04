@@ -4,8 +4,6 @@ import { supabase } from './supabase.client';
 import { AuthService } from './auth.service';
 
 export type TipoCambio =
-  | 'cambio_grupo'
-  | 'cambio_horarios'
   | 'admin_add_sesion'
   | 'admin_cancel_reserva'
   | 'cliente_cancel_reserva'

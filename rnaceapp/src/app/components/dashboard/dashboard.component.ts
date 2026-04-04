@@ -544,8 +544,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   getIconoCambio(tipo: string): string {
     switch (tipo) {
-      case 'cambio_grupo': return 'swap_horiz';
-      case 'cambio_horarios': return 'schedule';
       case 'admin_add_sesion': return 'person_add';
       case 'admin_cancel_reserva': return 'person_remove';
       case 'cliente_cancel_reserva': return 'event_busy';
@@ -558,8 +556,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   getColorCambio(tipo: string): string {
     switch (tipo) {
-      case 'cambio_grupo': return 'cambio--grupo';
-      case 'cambio_horarios': return 'cambio--horarios';
       case 'admin_add_sesion': return 'cambio--add';
       case 'admin_cancel_reserva': return 'cambio--cancel';
       case 'cliente_cancel_reserva': return 'cambio--cancel';

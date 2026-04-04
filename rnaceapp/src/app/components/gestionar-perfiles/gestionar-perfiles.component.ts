@@ -95,9 +95,6 @@ export class GestionarPerfilesComponent implements OnInit {
   private authService = inject(AuthService);
   private audit = inject(AuditService);
 
-  // Snapshot del usuario antes de editar (para detectar cambios)
-  private usuarioOriginal = signal<Usuario | null>(null);
-
   cargando = signal(true);
   error = signal<string | null>(null);
   usuarios = signal<Usuario[]>([]);
@@ -476,7 +473,6 @@ export class GestionarPerfilesComponent implements OnInit {
   abrirModalEditar(usuario: Usuario) {
     this.modoEdicion.set(true);
     this.usuarioEditandoId.set(usuario.id);
-    this.usuarioOriginal.set({ ...usuario });
 
     const partes = (usuario.nombre || '').split(' ');
     const nombre = partes[0] || '';
@@ -988,39 +984,6 @@ export class GestionarPerfilesComponent implements OnInit {
         await this.sincronizarReservasUsuario(userId);
       } catch (err) {
         console.error('Error sincronizando reservas:', err);
-      }
-    }
-
-    // === REGISTRAR CAMBIOS EN AUDITORÍA ===
-    const original = this.usuarioOriginal();
-    if (original) {
-      const tipoAnterior = original.tipo_grupo || 'sin plan';
-      const tipoNuevo = f.tipoGrupo;
-
-      // Cambio de tipo de grupo
-      if (tipoAnterior !== tipoNuevo) {
-        this.audit.registrarCambio(
-          'cambio_grupo',
-          userId,
-          nombre,
-          `Cambio de grupo: ${tipoAnterior} → ${tipoNuevo}`,
-          { valor_anterior: tipoAnterior, valor_nuevo: tipoNuevo }
-        );
-      }
-
-      // Cambio de horarios fijos
-      const horariosAnteriores = (original.horarios_fijos || []).map(h => h.horario_disponible_id).sort();
-      const horariosNuevos = [...f.horariosSeleccionados].sort();
-      const horariosChanged = JSON.stringify(horariosAnteriores) !== JSON.stringify(horariosNuevos);
-
-      if (horariosChanged) {
-        this.audit.registrarCambio(
-          'cambio_horarios',
-          userId,
-          nombre,
-          `Horarios fijos actualizados (${horariosNuevos.length} horario${horariosNuevos.length !== 1 ? 's' : ''})`,
-          { horarios_anteriores: horariosAnteriores, horarios_nuevos: horariosNuevos }
-        );
       }
     }
 
