@@ -271,6 +271,9 @@
           @if (getReservasCount(dia, 'reducido') > 0) {
           <span class="indicador indicador-reducido">R: {{ getReservasCount(dia, 'reducido') }}</span>
           }
+          @if (getEsperaCount(dia) > 0) {
+          <span class="indicador indicador-espera" title="En Lista de Espera">E: {{ getEsperaCount(dia) }}</span>
+          }
         </div>
         }
       </button>
@@ -342,8 +345,16 @@
                 <h4>Grupo Focus</h4>
               </div>
               <div class="tipo-stats">
-                <span class="count">{{ getReservasCount(diaSeleccionado()!, 'focus') }}</span>
-                <span class="label">reservas</span>
+                <div class="stat-reserva">
+                  <span class="count">{{ getReservasCount(diaSeleccionado()!, 'focus') }}</span>
+                  <span class="label">reservas</span>
+                </div>
+                @if (getEsperaCountPorModalidad(diaSeleccionado()!, 'focus') > 0) {
+                <div class="stat-espera">
+                  <span class="count">{{ getEsperaCountPorModalidad(diaSeleccionado()!, 'focus') }}</span>
+                  <span class="label">en espera</span>
+                </div>
+                }
               </div>
               <span class="material-symbols-rounded arrow-icon">arrow_forward</span>
             </button>
@@ -354,8 +365,16 @@
                 <h4>Grupo Reducido</h4>
               </div>
               <div class="tipo-stats">
-                <span class="count">{{ getReservasCount(diaSeleccionado()!, 'reducido') }}</span>
-                <span class="label">reservas</span>
+                <div class="stat-reserva">
+                  <span class="count">{{ getReservasCount(diaSeleccionado()!, 'reducido') }}</span>
+                  <span class="label">reservas</span>
+                </div>
+                @if (getEsperaCountPorModalidad(diaSeleccionado()!, 'reducido') > 0) {
+                <div class="stat-espera">
+                  <span class="count">{{ getEsperaCountPorModalidad(diaSeleccionado()!, 'reducido') }}</span>
+                  <span class="label">en espera</span>
+                </div>
+                }
               </div>
               <span class="material-symbols-rounded arrow-icon">arrow_forward</span>
             </button>
@@ -391,13 +410,19 @@
               <div class="reservas-hora-list">
                 @for (reserva of grupo.reservas; track reserva.id) {
                 <div class="reserva-detalle-card" [class.reserva-focus]="reserva.modalidad === 'focus'"
-                  [class.reserva-reducido]="reserva.modalidad === 'reducido'">
+                  [class.reserva-reducido]="reserva.modalidad === 'reducido'"
+                  [class.reserva-espera]="reserva.estado === 'en_espera'">
 
                   <div class="reserva-contenido">
                     <!-- Hora eliminada de aquí porque está en el header -->
 
                     <div class="reserva-usuario-info">
-                      <span class="usuario-nombre">{{ reserva.usuario_nombre }}</span>
+                      <div class="usuario-nombre-wrap">
+                        <span class="usuario-nombre">{{ reserva.usuario_nombre }}</span>
+                        @if (reserva.estado === 'en_espera') {
+                          <span class="badge-espera-inline">En espera</span>
+                        }
+                      </div>
                       @if (reserva.usuario_telefono) {
                       <span class="usuario-telefono">{{ reserva.usuario_telefono }}</span>
                       }
@@ -408,9 +433,11 @@
                     </div>
                   </div>
 
-                  <button class="btn-cancelar-admin" title="Cancelar reserva"
+                  <button class="btn-cancelar-admin" [title]="reserva.estado === 'en_espera' ? 'Quitar de espera' : 'Cancelar reserva'"
                     (click)="abrirModalCancelarAdmin(reserva)">
-                    <span class="material-symbols-rounded">cancel</span>
+                    <span class="material-symbols-rounded">
+                      {{ reserva.estado === 'en_espera' ? 'person_remove' : 'cancel' }}
+                    </span>
                   </button>
                 </div>
                 }

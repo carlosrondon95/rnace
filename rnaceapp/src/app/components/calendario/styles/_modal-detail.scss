@@ -76,6 +76,11 @@
         border-left: 3px solid var(--color-reducido);
     }
 
+    &.reserva-espera {
+        border-left: 3px solid var(--color-warning, #f59e0b);
+        background: rgba(245, 158, 11, 0.05);
+    }
+
     &.sesion-llena {
         opacity: 0.7;
     }
@@ -130,12 +135,29 @@
     border: none;
     width: auto;
 
+    .usuario-nombre-wrap {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
     .usuario-nombre {
         font-weight: 500;
         color: var(--color-text-primary);
         font-size: 0.95rem;
         /* Slightly smaller for elegance */
         line-height: 1.2;
+    }
+
+    .badge-espera-inline {
+        background-color: #f59e0b;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
     }
 
     .usuario-telefono {
@@ -440,9 +462,11 @@
         flex-direction: column !important;
         align-items: flex-start !important;
         padding: var(--space-md) !important;
-        padding-right: 32px !important; // Space for cancel button
+        padding-top: 32px !important; // Dedicated space at top for the absolute button
+        padding-right: var(--space-md) !important; // Reset right padding to normal
         gap: 4px !important;
         height: 100%; // Ensure uniform height
+        overflow: hidden !important;
 
         // Restore left border indicators
         &.reserva-focus {
@@ -455,28 +479,56 @@
             background: var(--color-bg-elevated);
         }
 
+        &.reserva-espera {
+            border-left: 3px solid var(--color-warning, #f59e0b) !important;
+            background: rgba(245, 158, 11, 0.05) !important;
+        }
+
         .reserva-contenido {
             display: flex !important;
             flex-direction: column !important;
             align-items: flex-start !important;
             width: 100% !important;
+            max-width: 100% !important;
             gap: 4px !important;
             justify-content: flex-start !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
         }
 
         .reserva-usuario-info {
             width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+
+            .usuario-nombre-wrap {
+                width: 100%;
+                max-width: 100%;
+                display: flex;
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 2px;
+                min-width: 0;
+                overflow: hidden;
+            }
 
             .usuario-nombre {
-                white-space: nowrap;
+                white-space: normal; // Multi-line wrapping
                 overflow: hidden;
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                line-clamp: 3;
+                -webkit-box-orient: vertical;
                 text-overflow: ellipsis;
                 width: 100%;
-                display: block;
-                padding-right: 0;
+                max-width: 100%;
+                padding-right: 0 !important;
                 font-size: 0.9rem;
                 font-weight: 600;
                 margin-bottom: 2px;
+                box-sizing: border-box;
+                line-height: 1.3;
             }
 
             .usuario-telefono {

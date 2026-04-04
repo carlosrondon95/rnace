@@ -1125,6 +1125,39 @@ export class CalendarioComponent implements OnInit {
             reservasData = (data as ReservaDB[]) || [];
           }
 
+          // ADMIN: cargar tambien la lista de espera del mes
+          try {
+            const { data: esperasDataRaw, error: esperasError } = await client
+              .from('lista_espera')
+              .select(`
+                id,
+                sesion_id,
+                usuario_id,
+                sesiones!inner (
+                  fecha,
+                  hora,
+                  modalidad
+                )
+              `)
+              .gte('sesiones.fecha', primerDia)
+              .lte('sesiones.fecha', ultimoDia);
+
+            if (esperasError) {
+              console.warn('Error cargando lista de espera:', esperasError);
+            } else if (esperasDataRaw) {
+              const esperasMapped = esperasDataRaw.map((e: any) => ({
+                id: e.id,
+                sesion_id: e.sesion_id,
+                usuario_id: e.usuario_id,
+                estado: 'en_espera',
+                sesiones: e.sesiones
+              }));
+              reservasData = [...reservasData, ...esperasMapped];
+            }
+          } catch (err) {
+            console.warn('Error al cargar lista de espera:', err);
+          }
+
           // Cargar nombres de usuarios
           if (reservasData.length > 0) {
             try {
@@ -1846,7 +1879,15 @@ export class CalendarioComponent implements OnInit {
   }
 
   getReservasCount(dia: DiaCalendario, tipo: 'focus' | 'reducido'): number {
-    return dia.reservas.filter((r) => r.modalidad === tipo).length;
+    return dia.reservas.filter((r) => r.modalidad === tipo && r.estado !== 'en_espera').length;
+  }
+
+  getEsperaCount(dia: DiaCalendario): number {
+    return dia.reservas.filter((r) => r.estado === 'en_espera').length;
+  }
+
+  getEsperaCountPorModalidad(dia: DiaCalendario, tipo: 'focus' | 'reducido'): number {
+    return dia.reservas.filter((r) => r.modalidad === tipo && r.estado === 'en_espera').length;
   }
 
   // === FUNCIONES MODO CAMBIO DE CITA ===
@@ -2269,10 +2310,49 @@ export class CalendarioComponent implements OnInit {
     }
   }
 
-  // === CANCELACIÓN ADMIN ===
   abrirModalCancelarAdmin(reserva: ReservaCalendario) {
+    if (reserva.estado === 'en_espera') {
+      this.quitarListaEsperaAdmin(reserva);
+      return;
+    }
     this.reservaACancelarAdmin.set(reserva);
     this.mostrarModalCancelarAdmin.set(true);
+  }
+
+  async quitarListaEsperaAdmin(reserva: ReservaCalendario) {
+    if (!await this.confirmation.confirm({
+      titulo: 'Quitar de espera',
+      mensaje: `¿Seguro que quieres quitar a ${reserva.usuario_nombre} de la lista de espera?`,
+      tipo: 'warning',
+      textoConfirmar: 'Quitar'
+    })) return;
+
+    this.guardando.set(true);
+    try {
+      const { error } = await supabase()
+        .from('lista_espera')
+        .delete()
+        .eq('usuario_id', reserva.usuario_id)
+        .eq('sesion_id', reserva.sesion_id);
+
+      if (error) throw error;
+      
+      this.mensajeExito.set('Usuario quitado de la lista de espera.');
+      setTimeout(() => this.mensajeExito.set(null), 3000);
+      
+      await this.cargarCalendario();
+      const diaSeleccionadoActual = this.diaSeleccionado();
+      if (diaSeleccionadoActual) {
+        const diaActualizado = this.diasCalendario().find(d => d.fecha === diaSeleccionadoActual.fecha);
+        if (diaActualizado) {
+          this.diaSeleccionado.set(diaActualizado);
+        }
+      }
+    } catch (e: any) {
+      this.error.set(e.message || 'Error al quitar de lista de espera.');
+    } finally {
+      this.guardando.set(false);
+    }
   }
 
   cerrarModalCancelarAdmin() {

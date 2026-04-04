@@ -199,6 +199,11 @@
     color: var(--color-reducido);
 }
 
+.indicador-espera {
+    background-color: rgba(245, 158, 11, 0.2) !important; // warning-soft
+    color: #f59e0b !important; // warning
+}
+
 .reserva-item {
     display: flex;
     align-items: center;
