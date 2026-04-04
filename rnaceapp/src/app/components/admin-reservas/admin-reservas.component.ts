@@ -4,6 +4,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { supabase } from '../../core/supabase.client';
+import { AuditService } from '../../core/audit.service';
 
 type VistaActual = 'grupos' | 'usuarios' | 'reservas';
 type TipoGrupo = 'focus' | 'reducido' | 'hibrido' | 'especial';
@@ -28,6 +29,7 @@ interface Reserva {
   id: number;
   sesion_id: number;
   fecha: string;
+  fechaRaw: string;
   hora: string;
   modalidad: string;
   es_recuperacion: boolean;
@@ -36,6 +38,7 @@ interface Reserva {
 interface SesionDisponible {
   id: number;
   fecha: string;
+  fechaRaw: string;
   hora: string;
   modalidad: string;
   plazas_disponibles: number;
@@ -59,6 +62,7 @@ interface ReservaSupabaseResponse {
 })
 export class AdminReservasComponent implements OnInit {
   private router = inject(Router);
+  private audit = inject(AuditService);
 
   cargando = signal(false);
   error = signal<string | null>(null);
@@ -290,6 +294,7 @@ export class AdminReservasComponent implements OnInit {
             day: 'numeric',
             month: 'long',
           }),
+          fechaRaw: sesion.fecha,
           hora: sesion.hora?.slice(0, 5) || '--:--',
           modalidad: sesion.modalidad,
           es_recuperacion: r.es_recuperacion || false,
@@ -372,6 +377,7 @@ export class AdminReservasComponent implements OnInit {
           day: 'numeric',
           month: 'short',
         }),
+        fechaRaw: s.fecha,
         hora: s.hora,
         modalidad: s.modalidad,
         plazas_disponibles: s.plazas_disponibles,
@@ -406,9 +412,20 @@ export class AdminReservasComponent implements OnInit {
       }
 
       this.mensajeExito.set('Reserva movida correctamente.');
+      
+      // Registrar en auditoría
+      const usuario = this.usuarioSeleccionado();
+      const sesionNueva = this.sesionesDisponibles().find(s => s.id === destino);
+      this.audit.registrarCambio(
+        'admin_mueve_reserva',
+        usuario?.id || '',
+        usuario?.nombre || 'Usuario',
+        `Reserva movida por admin: de ${reserva.hora} ${reserva.modalidad} (${reserva.fechaRaw.split('-').reverse().join('/')}) a ${sesionNueva?.hora || ''} ${sesionNueva?.modalidad || ''} (${sesionNueva?.fechaRaw ? sesionNueva.fechaRaw.split('-').reverse().join('/') : ''})`,
+        { reserva_id: reserva.id, sesion_anterior_id: reserva.sesion_id, sesion_nueva_id: destino }
+      );
+
       this.cerrarModalMover();
 
-      const usuario = this.usuarioSeleccionado();
       if (usuario) this.cargarReservasUsuario(usuario);
     } catch (err) {
       console.error('Error:', err);
@@ -451,6 +468,16 @@ export class AdminReservasComponent implements OnInit {
 
       if (data && data.length > 0 && data[0].ok) {
         this.mensajeExito.set(data[0].mensaje);
+        
+        // Registrar en auditoría
+        this.audit.registrarCambio(
+          'admin_cancel_reserva',
+          usuario?.id || '',
+          usuario?.nombre || 'Usuario',
+          `Reserva cancelada por admin: ${reserva.hora} ${reserva.modalidad} (${reserva.fechaRaw.split('-').reverse().join('/')})${generarRecuperacion ? ' (generó recuperación)' : ' (sin recuperación)'}`,
+          { reserva_id: reserva.id, generar_recuperacion: generarRecuperacion }
+        );
+
         this.cerrarModalEliminar();
 
         // Enviar push notification al usuario afectado

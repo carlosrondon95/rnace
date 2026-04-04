@@ -2147,6 +2147,16 @@ export class CalendarioComponent implements OnInit {
       if (error) throw error;
 
       if (data && data[0]?.ok) {
+        // Registrar en auditoría
+        const sesionNueva = this.sesionesDisponiblesCambio().find(s => s.id === nuevaSesionId);
+        this.audit.registrarCambio(
+          'cliente_cambio_turno',
+          uid,
+          this.auth.usuario()?.nombre || 'Cliente',
+          `Cambio de turno por cliente: de ${reserva.hora} ${reserva.modalidad} (${reserva.fecha.split('-').reverse().join('/')}) a ${sesionNueva?.hora || ''} ${sesionNueva?.modalidad || ''} (${sesionNueva?.fecha ? sesionNueva.fecha.split('-').reverse().join('/') : ''})`,
+          { reserva_id: reserva.id, sesion_anterior_id: reserva.sesion_id, sesion_nueva_id: nuevaSesionId, fecha_nueva: sesionNueva?.fecha }
+        );
+
         // Primero cerrar todo
         this.cerrarDetalleDia();
         // Recargar calendario
@@ -2212,6 +2222,17 @@ export class CalendarioComponent implements OnInit {
         const resultado = data[0];
         if (resultado.ok) {
           this.mensajeExito.set(resultado.mensaje);
+          
+          // Registrar en auditoría
+          const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
+          const dia = this.diaSeleccionado();
+          this.audit.registrarCambio(
+            'cliente_cancel_reserva',
+            uid,
+            this.auth.usuario()?.nombre || 'Cliente',
+            `Reserva cancelada por cliente: ${sesion?.hora || ''} ${sesion?.modalidad || ''} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})`,
+            { reserva_id: reservaId, hora: sesion?.hora, modalidad: sesion?.modalidad, fecha: dia?.fecha }
+          );
         } else {
           this.error.set(resultado.mensaje);
         }
@@ -2295,6 +2316,15 @@ export class CalendarioComponent implements OnInit {
             textoConfirmar: 'Entendido',
             textoCancelar: '' // Esto oculta el botón de cancelar
           });
+
+          // Registrar en auditoría
+          this.audit.registrarCambio(
+            'cliente_cancel_reserva',
+            uid,
+            this.auth.usuario()?.nombre || 'Cliente',
+            `Reserva cancelada por cliente: ${sesion?.hora || ''} ${sesion?.modalidad || ''} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})`,
+            { reserva_id: reservaId, hora: sesion?.hora, modalidad: sesion?.modalidad, fecha: dia?.fecha }
+          );
 
           this.diaSeleccionado.set(null);
           await this.cargarCalendario();
@@ -2389,7 +2419,7 @@ export class CalendarioComponent implements OnInit {
           'admin_cancel_reserva',
           reserva.usuario_id,
           reserva.usuario_nombre,
-          `Reserva cancelada por admin: ${reserva.hora} ${reserva.modalidad} (${dia?.fecha || ''})${generarRecuperacion ? ' — con recuperación' : ' — sin recuperación'}`,
+          `Reserva cancelada por admin: ${reserva.hora} ${reserva.modalidad} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})${generarRecuperacion ? ' — con recuperación' : ' — sin recuperación'}`,
           { reserva_id: reserva.id, sesion_id: reserva.sesion_id, hora: reserva.hora, modalidad: reserva.modalidad, fecha: dia?.fecha, con_recuperacion: generarRecuperacion }
         );
 
@@ -2616,7 +2646,7 @@ export class CalendarioComponent implements OnInit {
         'admin_add_sesion',
         usuarioId,
         usuarioInfo?.nombre || 'Usuario',
-        `Añadido a sesión: ${sesionInfo?.hora || ''} ${sesionInfo?.modalidad || ''} (${dia?.fecha || ''})`,
+        `Añadido a sesión: ${sesionInfo?.hora || ''} ${sesionInfo?.modalidad || ''} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})`,
         { sesion_id: sesionId, hora: sesionInfo?.hora, modalidad: sesionInfo?.modalidad, fecha: dia?.fecha }
       );
 

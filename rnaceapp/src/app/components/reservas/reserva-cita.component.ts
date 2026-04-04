@@ -8,6 +8,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
+import { AuditService } from '../../core/audit.service';
 
 type Modalidad = 'focus' | 'reducido';
 
@@ -59,6 +60,7 @@ export class ReservaCitaComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private auth = inject(AuthService);
+  private audit = inject(AuditService);
 
   cargando = signal(true);
   error = signal<string | null>(null);
@@ -461,6 +463,16 @@ export class ReservaCitaComponent implements OnInit {
         const resultado = data[0];
         if (resultado.ok) {
           this.mensajeExito.set('¡Clase recuperada correctamente!');
+          
+          // Registrar en auditoría
+          this.audit.registrarCambio(
+            'cliente_usa_recuperacion',
+            userId,
+            this.auth.usuario()?.nombre || 'Cliente',
+            `Clase recuperada por cliente: ${sesion.hora} ${sesion.modalidad} (${sesion.fecha.split('-').reverse().join('/')})`,
+            { sesion_id: sesion.id, hora: sesion.hora, modalidad: sesion.modalidad, fecha: sesion.fecha }
+          );
+
           this.sesionSeleccionada.set(null);
           await this.cargarDatos();
         } else {

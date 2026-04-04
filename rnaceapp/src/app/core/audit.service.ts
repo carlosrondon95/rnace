@@ -7,7 +7,11 @@ export type TipoCambio =
   | 'cambio_grupo'
   | 'cambio_horarios'
   | 'admin_add_sesion'
-  | 'admin_cancel_reserva';
+  | 'admin_cancel_reserva'
+  | 'cliente_cancel_reserva'
+  | 'cliente_usa_recuperacion'
+  | 'admin_mueve_reserva'
+  | 'cliente_cambio_turno';
 
 @Injectable({ providedIn: 'root' })
 export class AuditService {

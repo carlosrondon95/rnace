@@ -548,6 +548,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       case 'cambio_horarios': return 'schedule';
       case 'admin_add_sesion': return 'person_add';
       case 'admin_cancel_reserva': return 'person_remove';
+      case 'cliente_cancel_reserva': return 'event_busy';
+      case 'cliente_usa_recuperacion': return 'event_available';
+      case 'admin_mueve_reserva': return 'move_down';
+      case 'cliente_cambio_turno': return 'sync_alt';
       default: return 'info';
     }
   }
@@ -558,6 +562,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       case 'cambio_horarios': return 'cambio--horarios';
       case 'admin_add_sesion': return 'cambio--add';
       case 'admin_cancel_reserva': return 'cambio--cancel';
+      case 'cliente_cancel_reserva': return 'cambio--cancel';
+      case 'cliente_usa_recuperacion': return 'cambio--add';
+      case 'admin_mueve_reserva': return 'cambio--grupo';
+      case 'cliente_cambio_turno': return 'cambio--grupo';
       default: return '';
     }
   }
@@ -575,6 +583,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
     
     return `${fechaFormat} ${horaFormat}`;
+  }
+
+  formatDescripcion(desc: string): string {
+    if (!desc) return '';
+    // Busca patrones YYYY-MM-DD y los cambia a DD/MM/YYYY
+    return desc.replace(/\((\d{4})-(\d{2})-(\d{2})\)/g, '($3/$2/$1)');
   }
 
   trackByCambioId(_index: number, cambio: CambioRegistrado): number {
