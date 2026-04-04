@@ -16,6 +16,8 @@ interface ProximaClase {
   modalidad: 'focus' | 'reducido';
   dia_nombre: string;
   es_recuperacion: boolean;
+  capacidad: number;
+  reservas_count: number;
 }
 
 interface Recuperacion {
@@ -203,7 +205,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
           sesiones!inner (
             fecha,
             hora,
-            modalidad
+            modalidad,
+            capacidad,
+            reservas (
+              estado
+            )
           )
         `,
         )
@@ -224,6 +230,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         .map((r) => {
           const sesion = Array.isArray(r.sesiones) ? r.sesiones[0] : r.sesiones;
           const fechaObj = new Date(sesion.fecha + 'T' + sesion.hora);
+          const todasReservas = (sesion.reservas || []) as { estado: string }[];
+          const reservasActivas = todasReservas.filter((res) => res.estado === 'activa').length;
 
           return {
             id: r.id,
@@ -238,6 +246,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
             modalidad: sesion.modalidad as 'focus' | 'reducido',
             dia_nombre: fechaObj.toLocaleDateString('es-ES', { weekday: 'long' }),
             es_recuperacion: r.es_recuperacion || false,
+            capacidad: sesion.capacidad || 0,
+            reservas_count: reservasActivas,
           };
         })
         .filter((clase) => {

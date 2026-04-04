@@ -133,8 +133,10 @@
 
             @if (dia.esFestivo) {
             <div class="dia-bloqueado">
-              <span class="material-symbols-rounded">lock</span>
-              <span>Cerrado</span>
+              <span class="material-symbols-rounded">
+                {{ dia.tipoCierre === 'vacaciones' ? 'beach_access' : 'lock' }}
+              </span>
+              <span>{{ dia.tipoCierre === 'vacaciones' ? 'Vacaciones' : 'Festivo' }}</span>
             </div>
             } @else if (dia.sesiones.length === 0) {
             <div class="dia-vacio">
@@ -187,7 +189,7 @@
       </div>
       <div class="leyenda-item">
         <span class="leyenda-color leyenda-festivo"></span>
-        <span>Cerrado</span>
+        <span>Festivo/Vacaciones</span>
       </div>
     </div>
     }

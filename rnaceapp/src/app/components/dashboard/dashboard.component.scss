@@ -315,14 +315,14 @@
 
 .stack-wrapper {
   position: relative;
-  height: 180px;
+  height: 200px;
   cursor: pointer;
   perspective: 1000px;
   transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
   &.stack-expanded {
     height: auto;
-    min-height: 180px;
+    min-height: 200px;
 
     .stack-card {
       position: relative;
@@ -343,7 +343,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 160px;
+  height: 176px;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
@@ -500,6 +500,26 @@
   &--especial {
     background: rgba(251, 191, 36, 0.15);
     color: var(--color-modalidad-especial);
+  }
+}
+
+.stack-card__footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: auto; // empuja hacia abajo si es necesario
+}
+
+.stack-card__ocupacion {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+
+  .material-symbols-rounded {
+    font-size: 1.1rem;
+    color: inherit;
   }
 }
 

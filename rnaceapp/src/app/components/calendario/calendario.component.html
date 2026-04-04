@@ -255,8 +255,10 @@
         <!-- Indicador de festivo (modo normal) -->
         @if (!modoEdicion() && dia.esFestivo && dia.esDelMes) {
         <div class="festivo-badge">
-          <span class="material-symbols-rounded">event_busy</span>
-          Cerrado
+          <span class="material-symbols-rounded">
+            {{ dia.tipoCierre === 'vacaciones' ? 'beach_access' : 'event_busy' }}
+          </span>
+          {{ dia.tipoCierre === 'vacaciones' ? 'Vacaciones' : 'Festivo' }}
         </div>
         }
 
@@ -284,7 +286,7 @@
       @if (!modoEdicion()) {
       <div class="leyenda-item">
         <span class="leyenda-color leyenda-festivo"></span>
-        <span>Cerrado</span>
+        <span>Festivo/Vacaciones</span>
       </div>
       }
       @if (!esAdmin()) {
@@ -483,7 +485,7 @@
           <div class="leyenda-cambio">
             <span class="leyenda-item-cambio">
               <span class="leyenda-color leyenda-festivo-cambio"></span>
-              Cerrado
+              Festivo/Vacaciones
             </span>
           </div>
           } @else {
@@ -630,13 +632,14 @@
     <div class="modal-confirmacion modal-cierre-tipo" (click)="$event.stopPropagation()">
       <header class="modal-header header-danger">
         <span class="material-symbols-rounded icon-warn">warning</span>
-        <h3>Reservas afectadas</h3>
+        <h3>{{ conflictosCierre().length > 0 ? 'Reservas afectadas' : 'Confirmar cierre' }}</h3>
         <button class="btn-cerrar" (click)="cancelarCierre()" aria-label="Cerrar" [disabled]="guardando()">
           <span class="material-symbols-rounded">close</span>
         </button>
       </header>
 
       <div class="modal-body">
+        @if (conflictosCierre().length > 0) {
         <div class="info-conflictos">
           <p class="conflictos-intro">
             <span class="material-symbols-rounded">event_busy</span>
@@ -652,6 +655,7 @@
             }
           </ul>
         </div>
+        }
 
         <div class="opciones-cancelacion">
           <p class="opciones-titulo">¿Cómo deseas cerrar estos días?</p>

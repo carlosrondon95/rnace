@@ -39,6 +39,7 @@ interface DiaAgrupado {
   fechaFormateada: string;
   sesiones: Sesion[];
   esFestivo: boolean;
+  tipoCierre?: 'festivo' | 'vacaciones' | null;
 }
 
 interface SemanaAgrupada {
@@ -74,7 +75,7 @@ export class ReservaCitaComponent implements OnInit {
   sesionSeleccionada = signal<Sesion | null>(null);
   modalidad = signal<Modalidad>('focus');
   tipoGrupo = signal<string>('focus');
-  festivosMes = signal<Set<string>>(new Set());
+  festivosMes = signal<Map<string, string>>(new Map());
 
   esAdmin = computed(() => this.auth.getRol() === 'admin');
 
@@ -133,7 +134,7 @@ export class ReservaCitaComponent implements OnInit {
     });
 
     // Combinar fechas con sesiones y fechas festivas para determinar rango de semanas
-    const todasLasFechas = new Set([...sesionesPorFecha.keys(), ...festivos]);
+    const todasLasFechas = new Set([...sesionesPorFecha.keys(), ...festivos.keys()]);
     const fechasOrdenadas = Array.from(todasLasFechas).sort();
     if (fechasOrdenadas.length === 0) return [];
 
@@ -161,7 +162,12 @@ export class ReservaCitaComponent implements OnInit {
         const diaFecha = new Date(currentLunes);
         diaFecha.setDate(diaFecha.getDate() + i);
         const fechaStr = diaFecha.toISOString().split('T')[0];
-        const esFestivo = festivos.has(fechaStr);
+        const descFestivo = festivos.get(fechaStr);
+        const esFestivo = descFestivo !== undefined;
+        let tipoCierre: 'festivo' | 'vacaciones' | undefined = undefined;
+        if (esFestivo) {
+          tipoCierre = descFestivo?.toLowerCase().includes('vacaciones') ? 'vacaciones' : 'festivo';
+        }
 
         const dia: DiaAgrupado = {
           fecha: fechaStr,
@@ -169,6 +175,7 @@ export class ReservaCitaComponent implements OnInit {
           fechaFormateada: diaFecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
           sesiones: esFestivo ? [] : (sesionesPorFecha.get(fechaStr) || []),
           esFestivo,
+          tipoCierre,
         };
 
         semanaActual.push(dia);
@@ -304,14 +311,14 @@ export class ReservaCitaComponent implements OnInit {
     const ultimoDiaMes = new Date(anio, mes, 0).getDate();
     const ultimoDia = `${anio}-${mes.toString().padStart(2, '0')}-${ultimoDiaMes.toString().padStart(2, '0')}`;
 
-    const festivosSet = new Set<string>();
+    const festivosMap = new Map<string, string>();
     try {
       const { data: festivosData } = await supabase()
         .from('festivos')
-        .select('fecha')
+        .select('fecha, descripcion')
         .gte('fecha', primerDia)
         .lte('fecha', ultimoDia);
-      (festivosData || []).forEach(f => festivosSet.add(f.fecha));
+      (festivosData || []).forEach(f => festivosMap.set(f.fecha, f.descripcion));
     } catch (err) {
       console.warn('Error cargando festivos:', err);
     }
@@ -352,10 +359,10 @@ export class ReservaCitaComponent implements OnInit {
     hoy.setHours(0, 0, 0, 0);
 
     // Guardar festivos para usarlos en la vista
-    this.festivosMes.set(festivosSet);
+    this.festivosMes.set(festivosMap);
 
     const sesiones: Sesion[] = (sesionesData || [])
-      .filter(s => !tieneReserva.has(s.sesion_id) && !festivosSet.has(s.fecha)) // Excluir donde ya tiene reserva o es festivo
+      .filter(s => !tieneReserva.has(s.sesion_id) && !festivosMap.has(s.fecha)) // Excluir donde ya tiene reserva o es festivo
       .map(s => {
         const fechaSesion = new Date(s.fecha + 'T' + s.hora);
         const esPasada = fechaSesion < hoy;

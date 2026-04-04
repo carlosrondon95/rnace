@@ -17,6 +17,7 @@ interface DiaCalendario {
   esPasado: boolean;
   esLaborable: boolean;
   esFestivo: boolean;
+  tipoCierre?: 'festivo' | 'vacaciones' | null;
   mesAbierto: boolean;
   reservas: ReservaCalendario[];
 }
@@ -1073,18 +1074,18 @@ export class CalendarioComponent implements OnInit {
       const ultimoDia = `${anio}-${mes.toString().padStart(2, '0')}-${ultimoDiaMes.toString().padStart(2, '0')}`;
 
       // Cargar festivos
-      const festivosSet = new Set<string>();
+      const festivosMap = new Map<string, string>();
       try {
         const { data: festivosData, error: festivosError } = await client
           .from('festivos')
-          .select('fecha')
+          .select('fecha, descripcion')
           .gte('fecha', primerDia)
           .lte('fecha', ultimoDia);
 
         if (festivosError) {
           console.warn('Error cargando festivos:', festivosError);
         } else {
-          (festivosData || []).forEach((f) => festivosSet.add(f.fecha));
+          (festivosData || []).forEach((f) => festivosMap.set(f.fecha, f.descripcion));
         }
       } catch (err) {
         console.warn('Error al cargar festivos:', err);
@@ -1201,7 +1202,7 @@ export class CalendarioComponent implements OnInit {
         console.warn('Error al cargar reservas:', err);
       }
 
-      const dias = this.construirDiasCalendario(anio, mes, festivosSet, reservasData);
+      const dias = this.construirDiasCalendario(anio, mes, festivosMap, reservasData);
       this.diasCalendario.set(dias);
     } catch (err) {
       console.error('Error general cargando calendario:', err);
@@ -1214,7 +1215,7 @@ export class CalendarioComponent implements OnInit {
   private construirDiasCalendario(
     anio: number,
     mes: number,
-    festivos: Set<string>,
+    festivos: Map<string, string>,
     reservasData: ReservaDB[],
   ): DiaCalendario[] {
     const dias: DiaCalendario[] = [];
@@ -1308,7 +1309,13 @@ export class CalendarioComponent implements OnInit {
 
       // Laborable: Lun(0) a Vie(4)
       const esLaborable = diaSemana >= 0 && diaSemana <= 4;
-      const esFestivo = festivos.has(fecha);
+      const descripcionFestivo = festivos.get(fecha);
+      const esFestivo = descripcionFestivo !== undefined;
+      let tipoCierre: 'festivo' | 'vacaciones' | undefined = undefined;
+
+      if (esFestivo) {
+        tipoCierre = descripcionFestivo.toLowerCase().includes('vacaciones') ? 'vacaciones' : 'festivo';
+      }
 
       const esPasado = new Date(anio, mes - 1, dia) < hoyDate;
       dias.push({
@@ -1320,6 +1327,7 @@ export class CalendarioComponent implements OnInit {
         esPasado,
         esLaborable,
         esFestivo: mesAbierto ? esFestivo : false,
+        tipoCierre: mesAbierto ? tipoCierre : undefined,
         mesAbierto,
         reservas: mesAbierto ? (reservasPorFecha.get(fecha) || []) : [],
       });
@@ -1439,7 +1447,7 @@ export class CalendarioComponent implements OnInit {
       }
     });
 
-    if (conflictos.length > 0) {
+    if (festivos.size > 0) {
       this.conflictosCierre.set(conflictos);
       this.mostrarModalConfirmacion.set(true);
     } else {
@@ -1493,9 +1501,10 @@ export class CalendarioComponent implements OnInit {
       let recuperacionesGeneradas = 0;
 
       if (festivosArray.length > 0) {
+        const tipoDescripcion = this.tipoCierreSeleccionado() === 'vacaciones' ? 'Vacaciones' : 'Día festivo';
         const festivosInsert = festivosArray.map((fecha) => ({
           fecha,
-          descripcion: 'Día festivo/cerrado',
+          descripcion: tipoDescripcion,
         }));
 
         const { error: insertError } = await client.from('festivos').insert(festivosInsert);
