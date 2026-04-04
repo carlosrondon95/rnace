@@ -45,6 +45,16 @@ interface EstadisticasAdmin {
   en_lista_espera: number;
 }
 
+interface CambioRegistrado {
+  id: number;
+  tipo: string;
+  usuario_id: string;
+  usuario_nombre: string;
+  descripcion: string;
+  detalle: Record<string, unknown> | null;
+  creado_en: string;
+}
+
 @Component({
   standalone: true,
   selector: 'app-dashboard',
@@ -84,6 +94,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   clasesHoyExpanded = signal(false);
   vistaClases = signal<'hoy' | 'manana'>('hoy'); // Toggle hoy/mañana
   animatingClases = signal(false); // Para animación de transición
+
+  // Registro de cambios (admin)
+  cambiosRecientes = signal<CambioRegistrado[]>([]);
+  cambiosExpanded = signal(false);
+  cargandoCambios = signal(false);
 
   // Estados de secciones cliente
   recuperacionesExpanded = signal(false);
@@ -145,7 +160,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cargarRecuperaciones(),
       ]);
     } else if (this.isAdmin()) {
-      await Promise.all([this.cargarEstadisticasAdmin(), this.cargarClasesHoy()]);
+      await Promise.all([this.cargarEstadisticasAdmin(), this.cargarClasesHoy(), this.cargarCambiosRecientes()]);
     }
   }
 
@@ -497,6 +512,73 @@ export class DashboardComponent implements OnInit, OnDestroy {
   getOcupacionPercent(clase: ClaseHoy): number {
     if (clase.capacidad === 0) return 0;
     return Math.round((clase.reservas_count / clase.capacidad) * 100);
+  }
+
+  // ============ REGISTRO DE CAMBIOS (ADMIN) ============
+
+  toggleCambiosSection() {
+    this.cambiosExpanded.update(v => !v);
+  }
+
+  async cargarCambiosRecientes() {
+    this.cargandoCambios.set(true);
+    try {
+      const { data, error } = await supabase()
+        .from('registro_cambios')
+        .select('*')
+        .order('creado_en', { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error('Error cargando registro de cambios:', error);
+        return;
+      }
+
+      this.cambiosRecientes.set(data || []);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      this.cargandoCambios.set(false);
+    }
+  }
+
+  getIconoCambio(tipo: string): string {
+    switch (tipo) {
+      case 'cambio_grupo': return 'swap_horiz';
+      case 'cambio_horarios': return 'schedule';
+      case 'admin_add_sesion': return 'person_add';
+      case 'admin_cancel_reserva': return 'person_remove';
+      default: return 'info';
+    }
+  }
+
+  getColorCambio(tipo: string): string {
+    switch (tipo) {
+      case 'cambio_grupo': return 'cambio--grupo';
+      case 'cambio_horarios': return 'cambio--horarios';
+      case 'admin_add_sesion': return 'cambio--add';
+      case 'admin_cancel_reserva': return 'cambio--cancel';
+      default: return '';
+    }
+  }
+
+  formatTiempoCambio(fecha: string): string {
+    const cambio = new Date(fecha);
+    const fechaFormat = cambio.toLocaleDateString('es-ES', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+    const horaFormat = cambio.toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    return `${fechaFormat} ${horaFormat}`;
+  }
+
+  trackByCambioId(_index: number, cambio: CambioRegistrado): number {
+    return cambio.id;
   }
 
   // ============ HELPERS GENERALES ============

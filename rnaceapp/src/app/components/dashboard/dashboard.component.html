@@ -324,6 +324,48 @@
       }
     </section>
 
+    <!-- Registro de cambios -->
+    <section class="section">
+      <div class="section-header clickable" (click)="toggleCambiosSection()">
+        <h2>
+          <span class="material-symbols-rounded">history</span>
+          Registro de cambios
+        </h2>
+        <span class="material-symbols-rounded chevron" [class.rotated]="!cambiosExpanded()">expand_more</span>
+      </div>
+
+      @if (cambiosExpanded()) {
+      @if (cargandoCambios()) {
+      <div class="loading-inline">
+        <div class="spinner-small"></div>
+        <span>Cargando...</span>
+      </div>
+      } @else if (cambiosRecientes().length === 0) {
+      <div class="empty-card">
+        <span class="material-symbols-rounded">checklist</span>
+        <p>No hay cambios registrados aún</p>
+      </div>
+      } @else {
+      <div class="cambios-timeline collapsible-content">
+        @for (cambio of cambiosRecientes(); track trackByCambioId($index, cambio)) {
+        <article class="cambio-card" [class]="getColorCambio(cambio.tipo)">
+          <div class="cambio-card__icon">
+            <span class="material-symbols-rounded">{{ getIconoCambio(cambio.tipo) }}</span>
+          </div>
+          <div class="cambio-card__content">
+            <div class="cambio-card__header">
+              <span class="cambio-card__nombre">{{ cambio.usuario_nombre }}</span>
+              <span class="cambio-card__tiempo">{{ formatTiempoCambio(cambio.creado_en) }}</span>
+            </div>
+            <p class="cambio-card__descripcion">{{ cambio.descripcion }}</p>
+          </div>
+        </article>
+        }
+      </div>
+      }
+      }
+    </section>
+
     <!-- Acciones admin -->
     <section class="actions-grid actions-grid--admin">
       <a routerLink="/gestionar-perfiles" class="action-card action-card--primary">

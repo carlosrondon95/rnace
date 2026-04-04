@@ -1084,6 +1084,153 @@
   }
 }
 
+// ============================================================
+// ADMIN: REGISTRO DE CAMBIOS (Timeline)
+// ============================================================
+
+.cambios-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  position: relative;
+
+  // Línea vertical conectora
+  &::before {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: linear-gradient(
+      to bottom,
+      var(--color-border) 0%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+    border-radius: 1px;
+  }
+
+  // Animación de entrada stagger
+  .cambio-card {
+    animation: fadeSlideIn 0.3s ease-out both;
+
+    @for $i from 1 through 20 {
+      &:nth-child(#{$i}) {
+        animation-delay: #{$i * 0.03}s;
+      }
+    }
+  }
+}
+
+.cambio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  position: relative;
+  transition: border-color var(--transition-fast);
+
+  &:hover {
+    border-color: var(--color-border-hover);
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+    background: var(--color-bg-main);
+    z-index: 1;
+
+    .material-symbols-rounded {
+      font-size: 1rem;
+      color: var(--color-text-muted);
+    }
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  &__nombre {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__tiempo {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  &__descripcion {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    margin: 2px 0 0;
+    line-height: 1.4;
+  }
+}
+
+// Colores por tipo de cambio
+.cambio--grupo {
+  .cambio-card__icon {
+    background: rgba(96, 165, 250, 0.12);
+
+    .material-symbols-rounded {
+      color: var(--color-modalidad-focus);
+    }
+  }
+}
+
+.cambio--horarios {
+  .cambio-card__icon {
+    background: rgba(167, 139, 250, 0.12);
+
+    .material-symbols-rounded {
+      color: var(--color-modalidad-reducido);
+    }
+  }
+}
+
+.cambio--add {
+  .cambio-card__icon {
+    background: rgba(74, 222, 128, 0.12);
+
+    .material-symbols-rounded {
+      color: var(--color-success);
+    }
+  }
+}
+
+.cambio--cancel {
+  .cambio-card__icon {
+    background: rgba(248, 113, 113, 0.12);
+
+    .material-symbols-rounded {
+      color: var(--color-danger);
+    }
+  }
+}
+
 // ============ INFO USUARIO ============
 .user-info {
   margin-top: var(--space-lg);

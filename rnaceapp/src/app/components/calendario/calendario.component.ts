@@ -7,6 +7,7 @@ import { AuthService } from '../../core/auth.service';
 import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
 import { supabase } from '../../core/supabase.client';
 import { CustomSelectComponent, SelectOption } from '../../shared/ui/custom-select/custom-select.component';
+import { AuditService } from '../../core/audit.service';
 
 interface DiaCalendario {
   fecha: string;
@@ -138,6 +139,7 @@ export class CalendarioComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private confirmation = inject(ConfirmationService);
+  private audit = inject(AuditService);
 
   // Estado
   cargando = signal(true);
@@ -154,6 +156,7 @@ export class CalendarioComponent implements OnInit {
   // reservasLista eliminada ya que usaremos el calendario para todos
   mesAgenda = signal<MesAgenda | null>(null);
   festivosSeleccionados = signal<Set<string>>(new Set());
+  festivosInicialesMap = signal<Map<string, string>>(new Map());
 
   // Modal confirmación cierre
   mostrarModalConfirmacion = signal(false);
@@ -1375,6 +1378,7 @@ export class CalendarioComponent implements OnInit {
     }
     this.modoEdicion.set(false);
     this.festivosSeleccionados.set(new Set());
+    this.festivosInicialesMap.set(new Map());
     this.cargarCalendario();
   }
 
@@ -1387,6 +1391,7 @@ export class CalendarioComponent implements OnInit {
     }
     this.modoEdicion.set(false);
     this.festivosSeleccionados.set(new Set());
+    this.festivosInicialesMap.set(new Map());
     this.cargarCalendario();
   }
 
@@ -1394,15 +1399,21 @@ export class CalendarioComponent implements OnInit {
     if (!this.esAdmin()) return;
 
     const festivosActuales = new Set<string>();
+    const festivosMap = new Map<string, string>();
     this.diasCalendario().forEach((dia) => {
       if (dia.esFestivo && dia.esDelMes) {
         festivosActuales.add(dia.fecha);
+        let desc = 'Día festivo/cerrado';
+        if (dia.tipoCierre === 'vacaciones') desc = 'Vacaciones';
+        else if (dia.tipoCierre === 'festivo') desc = 'Día festivo';
+        festivosMap.set(dia.fecha, desc);
       }
     });
 
     // Track if month was already open when entering edit mode
     this.mesYaEstabAbierto.set(this.mesEstaAbierto());
     this.festivosSeleccionados.set(festivosActuales);
+    this.festivosInicialesMap.set(festivosMap);
     this.modoEdicion.set(true);
     this.error.set(null);
     this.mensajeExito.set(null);
@@ -1411,6 +1422,7 @@ export class CalendarioComponent implements OnInit {
   cancelarEdicion() {
     this.modoEdicion.set(false);
     this.festivosSeleccionados.set(new Set());
+    this.festivosInicialesMap.set(new Map());
     this.error.set(null);
   }
 
@@ -1447,11 +1459,13 @@ export class CalendarioComponent implements OnInit {
       }
     });
 
-    if (festivos.size > 0) {
+    const nuevosFestivos = Array.from(festivos).filter(f => !this.festivosInicialesMap().has(f));
+
+    if (conflictos.length > 0 || nuevosFestivos.length > 0) {
       this.conflictosCierre.set(conflictos);
       this.mostrarModalConfirmacion.set(true);
     } else {
-      this.procesarGuardado();
+      this.procesarGuardado(false);
     }
   }
 
@@ -1502,10 +1516,11 @@ export class CalendarioComponent implements OnInit {
 
       if (festivosArray.length > 0) {
         const tipoDescripcion = this.tipoCierreSeleccionado() === 'vacaciones' ? 'Vacaciones' : 'Día festivo';
-        const festivosInsert = festivosArray.map((fecha) => ({
-          fecha,
-          descripcion: tipoDescripcion,
-        }));
+        const festivosInsert = festivosArray.map((fecha) => {
+          let desc = this.festivosInicialesMap().get(fecha);
+          if (!desc) desc = tipoDescripcion;
+          return { fecha, descripcion: desc };
+        });
 
         const { error: insertError } = await client.from('festivos').insert(festivosInsert);
 
@@ -2287,6 +2302,17 @@ export class CalendarioComponent implements OnInit {
       if (data && data.length > 0 && data[0].ok) {
         this.mensajeExito.set(data[0].mensaje);
         setTimeout(() => this.mensajeExito.set(null), 3000);
+
+        // Registrar en auditoría
+        const dia = this.diaSeleccionado();
+        this.audit.registrarCambio(
+          'admin_cancel_reserva',
+          reserva.usuario_id,
+          reserva.usuario_nombre,
+          `Reserva cancelada por admin: ${reserva.hora} ${reserva.modalidad} (${dia?.fecha || ''})${generarRecuperacion ? ' — con recuperación' : ' — sin recuperación'}`,
+          { reserva_id: reserva.id, sesion_id: reserva.sesion_id, hora: reserva.hora, modalidad: reserva.modalidad, fecha: dia?.fecha, con_recuperacion: generarRecuperacion }
+        );
+
         this.cerrarModalCancelarAdmin();
 
         // Enviar push notification al usuario afectado
@@ -2501,6 +2527,18 @@ export class CalendarioComponent implements OnInit {
 
         if (insertError) throw insertError;
       }
+
+      // Registrar en auditoría
+      const dia = this.diaSeleccionado();
+      const sesionInfo = this.sesionesDelDiaAdmin().find(s => s.id === sesionId);
+      const usuarioInfo = this.usuariosDisponiblesParaAgregar().find(u => u.id === usuarioId);
+      this.audit.registrarCambio(
+        'admin_add_sesion',
+        usuarioId,
+        usuarioInfo?.nombre || 'Usuario',
+        `Añadido a sesión: ${sesionInfo?.hora || ''} ${sesionInfo?.modalidad || ''} (${dia?.fecha || ''})`,
+        { sesion_id: sesionId, hora: sesionInfo?.hora, modalidad: sesionInfo?.modalidad, fecha: dia?.fecha }
+      );
 
       this.mensajeExito.set('Usuario añadido correctamente a la sesión');
       setTimeout(() => this.mensajeExito.set(null), 3000);
