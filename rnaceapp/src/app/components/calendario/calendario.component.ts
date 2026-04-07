@@ -1545,9 +1545,9 @@ export class CalendarioComponent implements OnInit {
       }
 
       const festivosArray = [...this.festivosSeleccionados()];
-      let recuperacionesGeneradas = 0;
+      const numFestivos = festivosArray.length;
 
-      if (festivosArray.length > 0) {
+      if (numFestivos > 0) {
         const tipoDescripcion = this.tipoCierreSeleccionado() === 'vacaciones' ? 'Vacaciones' : 'Día festivo';
         const festivosInsert = festivosArray.map((fecha) => {
           let desc = this.festivosInicialesMap().get(fecha);
@@ -1561,145 +1561,6 @@ export class CalendarioComponent implements OnInit {
           console.error('Error insertando festivos:', insertError);
           this.error.set(`Error al guardar festivos: ${insertError.message}`);
           return;
-        }
-
-        // Cancelar reservas existentes en los días festivos
-        // Only generate recuperaciones if generarRecuperaciones is true (FESTIVO type)
-
-        // OPTIMIZACIÓN: Recoger todos los IDs de reserva afectadas primero
-        const reservaIds: number[] = [];
-        for (const fecha of festivosArray) {
-          const dia = this.diasCalendario().find(d => d.fecha === fecha);
-          if (dia && dia.reservas.length > 0) {
-            for (const reserva of dia.reservas) {
-              reservaIds.push(reserva.id);
-            }
-          }
-        }
-
-        if (reservaIds.length > 0) {
-          // OPTIMIZACIÓN: Una sola query para obtener todos los datos necesarios
-          const { data: reservasCompletas } = await client
-            .from('reservas')
-            .select('id, usuario_id, sesion_id, sesiones(modalidad, fecha)')
-            .in('id', reservaIds)
-            .eq('estado', 'activa');
-
-          if (reservasCompletas && reservasCompletas.length > 0) {
-            // OPTIMIZACIÓN: Cancelar todas las reservas en una sola operación batch
-            await client
-              .from('reservas')
-              .update({
-                estado: 'cancelada',
-                cancelada_en: new Date().toISOString(),
-                cancelada_correctamente: true
-              })
-              .in('id', reservaIds);
-
-            // Preparar datos para inserciones batch
-            const recuperacionesAInsertar: any[] = [];
-            const notificacionesAInsertar: any[] = [];
-            const usuariosNotificados = new Set<string>(); // Evitar duplicados por usuario
-
-            for (const reserva of reservasCompletas) {
-              const sesionData = Array.isArray(reserva.sesiones)
-                ? reserva.sesiones[0]
-                : reserva.sesiones;
-
-              if (!sesionData) continue;
-
-              const fechaSesion = new Date(sesionData.fecha);
-              const mesOrigen = fechaSesion.getMonth() + 1;
-              const anioOrigen = fechaSesion.getFullYear();
-
-              // Calcular mes límite (mes siguiente)
-              let mesLimite = mesOrigen + 1;
-              let anioLimite = anioOrigen;
-              if (mesLimite > 12) {
-                mesLimite = 1;
-                anioLimite++;
-              }
-
-              // Preparar recuperación si corresponde
-              if (generarRecuperaciones) {
-                recuperacionesAInsertar.push({
-                  usuario_id: reserva.usuario_id,
-                  sesion_cancelada_id: reserva.sesion_id,
-                  modalidad: sesionData.modalidad,
-                  mes_origen: mesOrigen,
-                  anio_origen: anioOrigen,
-                  mes_limite: mesLimite,
-                  anio_limite: anioLimite,
-                  estado: 'disponible'
-                });
-              }
-
-              // Preparar notificación por cada fecha afectada
-              const claveNotif = `${reserva.usuario_id}_${sesionData.fecha}`;
-              if (!usuariosNotificados.has(claveNotif)) {
-                usuariosNotificados.add(claveNotif);
-                const fechaFormateada = fechaSesion.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
-                const mensajeNotif = generarRecuperaciones
-                  ? `Tu clase del ${fechaFormateada} ha sido cancelada. Se ha generado una recuperación.`
-                  : `Tu clase del ${fechaFormateada} ha sido cancelada por vacaciones.`;
-
-                notificacionesAInsertar.push({
-                  usuario_id: reserva.usuario_id,
-                  tipo: generarRecuperaciones ? 'festivo' : 'cancelacion',
-                  titulo: generarRecuperaciones ? 'Clase cancelada' : 'Clase cancelada por vacaciones',
-                  mensaje: mensajeNotif,
-                  leida: false
-                });
-              }
-            }
-
-            // OPTIMIZACIÓN: Insertar recuperaciones y notificaciones en batch con Promise.all
-            const batchOperations: Promise<any>[] = [];
-
-            if (recuperacionesAInsertar.length > 0) {
-              batchOperations.push(
-                Promise.resolve(client.from('recuperaciones').insert(recuperacionesAInsertar)).then(({ error }) => {
-                  if (error) {
-                    console.warn('Error insertando recuperaciones:', error);
-                  } else {
-                    recuperacionesGeneradas = recuperacionesAInsertar.length;
-                    console.log(`${recuperacionesGeneradas} recuperaciones generadas`);
-                  }
-                })
-              );
-            }
-
-            if (notificacionesAInsertar.length > 0) {
-              batchOperations.push(
-                Promise.resolve(client.from('notificaciones').insert(notificacionesAInsertar)).then(async ({ error }) => {
-                  if (error) {
-                    console.warn('Error insertando notificaciones:', error);
-                  } else {
-                    console.log(`${notificacionesAInsertar.length} notificaciones enviadas`);
-
-                    // Enviar push notifications reales a cada usuario afectado
-                    const pushPromises = notificacionesAInsertar.map(notif =>
-                      supabase().functions.invoke('send-push', {
-                        body: {
-                          user_id: notif.usuario_id,
-                          tipo: 'cancelacion',
-                          data: { titulo: notif.titulo, mensaje: notif.mensaje }
-                        }
-                      }).catch(err => console.warn('[Push] Error enviando push cancelacion:', err))
-                    );
-                    await Promise.allSettled(pushPromises);
-                  }
-                })
-              );
-            }
-
-            // Ejecutar operaciones en paralelo
-            await Promise.all(batchOperations);
-          }
-        }
-
-        if (recuperacionesGeneradas > 0) {
-          console.log(`Total recuperaciones generadas: ${recuperacionesGeneradas}`);
         }
       }
 
@@ -1734,7 +1595,9 @@ export class CalendarioComponent implements OnInit {
         }
       }
 
-      // Generar sesiones del mes
+      // 1. PRIMERO Generar sesiones del mes y regenerar reservas.
+      // Así si hay sesiones nuevas, se crean, y si el usuario tiene clases fijas se asientan,
+      // ANTES de verificar los festivos.
       const { error: genError } = await client.rpc('generar_sesiones_mes', {
         p_anio: anio,
         p_mes: mes,
@@ -1744,7 +1607,6 @@ export class CalendarioComponent implements OnInit {
         console.warn('No se pudieron generar sesiones automáticamente:', genError);
       }
 
-      // Generar reservas automáticas desde horarios fijos de todos los usuarios
       const { data: regenData, error: regenError } = await client.rpc('regenerar_reservas_futuras');
 
       if (regenError) {
@@ -1752,8 +1614,54 @@ export class CalendarioComponent implements OnInit {
       } else if (regenData) {
         console.log('Reservas regeneradas:', regenData);
       }
+
+      let recuperacionesGeneradas = 0;
+
+      // 2. AHORA cancelar las reservas que caigan en los festivos marcados (utilizando el RPC seguro)
+      if (numFestivos > 0) {
+        const { data: reservasAfectadas } = await client
+          .from('reservas')
+          .select('id, usuario_id, sesiones!inner(fecha, hora, modalidad)')
+          .in('sesiones.fecha', festivosArray)
+          .eq('estado', 'activa');
+
+        if (reservasAfectadas && reservasAfectadas.length > 0) {
+          const promises = reservasAfectadas.map(async (reserva) => {
+            const { data, error } = await client.rpc('cancelar_reserva_admin', {
+              p_reserva_id: reserva.id,
+              p_generar_recuperacion: generarRecuperaciones
+            });
+
+            if (!error && data && data.length > 0 && data[0].ok) {
+              if (generarRecuperaciones) recuperacionesGeneradas++;
+              
+              // Notificación push
+              try {
+                await client.functions.invoke('send-push', {
+                  body: {
+                    user_id: reserva.usuario_id,
+                    tipo: 'reserva_cancelada',
+                    data: { 
+                      titulo: generarRecuperaciones ? 'Clase cancelada por festivo' : 'Clase cancelada por vacaciones', 
+                      mensaje: data[0].mensaje 
+                    }
+                  }
+                });
+              } catch (e) {
+                console.warn('[Push] Error enviando push cancelacion:', e);
+              }
+            }
+          });
+          
+          await Promise.allSettled(promises);
+        }
+      }
+
+      if (recuperacionesGeneradas > 0) {
+        console.log(`Total recuperaciones generadas y enviadas de manera segura: ${recuperacionesGeneradas}`);
+      }
+
       // Mensaje de éxito según lo que se hizo
-      const numFestivos = festivosArray.length;
       if (numFestivos > 0) {
         const tipoCierre = generarRecuperaciones ? 'cerrado' : 'cerrado por vacaciones';
         let mensaje = `Configuración guardada: ${numFestivos} día${numFestivos > 1 ? 's' : ''} ${tipoCierre}.`;
