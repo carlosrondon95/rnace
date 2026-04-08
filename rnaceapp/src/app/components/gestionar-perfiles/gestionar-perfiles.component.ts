@@ -427,6 +427,8 @@ export class GestionarPerfilesComponent implements OnInit {
 
     const countsMap = new Map<string, { realizadas: number, futuras: number }>();
     const ahora = new Date();
+    const mesActual = ahora.getMonth();
+    const anioActual = ahora.getFullYear();
 
     if (reservasData) {
       for (const r of (reservasData as any[])) {
@@ -434,7 +436,10 @@ export class GestionarPerfilesComponent implements OnInit {
         if (!sesion) continue;
         
         const fechaSesion = new Date(`${sesion.fecha}T${sesion.hora}`);
-        
+        if (fechaSesion.getMonth() !== mesActual || fechaSesion.getFullYear() !== anioActual) {
+          continue;
+        }
+
         if (!countsMap.has(r.usuario_id)) {
           countsMap.set(r.usuario_id, { realizadas: 0, futuras: 0 });
         }

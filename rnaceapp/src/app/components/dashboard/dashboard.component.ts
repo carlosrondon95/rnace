@@ -45,16 +45,6 @@ interface EstadisticasAdmin {
   en_lista_espera: number;
 }
 
-interface CambioRegistrado {
-  id: number;
-  tipo: string;
-  usuario_id: string;
-  usuario_nombre: string;
-  descripcion: string;
-  detalle: Record<string, unknown> | null;
-  creado_en: string;
-}
-
 @Component({
   standalone: true,
   selector: 'app-dashboard',
@@ -95,11 +85,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   clasesHoyExpanded = signal(false);
   vistaClases = signal<'hoy' | 'manana'>('hoy'); // Toggle hoy/mañana
   animatingClases = signal(false); // Para animación de transición
-
-  // Registro de cambios (admin)
-  cambiosRecientes = signal<CambioRegistrado[]>([]);
-  cambiosExpanded = signal(false);
-  cargandoCambios = signal(false);
 
   // Estados de secciones cliente
   recuperacionesExpanded = signal(false);
@@ -162,7 +147,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cargarResumenClases(),
       ]);
     } else if (this.isAdmin()) {
-      await Promise.all([this.cargarEstadisticasAdmin(), this.cargarClasesHoy(), this.cargarCambiosRecientes()]);
+      await Promise.all([this.cargarEstadisticasAdmin(), this.cargarClasesHoy()]);
     }
   }
 
@@ -307,6 +292,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       if (error) throw error;
 
       const ahora = new Date();
+      const mesActual = ahora.getMonth();
+      const anioActual = ahora.getFullYear();
       let realizadas = 0;
       let futuras = 0;
 
@@ -316,6 +303,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
           if (!sesion) continue;
           
           const fechaSesion = new Date(`${sesion.fecha}T${sesion.hora}`);
+          if (fechaSesion.getMonth() !== mesActual || fechaSesion.getFullYear() !== anioActual) {
+            continue;
+          }
+
           if (fechaSesion < ahora) {
             realizadas++;
           } else {
@@ -557,83 +548,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   getOcupacionPercent(clase: ClaseHoy): number {
     if (clase.capacidad === 0) return 0;
     return Math.round((clase.reservas_count / clase.capacidad) * 100);
-  }
-
-  // ============ REGISTRO DE CAMBIOS (ADMIN) ============
-
-  toggleCambiosSection() {
-    this.cambiosExpanded.update(v => !v);
-  }
-
-  async cargarCambiosRecientes() {
-    this.cargandoCambios.set(true);
-    try {
-      const { data, error } = await supabase()
-        .from('registro_cambios')
-        .select('*')
-        .order('creado_en', { ascending: false })
-        .limit(20);
-
-      if (error) {
-        console.error('Error cargando registro de cambios:', error);
-        return;
-      }
-
-      this.cambiosRecientes.set(data || []);
-    } catch (err) {
-      console.error('Error:', err);
-    } finally {
-      this.cargandoCambios.set(false);
-    }
-  }
-
-  getIconoCambio(tipo: string): string {
-    switch (tipo) {
-      case 'admin_add_sesion': return 'person_add';
-      case 'admin_cancel_reserva': return 'person_remove';
-      case 'cliente_cancel_reserva': return 'event_busy';
-      case 'cliente_usa_recuperacion': return 'event_available';
-      case 'admin_mueve_reserva': return 'move_down';
-      case 'cliente_cambio_turno': return 'sync_alt';
-      default: return 'info';
-    }
-  }
-
-  getColorCambio(tipo: string): string {
-    switch (tipo) {
-      case 'admin_add_sesion': return 'cambio--add';
-      case 'admin_cancel_reserva': return 'cambio--cancel';
-      case 'cliente_cancel_reserva': return 'cambio--cancel';
-      case 'cliente_usa_recuperacion': return 'cambio--add';
-      case 'admin_mueve_reserva': return 'cambio--grupo';
-      case 'cliente_cambio_turno': return 'cambio--grupo';
-      default: return '';
-    }
-  }
-
-  formatTiempoCambio(fecha: string): string {
-    const cambio = new Date(fecha);
-    const fechaFormat = cambio.toLocaleDateString('es-ES', { 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric' 
-    });
-    const horaFormat = cambio.toLocaleTimeString('es-ES', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-    
-    return `${fechaFormat} ${horaFormat}`;
-  }
-
-  formatDescripcion(desc: string): string {
-    if (!desc) return '';
-    // Busca patrones YYYY-MM-DD y los cambia a DD/MM/YYYY
-    return desc.replace(/\((\d{4})-(\d{2})-(\d{2})\)/g, '($3/$2/$1)');
-  }
-
-  trackByCambioId(_index: number, cambio: CambioRegistrado): number {
-    return cambio.id;
   }
 
   // ============ HELPERS GENERALES ============
