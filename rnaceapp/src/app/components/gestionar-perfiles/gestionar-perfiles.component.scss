@@ -349,9 +349,9 @@
 .usuario-plan {
   margin-bottom: var(--space-xs);
   display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
 }
 
 .usuario-stats {
@@ -375,15 +375,15 @@
   }
 
   &.realizada {
-    background: var(--color-success-soft);
-    color: var(--color-success);
-    border-color: var(--color-success-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-text-secondary);
+    border-color: var(--color-border);
   }
 
   &.futura {
-    background: var(--color-info-soft);
-    color: var(--color-info);
-    border-color: var(--color-info-border);
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+    border-color: rgba(184, 178, 158, 0.3);
   }
 }
 
@@ -667,13 +667,15 @@
   }
 
   &.stat-realizada {
-    border-color: var(--color-success-border);
-    .material-symbols-rounded { color: var(--color-success); }
+    border-color: var(--color-border-hover);
+    background: rgba(255, 255, 255, 0.03);
+    .material-symbols-rounded { color: var(--color-text-secondary); }
   }
 
   &.stat-futura {
-    border-color: var(--color-info-border);
-    .material-symbols-rounded { color: var(--color-info); }
+    border-color: rgba(184, 178, 158, 0.3);
+    background: var(--color-accent-soft);
+    .material-symbols-rounded { color: var(--color-accent); }
   }
 }
 

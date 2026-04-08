@@ -1,0 +1,238 @@
+<!-- src/app/components/registro-actividad/registro-actividad.component.html -->
+<div class="page-container">
+
+  <!-- Header -->
+  <header class="page-header">
+    <button class="btn-volver" (click)="volver()">
+      <span class="material-symbols-rounded">arrow_back</span>
+      Volver
+    </button>
+    <h1>Registro de actividad</h1>
+  </header>
+
+  <!-- Filtros -->
+  <section class="filtros-section">
+    <!-- Fila 1: Búsqueda -->
+    <div class="filtro-busqueda">
+      <span class="material-symbols-rounded busqueda-icon">search</span>
+      <input
+        type="text"
+        placeholder="Buscar por nombre..."
+        [ngModel]="filtroBusqueda()"
+        (ngModelChange)="filtroBusqueda.set($event)"
+        class="input-busqueda"
+      />
+    </div>
+
+    <!-- Fila 2: Selects -->
+    <div class="filtros-row">
+      <div class="filtro-select-wrapper">
+        <select
+          class="filtro-select"
+          [ngModel]="filtroGrupo()"
+          (ngModelChange)="filtroGrupo.set($event)"
+        >
+          @for (op of opcionesGrupo; track op.value) {
+            <option [value]="op.value">{{ op.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filtro-select-wrapper">
+        <select
+          class="filtro-select"
+          [ngModel]="filtroAccion()"
+          (ngModelChange)="filtroAccion.set($event)"
+        >
+          @for (op of opcionesAccion; track op.value) {
+            <option [value]="op.value">{{ op.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <!-- Fila 3: Fechas -->
+    <div class="filtros-row filtros-fechas">
+      <div class="filtro-fecha">
+        <label class="filtro-fecha__label">Desde</label>
+        <input
+          type="date"
+          class="filtro-fecha__input"
+          [ngModel]="filtroFechaInicio()"
+          (ngModelChange)="filtroFechaInicio.set($event)"
+        />
+      </div>
+      <div class="filtro-fecha">
+        <label class="filtro-fecha__label">Hasta</label>
+        <input
+          type="date"
+          class="filtro-fecha__input"
+          [ngModel]="filtroFechaFin()"
+          (ngModelChange)="filtroFechaFin.set($event)"
+        />
+      </div>
+      <button class="btn-aplicar" (click)="aplicarFiltros()">
+        <span class="material-symbols-rounded">filter_alt</span>
+        Aplicar
+      </button>
+    </div>
+
+    <!-- Botón limpiar -->
+    @if (filtroGrupo() !== 'todos' || filtroAccion() !== 'todos' || filtroBusqueda()) {
+      <button class="btn-limpiar" (click)="limpiarFiltros()">
+        <span class="material-symbols-rounded">filter_alt_off</span>
+        Limpiar filtros
+      </button>
+    }
+  </section>
+
+  <!-- Stats rápidos -->
+  @if (!cargando() && registrosFiltrados().length > 0) {
+  <section class="stats-bar">
+    <div class="stat-chip">
+      <span class="material-symbols-rounded">list_alt</span>
+      <span>{{ stats().total }}</span>
+    </div>
+    <div class="stat-chip stat-chip--baja">
+      <span class="material-symbols-rounded">event_busy</span>
+      <span>{{ stats().cancelaciones }}</span>
+    </div>
+    <div class="stat-chip stat-chip--cambio">
+      <span class="material-symbols-rounded">sync_alt</span>
+      <span>{{ stats().cambios }}</span>
+    </div>
+    <div class="stat-chip stat-chip--alta">
+      <span class="material-symbols-rounded">event_available</span>
+      <span>{{ stats().altas }}</span>
+    </div>
+  </section>
+  }
+
+  <!-- Loading -->
+  @if (cargando()) {
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando registros...</p>
+  </div>
+  }
+
+  <!-- Error -->
+  @if (error()) {
+  <div class="mensaje-error">
+    <span class="material-symbols-rounded">error</span>
+    <span>{{ error() }}</span>
+  </div>
+  }
+
+  <!-- Contenido principal: agrupado por grupo -->
+  @if (!cargando() && !error()) {
+
+    @if (gruposRegistros().length === 0) {
+    <div class="empty-state">
+      <span class="material-symbols-rounded">search_off</span>
+      <p>No se encontraron registros con los filtros seleccionados</p>
+    </div>
+    } @else {
+
+    @for (grupo of gruposRegistros(); track grupo.grupo) {
+    <section class="grupo-section">
+      <!-- Cabecera del grupo -->
+      <div class="grupo-header" [style.--grupo-color]="grupo.color">
+        <div class="grupo-header__icon">
+          <span class="material-symbols-rounded">{{ grupo.icono }}</span>
+        </div>
+        <h2 class="grupo-header__nombre">{{ grupo.nombre }}</h2>
+        <span class="grupo-header__count">{{ grupo.totalRegistros }} registro{{ grupo.totalRegistros !== 1 ? 's' : '' }}</span>
+        <div class="grupo-header__actions">
+          <button class="btn-expand-all" (click)="expandirTodosGrupo(grupo.grupo, grupo.turnos)" title="Expandir todos">
+            <span class="material-symbols-rounded">unfold_more</span>
+          </button>
+          <button class="btn-expand-all" (click)="colapsarTodosGrupo(grupo.grupo, grupo.turnos)" title="Colapsar todos">
+            <span class="material-symbols-rounded">unfold_less</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Turnos del grupo -->
+      <div class="turnos-lista">
+        @for (turno of grupo.turnos; track turno.hora) {
+        <div class="turno-section">
+          <!-- Cabecera del turno (clickable) -->
+          <button class="turno-header" (click)="toggleTurno(grupo.grupo, turno.hora)" [class.turno-header--expanded]="isTurnoExpandido(grupo.grupo, turno.hora)">
+            <span class="material-symbols-rounded turno-header__chevron">chevron_right</span>
+            <span class="material-symbols-rounded turno-header__clock">schedule</span>
+            <span class="turno-header__hora">{{ turno.hora }}</span>
+            <span class="turno-header__count">{{ turno.registros.length }}</span>
+
+            <!-- Mini-resumen de tipos -->
+            <div class="turno-header__pills">
+              @for (reg of turno.registros.slice(0, 3); track reg.id) {
+              <span class="turno-pill" [class]="getColorAccion(reg.tipo)" [title]="getNombreAccion(reg.tipo)">
+                <span class="material-symbols-rounded">{{ getIconoAccion(reg.tipo) }}</span>
+              </span>
+              }
+              @if (turno.registros.length > 3) {
+              <span class="turno-pill turno-pill--more">+{{ turno.registros.length - 3 }}</span>
+              }
+            </div>
+          </button>
+
+          <!-- Registros del turno (colapsable) -->
+          @if (isTurnoExpandido(grupo.grupo, turno.hora)) {
+          <div class="registros-lista">
+            @for (reg of turno.registros; track trackById($index, reg)) {
+            <article class="registro-card" [class]="getColorAccion(reg.tipo)">
+              <div class="registro-card__icono">
+                <span class="material-symbols-rounded">{{ getIconoAccion(reg.tipo) }}</span>
+              </div>
+              <div class="registro-card__contenido">
+                <div class="registro-card__top">
+                  <span class="registro-card__nombre">{{ reg.usuario_nombre }}</span>
+                  <span class="registro-card__fecha">{{ formatFechaCompleta(reg.creado_en) }}</span>
+                </div>
+                <p class="registro-card__descripcion">{{ formatDescripcion(reg.descripcion) }}</p>
+                <div class="registro-card__meta">
+                  <span class="badge-accion" [class]="getColorAccion(reg.tipo)">
+                    {{ getNombreAccion(reg.tipo) }}
+                  </span>
+                  @if (getEtiquetaOrigen(reg.tipo)) {
+                  <span class="badge-origen" [class.badge-origen--admin]="reg.tipo.startsWith('admin_')">
+                    {{ getEtiquetaOrigen(reg.tipo) }}
+                  </span>
+                  }
+                  @if (reg.fecha_sesion) {
+                  <span class="badge-fecha-sesion">
+                    <span class="material-symbols-rounded">event</span>
+                    {{ formatFechaSesion(reg.fecha_sesion) }}
+                  </span>
+                  }
+                </div>
+              </div>
+            </article>
+            }
+          </div>
+          }
+        </div>
+        }
+      </div>
+    </section>
+    }
+
+    }
+
+    <!-- Cargar más -->
+    @if (hayMas()) {
+    <div class="cargar-mas-wrapper">
+      <button class="btn-cargar-mas" (click)="cargarMas()" [disabled]="cargandoMas()">
+        @if (cargandoMas()) {
+          <div class="spinner-small"></div>
+          <span>Cargando...</span>
+        } @else {
+          <span class="material-symbols-rounded">expand_more</span>
+          <span>Cargar más registros</span>
+        }
+      </button>
+    </div>
+    }
+  }
+</div>

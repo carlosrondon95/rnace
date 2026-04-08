@@ -101,6 +101,16 @@ export const routes: Routes = [
     canActivate: [authGuard, adminGuard],
   },
 
+  // Registro de actividad (admin)
+  {
+    path: 'registro-actividad',
+    loadComponent: () =>
+      import('./components/registro-actividad/registro-actividad.component').then(
+        (m) => m.RegistroActividadComponent,
+      ),
+    canActivate: [authGuard, adminGuard],
+  },
+
   // Ruta catch-all
   {
     path: '**',
