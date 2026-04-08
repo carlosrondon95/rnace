@@ -292,6 +292,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       if (error) throw error;
 
       const ahora = new Date();
+      const mesActual = ahora.getMonth();
+      const anioActual = ahora.getFullYear();
       let realizadas = 0;
       let futuras = 0;
 
@@ -301,6 +303,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
           if (!sesion) continue;
           
           const fechaSesion = new Date(`${sesion.fecha}T${sesion.hora}`);
+          if (fechaSesion.getMonth() !== mesActual || fechaSesion.getFullYear() !== anioActual) {
+            continue;
+          }
+
           if (fechaSesion < ahora) {
             realizadas++;
           } else {
