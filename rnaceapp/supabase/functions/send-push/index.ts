@@ -246,7 +246,6 @@ serve(async (req: Request) => {
                   data: {
                     title: content.titulo,
                     body: content.mensaje,
-                    icon: '/assets/icon/logofull.JPG',
                     click_action: url,
                     tipo: payload.tipo,
                     url: url,
@@ -288,18 +287,12 @@ serve(async (req: Request) => {
                     notification: {
                       title: content.titulo,
                       body: content.mensaje,
-                      icon: '/assets/icon/logofull.JPG',
-                      badge: '/assets/icon/logofull.JPG',
-                      vibrate: [200, 100, 200],
                       data: { url: url }, // URL para el click listener del SW
                       tag: `${payload.tipo}-${Date.now()}`,
-                      renotify: true,
-                      requireInteraction: ['reserva_cancelada', 'lista_espera', 'admin_urgent'].includes(payload.tipo),
-                      actions: getActionsForType(payload.tipo)
-                    },
-                    fcm_options: {
-                      link: url
+                      renotify: true
+                      // Eliminados icon, badge y requireInteraction porque pueden fallar nativamente en iOS PWA y algunos Android
                     }
+                    // Eliminado fcm_options.link para evitar que FCM abra nuevas pestañas fuera del PWA
                   }
                 }
               })

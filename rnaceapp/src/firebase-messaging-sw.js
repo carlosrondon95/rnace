@@ -58,20 +58,12 @@ const NOTIFICATION_CONFIG = {
   }
 };
 
-// Notificaciones en background
+// Notificaciones en background (solo para data-only messages)
 messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] Notificación recibida:', payload);
-
-  // Priorizar datos del payload 'data' que envía ahora la Edge Function
-  const notificationTitle = payload.data?.title || payload.notification?.title || payload.data?.titulo || 'RNACE';
-  const notificationOptions = {
-    body: payload.data?.body || payload.notification?.body || payload.data?.mensaje || '',
-    icon: payload.data?.icon || '/assets/icon/logofull.JPG',
-    data: payload.data,
-    tag: payload.data?.tag || 'notification-default'
-  };
-
-  return self.registration.showNotification(notificationTitle, notificationOptions);
+  console.log('[SW] Notificación recibida en background:', payload);
+  // NOTA: Si el mensaje contiene el objeto 'notification', FCM mostrará la 
+  // notificación automáticamente y este callback NO será invocado 
+  // o su llamada a showNotification no es necesaria.
 });
 
 // Click en notificación
@@ -80,13 +72,15 @@ self.addEventListener('notificationclick', (event) => {
   const action = event.action;
   const data = notification.data || {};
 
-  notification.close();
-
+  // Extraer información de data
+  // Firebase a veces envuelve la data dentro de FCM_MSG
+  const fcmData = data?.FCM_MSG?.data || data?.FCM_MSG?.notification?.data || data || {};
   let url = '/';
+  
   switch (action) {
     case 'ver':
     case 'confirmar':
-      url = data.url || '/';
+      url = fcmData.url || '/';
       break;
     case 'calendario':
       url = '/calendario';
@@ -97,7 +91,7 @@ self.addEventListener('notificationclick', (event) => {
     case 'rechazar':
       return;
     default:
-      url = data.url || '/';
+      url = fcmData.url || '/';
   }
 
   event.waitUntil(

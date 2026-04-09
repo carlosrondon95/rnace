@@ -242,11 +242,13 @@ export class PushNotificationService {
       this._notification.next(notification);
 
       // Mostrar notificación nativa en foreground
-      if (Notification.permission === 'granted') {
-        new Notification(titulo, {
-          body: mensaje,
-          icon: icon,
-          data: payload.data
+      if (Notification.permission === 'granted' && navigator.serviceWorker) {
+        navigator.serviceWorker.ready.then(registration => {
+          registration.showNotification(titulo, {
+            body: mensaje,
+            // Usamos un icono seguro o lo omitimos para dejar el por defecto de la PWA
+            data: payload.data
+          });
         });
       }
     });
