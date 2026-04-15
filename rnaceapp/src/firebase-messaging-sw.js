@@ -1,7 +1,45 @@
+// Interceptamos manualmente el push ANTES de Firebase
+// Esto arregla crashes de FCM SDK en iOS PWA y algunos Android
+self.addEventListener('push', function(event) {
+  // Evitamos que Firebase procese este push y cause dobles notificaciones o crashes
+  // Firebase usa la notificación directa, nosotros tomamos el control total aquí.
+  event.stopImmediatePropagation();
+
+  let title = 'Notificación RNACE';
+  let body = 'Tienes un nuevo aviso';
+  let dataObj = {};
+
+  try {
+    if (event.data) {
+      const payload = event.data.json();
+      console.log('[SW] Custom Push:', payload);
+      
+      // Intentar extraer titulo de "data" (como viene de nuestra edge func) o de "notification"
+      title = payload.notification?.title || payload.data?.title || title;
+      body = payload.notification?.body || payload.data?.body || body;
+      dataObj = payload.data || {};
+    }
+  } catch (err) {
+    console.error('[SW] Parse push error:', err);
+  }
+
+  const options = {
+    body: body,
+    icon: '/assets/icon/logofull.JPG', // Ruta del icono de la PWA
+    data: dataObj,
+    requireInteraction: false
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch(err => {
+      console.error('[SW] showNotification Error:', err);
+    })
+  );
+});
+
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
-// Configuración de Firebase para notificaciones push
 firebase.initializeApp({
   apiKey: 'AIzaSyCzBNKc2TwhtqlgCCljwQMQPkPX6ujha1k',
   authDomain: 'rnace-50c31.firebaseapp.com',
@@ -13,139 +51,8 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Configuración por tipo de notificación
-const NOTIFICATION_CONFIG = {
-  reserva_confirmada: {
-    icon: '/assets/icon/logofull.JPG',
-    badge: '/assets/icon/logofull.JPG',
-    vibrate: [200, 100, 200],
-    actions: [
-      { action: 'ver', title: '📅 Ver reserva' },
-      { action: 'calendario', title: '🗓️ Calendario' }
-    ]
-  },
-  reserva_cancelada: {
-    icon: '/assets/icon/logofull.JPG',
-    badge: '/assets/icon/logofull.JPG',
-    vibrate: [300, 100, 300, 100, 300],
-    requireInteraction: true,
-    actions: [
-      { action: 'nueva', title: '➕ Nueva reserva' }
-    ]
-  },
-  recordatorio: {
-    icon: '/assets/icon/logofull.JPG',
-    badge: '/assets/icon/logofull.JPG',
-    vibrate: [100, 50, 100],
-    actions: [
-      { action: 'ver', title: '👀 Ver detalles' }
-    ]
-  },
-  lista_espera: {
-    icon: '/assets/icon/logofull.JPG',
-    badge: '/assets/icon/logofull.JPG',
-    vibrate: [200, 100, 200, 100, 200],
-    requireInteraction: true,
-    actions: [
-      { action: 'confirmar', title: '✅ Confirmar' },
-      { action: 'rechazar', title: '❌ Rechazar' }
-    ]
-  },
-  default: {
-    icon: '/assets/icon/logofull.JPG',
-    badge: '/assets/icon/logofull.JPG',
-    vibrate: [100]
-  }
-};
-
-// Track notifications already shown by onBackgroundMessage to avoid duplicates
-const _notificationsShown = new Set();
-
-// ====================================================================
-// BACKGROUND NOTIFICATIONS
-// ====================================================================
-// onBackgroundMessage handles data-only messages from FCM.
-// For messages with a 'notification' block, FCM *may* auto-display,
-// but on many PWA environments (iOS, some Android browsers) it does NOT.
-// We explicitly call showNotification to guarantee display.
-messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] onBackgroundMessage recibido:', payload);
-
-  const data = payload.data || {};
-  const tipo = data.tipo || 'default';
-  const config = NOTIFICATION_CONFIG[tipo] || NOTIFICATION_CONFIG.default;
-
-  const title = data.title || payload.notification?.title || 'RNACE';
-  const body = data.body || payload.notification?.body || '';
-  const tag = data.tag || `${tipo}-${Date.now()}`;
-
-  // Mark as shown so the fallback push listener skips it
-  _notificationsShown.add(tag);
-  setTimeout(() => _notificationsShown.delete(tag), 5000);
-
-  const options = {
-    body: body,
-    icon: config.icon,
-    badge: config.badge,
-    vibrate: config.vibrate,
-    tag: tag,
-    renotify: true,
-    data: { url: data.url || data.click_action || '/', tipo: tipo, ...data },
-    actions: config.actions || [],
-    requireInteraction: config.requireInteraction || false
-  };
-
-  return self.registration.showNotification(title, options);
-});
-
-// ====================================================================
-// FALLBACK: Native 'push' event listener
-// ====================================================================
-// In some environments, firebase-messaging-compat does NOT intercept
-// the push event properly (especially iOS PWA, or when the SW is
-// woken from a terminated state). This native listener acts as a
-// safety net.
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-
-  let payload;
-  try {
-    payload = event.data.json();
-  } catch (e) {
-    console.warn('[SW] Push data is not JSON:', e);
-    return;
-  }
-
-  const fcmData = payload.data || {};
-  const tipo = fcmData.tipo || 'default';
-  const tag = fcmData.tag || `${tipo}-${Date.now()}`;
-
-  // If onBackgroundMessage already showed this notification, skip
-  if (_notificationsShown.has(tag)) {
-    console.log('[SW] Push fallback: notification already shown by onBackgroundMessage, skipping');
-    return;
-  }
-
-  const config = NOTIFICATION_CONFIG[tipo] || NOTIFICATION_CONFIG.default;
-  const title = fcmData.title || payload.notification?.title || 'RNACE';
-  const body = fcmData.body || payload.notification?.body || '';
-
-  const options = {
-    body: body,
-    icon: config.icon,
-    badge: config.badge,
-    vibrate: config.vibrate,
-    tag: tag,
-    renotify: true,
-    data: { url: fcmData.url || fcmData.click_action || '/', tipo: tipo, ...fcmData },
-    actions: config.actions || [],
-    requireInteraction: config.requireInteraction || false
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
-});
+// NOTA: No usamos messaging.onBackgroundMessage debido a bugs de renderizado 
+// nativo de iOS Safari/Chrome Android. Todo se maneja en el listener "push" de la línea 1.
 
 // ====================================================================
 // NOTIFICATION CLICK HANDLER
@@ -156,9 +63,8 @@ self.addEventListener('notificationclick', (event) => {
   const action = event.action;
   const data = event.notification.data || {};
 
-  // Extract URL from notification data
-  // Firebase sometimes wraps data inside FCM_MSG
-  const fcmData = data?.FCM_MSG?.data || data || {};
+  // Extraer información de data
+  const fcmData = data || {};
   let url = '/';
   
   switch (action) {
@@ -183,9 +89,11 @@ self.addEventListener('notificationclick', (event) => {
       .then((windowClients) => {
         for (const client of windowClients) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
+             // Intenta enfocarse en la PWA si ya está abierta
             return client.focus().then(c => c.navigate && c.navigate(url));
           }
         }
+        // Si no está abierta, abre una nueva ventana/instancia de la PWA
         return clients.openWindow(url);
       })
   );

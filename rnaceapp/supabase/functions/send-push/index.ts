@@ -237,12 +237,15 @@ serve(async (req: Request) => {
               body: JSON.stringify({
                 message: {
                   token: token,
-                  // NO incluir bloque 'notification' de nivel superior.
-                  // Si existe, FCM intenta auto-mostrar la notificación en background
-                  // y NO llama a onBackgroundMessage del Service Worker.
-                  // Enviamos SOLO 'data' para que el SW siempre lo procese.
+                  // BLOQUE NOTIFICACIÓN: Obligatorio para que iOS PWA no descarte
+                  // el mensaje silenciosamente por políticas de Apple.
+                  notification: {
+                    title: content.titulo,
+                    body: content.mensaje,
+                  },
 
-                  // Data: el SW lee estos campos para construir la notificación
+                  // Data: el SW lee estos campos para construir la notificación 
+                  // o acciones personalizadas.
                   data: {
                     title: content.titulo,
                     body: content.mensaje,
