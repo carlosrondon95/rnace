@@ -58,23 +58,107 @@ const NOTIFICATION_CONFIG = {
   }
 };
 
-// Notificaciones en background (solo para data-only messages)
+// Track notifications already shown by onBackgroundMessage to avoid duplicates
+const _notificationsShown = new Set();
+
+// ====================================================================
+// BACKGROUND NOTIFICATIONS
+// ====================================================================
+// onBackgroundMessage handles data-only messages from FCM.
+// For messages with a 'notification' block, FCM *may* auto-display,
+// but on many PWA environments (iOS, some Android browsers) it does NOT.
+// We explicitly call showNotification to guarantee display.
 messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] Notificación recibida en background:', payload);
-  // NOTA: Si el mensaje contiene el objeto 'notification', FCM mostrará la 
-  // notificación automáticamente y este callback NO será invocado 
-  // o su llamada a showNotification no es necesaria.
+  console.log('[SW] onBackgroundMessage recibido:', payload);
+
+  const data = payload.data || {};
+  const tipo = data.tipo || 'default';
+  const config = NOTIFICATION_CONFIG[tipo] || NOTIFICATION_CONFIG.default;
+
+  const title = data.title || payload.notification?.title || 'RNACE';
+  const body = data.body || payload.notification?.body || '';
+  const tag = data.tag || `${tipo}-${Date.now()}`;
+
+  // Mark as shown so the fallback push listener skips it
+  _notificationsShown.add(tag);
+  setTimeout(() => _notificationsShown.delete(tag), 5000);
+
+  const options = {
+    body: body,
+    icon: config.icon,
+    badge: config.badge,
+    vibrate: config.vibrate,
+    tag: tag,
+    renotify: true,
+    data: { url: data.url || data.click_action || '/', tipo: tipo, ...data },
+    actions: config.actions || [],
+    requireInteraction: config.requireInteraction || false
+  };
+
+  return self.registration.showNotification(title, options);
 });
 
-// Click en notificación
-self.addEventListener('notificationclick', (event) => {
-  const notification = event.notification;
-  const action = event.action;
-  const data = notification.data || {};
+// ====================================================================
+// FALLBACK: Native 'push' event listener
+// ====================================================================
+// In some environments, firebase-messaging-compat does NOT intercept
+// the push event properly (especially iOS PWA, or when the SW is
+// woken from a terminated state). This native listener acts as a
+// safety net.
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
 
-  // Extraer información de data
-  // Firebase a veces envuelve la data dentro de FCM_MSG
-  const fcmData = data?.FCM_MSG?.data || data?.FCM_MSG?.notification?.data || data || {};
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch (e) {
+    console.warn('[SW] Push data is not JSON:', e);
+    return;
+  }
+
+  const fcmData = payload.data || {};
+  const tipo = fcmData.tipo || 'default';
+  const tag = fcmData.tag || `${tipo}-${Date.now()}`;
+
+  // If onBackgroundMessage already showed this notification, skip
+  if (_notificationsShown.has(tag)) {
+    console.log('[SW] Push fallback: notification already shown by onBackgroundMessage, skipping');
+    return;
+  }
+
+  const config = NOTIFICATION_CONFIG[tipo] || NOTIFICATION_CONFIG.default;
+  const title = fcmData.title || payload.notification?.title || 'RNACE';
+  const body = fcmData.body || payload.notification?.body || '';
+
+  const options = {
+    body: body,
+    icon: config.icon,
+    badge: config.badge,
+    vibrate: config.vibrate,
+    tag: tag,
+    renotify: true,
+    data: { url: fcmData.url || fcmData.click_action || '/', tipo: tipo, ...fcmData },
+    actions: config.actions || [],
+    requireInteraction: config.requireInteraction || false
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+// ====================================================================
+// NOTIFICATION CLICK HANDLER
+// ====================================================================
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const action = event.action;
+  const data = event.notification.data || {};
+
+  // Extract URL from notification data
+  // Firebase sometimes wraps data inside FCM_MSG
+  const fcmData = data?.FCM_MSG?.data || data || {};
   let url = '/';
   
   switch (action) {

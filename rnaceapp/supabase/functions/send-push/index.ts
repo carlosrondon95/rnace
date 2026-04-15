@@ -237,12 +237,12 @@ serve(async (req: Request) => {
               body: JSON.stringify({
                 message: {
                   token: token,
-                  // BLOQUE NOTIFICACIÓN: Crítico para iOS y Android background
-                  notification: {
-                    title: content.titulo,
-                    body: content.mensaje,
-                  },
-                  // Data para manejo en foreground o info extra
+                  // NO incluir bloque 'notification' de nivel superior.
+                  // Si existe, FCM intenta auto-mostrar la notificación en background
+                  // y NO llama a onBackgroundMessage del Service Worker.
+                  // Enviamos SOLO 'data' para que el SW siempre lo procese.
+
+                  // Data: el SW lee estos campos para construir la notificación
                   data: {
                     title: content.titulo,
                     body: content.mensaje,
@@ -250,18 +250,15 @@ serve(async (req: Request) => {
                     tipo: payload.tipo,
                     url: url,
                     tag: `${payload.tipo}-${Date.now()}`,
-                    ...payload.data
+                    ...Object.fromEntries(
+                      Object.entries(payload.data || {}).map(([k, v]) => [k, String(v)])
+                    )
                   },
-                  // Configuración específica ANDROID
+                  // Configuración ANDROID: prioridad alta para despertar el dispositivo
                   android: {
-                    priority: 'high',
-                    notification: {
-                      channel_id: 'default',
-                      icon: 'stock_ticker_update', // Icono nativo si existe, o default
-                      click_action: url
-                    }
+                    priority: 'high'
                   },
-                  // Configuración específica APPLE (iOS/macOS)
+                  // Configuración APPLE (iOS/macOS): necesita bloque aps para iOS
                   apns: {
                     payload: {
                       aps: {
@@ -271,28 +268,21 @@ serve(async (req: Request) => {
                         },
                         sound: 'default',
                         badge: 1,
-                        'content-available': 1 // Para despertar la app en background
+                        'content-available': 1
                       }
                     },
                     headers: {
-                      'apns-priority': '10', // 10 = High (entrega inmediata), 5 = Low
+                      'apns-priority': '10',
                       'apns-push-type': 'alert'
                     }
                   },
-                  // Configuración específica WEB (PWA)
+                  // Configuración WEB (PWA): headers de urgencia
+                  // NO incluir webpush.notification para evitar auto-display
                   webpush: {
                     headers: {
-                      Urgency: 'high'
-                    },
-                    notification: {
-                      title: content.titulo,
-                      body: content.mensaje,
-                      data: { url: url }, // URL para el click listener del SW
-                      tag: `${payload.tipo}-${Date.now()}`,
-                      renotify: true
-                      // Eliminados icon, badge y requireInteraction porque pueden fallar nativamente en iOS PWA y algunos Android
+                      Urgency: 'high',
+                      TTL: '86400'
                     }
-                    // Eliminado fcm_options.link para evitar que FCM abra nuevas pestañas fuera del PWA
                   }
                 }
               })
