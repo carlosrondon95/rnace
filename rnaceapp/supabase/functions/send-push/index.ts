@@ -249,12 +249,10 @@ serve(async (req: Request) => {
               body: JSON.stringify({
                 message: {
                   token: token,
-                  // BLOQUE NOTIFICACIÓN: Obligatorio para que iOS PWA no descarte
-                  // el mensaje silenciosamente por políticas de Apple.
-                  notification: {
-                    title: content.titulo,
-                    body: content.mensaje,
-                  },
+                  // Al no enviar 'notification', forzamos un Data-Only payload.
+                  // Esto evita que iOS y la librería nativa de FCM intenten pintar
+                  // la notificación por defecto y entren en conflicto con el
+                  // manual showNotification() de nuestro Service Worker.
 
                   // Data: el SW lee estos campos para construir la notificación 
                   // o acciones personalizadas.
