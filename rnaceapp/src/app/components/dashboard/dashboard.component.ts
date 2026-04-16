@@ -27,6 +27,14 @@ interface Recuperacion {
   anio_limite: number;
   mes_origen: number;
   anio_origen: number;
+  fecha_cancelada?: string; // fecha de la sesión cancelada (YYYY-MM-DD)
+}
+
+interface RecuperacionGrupo {
+  label: string;
+  tipo: 'mes_pasado' | 'mes_actual' | 'futuro';
+  recuperaciones: Recuperacion[];
+  collapsed: boolean;
 }
 
 interface ClaseHoy {
@@ -88,6 +96,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Estados de secciones cliente
   recuperacionesExpanded = signal(false);
+  mesPasadoExpanded = signal(false);
 
   // Computed
   nombreUsuario = computed(() => this.auth.usuario()?.nombre || 'Usuario');
@@ -108,6 +117,68 @@ export class DashboardComponent implements OnInit, OnDestroy {
   });
 
   tieneRecuperaciones = computed(() => this.recuperaciones().length > 0);
+
+  // Agrupación de recuperaciones por mes
+  recuperacionesAgrupadas = computed(() => {
+    const recups = this.recuperaciones();
+    if (recups.length === 0) return [];
+
+    const ahora = new Date();
+    const mesActual = ahora.getMonth() + 1;
+    const anioActual = ahora.getFullYear();
+
+    const mesPasado: Recuperacion[] = [];
+    const mesActualArr: Recuperacion[] = [];
+    const futuro: Recuperacion[] = [];
+
+    for (const r of recups) {
+      if (r.anio_origen < anioActual || (r.anio_origen === anioActual && r.mes_origen < mesActual)) {
+        mesPasado.push(r);
+      } else if (r.anio_origen === anioActual && r.mes_origen === mesActual) {
+        mesActualArr.push(r);
+      } else {
+        futuro.push(r);
+      }
+    }
+
+    const grupos: RecuperacionGrupo[] = [];
+
+    if (mesPasado.length > 0) {
+      // Agrupar por mes_origen para el label
+      const mesOrigen = mesPasado[0].mes_origen;
+      const anioOrigen = mesPasado[0].anio_origen;
+      const nombreMes = this.getNombreMes(mesOrigen);
+      const mesCap = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+      grupos.push({
+        label: `Pendientes de ${mesCap} ${anioOrigen !== anioActual ? anioOrigen : ''}`.trim(),
+        tipo: 'mes_pasado',
+        recuperaciones: mesPasado,
+        collapsed: true,
+      });
+    }
+
+    if (mesActualArr.length > 0) {
+      const nombreMes = this.getNombreMes(mesActual);
+      const mesCap = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+      grupos.push({
+        label: `Canceladas en ${mesCap}`,
+        tipo: 'mes_actual',
+        recuperaciones: mesActualArr,
+        collapsed: false,
+      });
+    }
+
+    if (futuro.length > 0) {
+      grupos.push({
+        label: 'Disponibles próximamente',
+        tipo: 'futuro',
+        recuperaciones: futuro,
+        collapsed: true,
+      });
+    }
+
+    return grupos;
+  });
 
   private intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -326,6 +397,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!uid) return;
 
     try {
+      // 1. Obtener recuperaciones via RPC (tiene SECURITY DEFINER)
       const { data, error } = await supabase().rpc('obtener_recuperaciones_usuario', {
         p_usuario_id: uid,
       });
@@ -335,7 +407,54 @@ export class DashboardComponent implements OnInit, OnDestroy {
         return;
       }
 
-      this.recuperaciones.set(data || []);
+      if (!data || data.length === 0) {
+        this.recuperaciones.set([]);
+        return;
+      }
+
+      // 2. Obtener las fechas de las sesiones canceladas
+      // El RPC no devuelve sesion_cancelada_id, así que consultamos la tabla directamente
+      // para obtener sesion_cancelada_id de cada recuperación por su id
+      const recupIds = data.map((r: any) => r.id);
+      const { data: recupDetails } = await supabase()
+        .from('recuperaciones')
+        .select('id, sesion_cancelada_id')
+        .in('id', recupIds);
+
+      // Obtener las fechas de las sesiones
+      const sesionIds = (recupDetails || []).map((r: any) => r.sesion_cancelada_id).filter(Boolean);
+      let sesionFechaMap = new Map<number, string>();
+
+      if (sesionIds.length > 0) {
+        const { data: sesionesData } = await supabase()
+          .from('sesiones')
+          .select('id, fecha')
+          .in('id', sesionIds);
+
+        if (sesionesData) {
+          sesionFechaMap = new Map(sesionesData.map((s: any) => [s.id, s.fecha]));
+        }
+      }
+
+      // Mapa de recup id -> sesion_cancelada_id
+      const recupSesionMap = new Map((recupDetails || []).map((r: any) => [r.id, r.sesion_cancelada_id]));
+
+      const recups: Recuperacion[] = data.map((r: any) => {
+        const sesionCanceladaId = recupSesionMap.get(r.id);
+        const fechaCancelada = sesionCanceladaId ? sesionFechaMap.get(sesionCanceladaId) : undefined;
+
+        return {
+          id: r.id,
+          modalidad: r.modalidad,
+          mes_limite: r.mes_limite,
+          anio_limite: r.anio_limite,
+          mes_origen: r.mes_origen,
+          anio_origen: r.anio_origen,
+          fecha_cancelada: fechaCancelada,
+        };
+      });
+
+      this.recuperaciones.set(recups);
     } catch (err) {
       console.error('Error:', err);
     }
@@ -545,6 +664,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.recuperacionesExpanded.update((v) => !v);
   }
 
+  toggleMesPasadoSection() {
+    this.mesPasadoExpanded.update((v) => !v);
+  }
+
+  getFechaCanceladaTexto(recup: Recuperacion): string {
+    if (!recup.fecha_cancelada) return '';
+    const fecha = new Date(recup.fecha_cancelada + 'T12:00:00');
+    const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+    const texto = fecha.toLocaleDateString('es-ES', options);
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  }
+
   getOcupacionPercent(clase: ClaseHoy): number {
     if (clase.capacidad === 0) return 0;
     return Math.round((clase.reservas_count / clase.capacidad) * 100);
@@ -632,14 +763,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     if (recup.mes_limite === recup.mes_origen && recup.anio_limite === recup.anio_origen) {
-      return 'Válida para el mes en curso';
+      return 'Válida este mes';
     }
 
-    const dia = this.getUltimoDiaHabil(recup.mes_limite, recup.anio_limite);
     const nombreMes = this.getNombreMes(recup.mes_limite);
     const mesCap = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
 
-    return `Válida hasta el día ${dia} de ${mesCap}`;
+    return `Válida para ${mesCap}`;
   }
 
   irANotificaciones() {
