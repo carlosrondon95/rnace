@@ -1,0 +1,28 @@
+<div class="ios-install-banner-overlay" *ngIf="showBanner()" [@slideUp]>
+  <div class="banner-content">
+    <button class="close-btn" (click)="dismissBanner()" aria-label="Cerrar">
+      <i class="material-icons">close</i>
+    </button>
+    <div class="banner-header">
+      <div class="app-icon">
+        <img src="assets/icons/icon-128x128.png" alt="RNACE" onerror="this.style.display='none'">
+        <i class="material-icons fallback-icon" [ngStyle]="{'display': 'none'}">fitness_center</i>
+      </div>
+      <div class="header-text">
+        <h3>Instala RNACE App</h3>
+        <p>Añádenos a tu pantalla de inicio para recibir notificaciones y tener un acceso más rápido.</p>
+      </div>
+    </div>
+    
+    <div class="instructions-steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <p>Toca el icono <span class="ios-share-icon"><i class="material-icons">ios_share</i></span> en el menú inferior.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <p>Selecciona <strong class="highlight-action">Añadir a la pantalla de inicio</strong> <span class="ios-add-icon"><i class="material-icons">add_box</i></span>.</p>
+      </div>
+    </div>
+  </div>
+</div>

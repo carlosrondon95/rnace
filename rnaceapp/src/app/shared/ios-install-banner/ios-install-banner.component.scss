@@ -1,0 +1,172 @@
+.ios-install-banner-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none; /* Permite hacer clic a través del espacio vacío intermedio */
+  padding: 16px;
+
+  @media (min-width: 768px) {
+    padding: 24px;
+    left: auto;
+    width: 400px;
+  }
+}
+
+.banner-content {
+  background-color: var(--surface-card);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  pointer-events: auto; /* Reactiva los clics dentro del banner */
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(10px);
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 2;
+
+  &:hover, &:active {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+  }
+
+  .material-icons {
+    font-size: 20px;
+  }
+}
+
+.banner-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-right: 24px; /* Espacio para el botón de cerrar */
+
+  .app-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .fallback-icon {
+      color: white;
+      font-size: 32px;
+    }
+  }
+
+  .header-text {
+    flex: 1;
+
+    h3 {
+      margin: 0 0 6px 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+  }
+}
+
+.instructions-steps {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+
+  .step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .highlight-action {
+      font-weight: 600;
+      color: var(--primary-light);
+    }
+
+    .ios-share-icon, .ios-add-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px;
+
+      .material-icons {
+        font-size: 22px;
+      }
+    }
+    
+    .ios-share-icon .material-icons {
+      color: #0A84FF; /* Azul nativo de iOS para hacerlo reconocible */
+    }
+
+    .ios-add-icon .material-icons {
+      color: var(--text-secondary);
+    }
+  }
+}

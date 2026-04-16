@@ -4,16 +4,18 @@ import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { ConfirmationModalComponent } from './shared/confirmation-modal/confirmation-modal.component';
+import { IosInstallBannerComponent } from './shared/ios-install-banner/ios-install-banner.component';
 import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NavbarComponent, CommonModule, ConfirmationModalComponent],
+  imports: [RouterOutlet, NavbarComponent, CommonModule, ConfirmationModalComponent, IosInstallBannerComponent],
   template: `
     <app-navbar *ngIf="mostrarNavbar()" />
     <router-outlet />
     <app-confirmation-modal />
+    <app-ios-install-banner />
   `,
   styles: [`
     :host {
