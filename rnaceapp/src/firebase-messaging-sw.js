@@ -25,7 +25,9 @@ self.addEventListener('push', function(event) {
 
   const options = {
     body: body,
-    icon: '/assets/icon/logofull.JPG', // Ruta del icono de la PWA
+    icon: '/assets/icons/icon-192x192.png',
+    badge: '/assets/icons/icon-72x72.png',
+    vibrate: [100, 50, 100],
     data: dataObj,
     requireInteraction: false
   };

@@ -27,6 +27,10 @@ interface ServiceAccount {
   private_key: string;
 }
 
+// Cache de access token (reutilizable entre invocaciones en el mismo worker)
+let cachedAccessToken: string | null = null;
+let cachedTokenExpiry = 0;
+
 // Plantillas de mensajes
 const TEMPLATES: Record<string, (data: Record<string, string>) => { titulo: string; mensaje: string }> = {
   reserva_confirmada: (data) => ({
@@ -39,10 +43,7 @@ const TEMPLATES: Record<string, (data: Record<string, string>) => { titulo: stri
     mensaje: `Tu reserva del ${data.fecha || ''} a las ${data.hora || ''} ha sido cancelada.`
   }),
 
-  cancelacion: (data) => ({
-    titulo: data.titulo || '📅 Clase Cancelada',
-    mensaje: data.mensaje || 'Una de tus clases ha sido cancelada.'
-  }),
+
 
   recordatorio: (data) => ({
     titulo: '⏰ Recordatorio',
@@ -105,6 +106,12 @@ const corsHeaders = {
 };
 
 async function getAccessToken(serviceAccount: ServiceAccount): Promise<string> {
+  // Reutilizar token cacheado si aún es válido (margen de 10 min)
+  const now = Date.now();
+  if (cachedAccessToken && now < cachedTokenExpiry) {
+    return cachedAccessToken;
+  }
+
   const jwt = await new SignJWT({
     iss: serviceAccount.client_email,
     scope: 'https://www.googleapis.com/auth/firebase.messaging',
@@ -124,6 +131,11 @@ async function getAccessToken(serviceAccount: ServiceAccount): Promise<string> {
   });
 
   const data = await response.json();
+
+  // Cachear por 50 minutos (el token dura 1h)
+  cachedAccessToken = data.access_token;
+  cachedTokenExpiry = now + 50 * 60 * 1000;
+
   return data.access_token;
 }
 

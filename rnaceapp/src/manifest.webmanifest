@@ -75,7 +75,7 @@
             "url": "/reserva-cita",
             "icons": [
                 {
-                    "src": "assets/icon/logofull.JPG",
+                    "src": "assets/icons/icon-96x96.png",
                     "sizes": "96x96"
                 }
             ]
@@ -87,7 +87,7 @@
             "url": "/calendario",
             "icons": [
                 {
-                    "src": "assets/icon/logofull.JPG",
+                    "src": "assets/icons/icon-96x96.png",
                     "sizes": "96x96"
                 }
             ]

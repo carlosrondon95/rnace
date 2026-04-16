@@ -34,7 +34,7 @@ export class PushNotificationService {
   notification$ = this._notification.asObservable();
   isSupported$ = this._isSupported.asObservable();
 
-  private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
     // Solo verificar soporte en el constructor, NO inicializar Firebase
@@ -49,11 +49,14 @@ export class PushNotificationService {
    * Debe llamarse después de que el usuario haya iniciado sesión.
    */
   async ensureInitialized(): Promise<void> {
-    if (this.initialized || !isPlatformBrowser(this.platformId)) return;
+    if (!isPlatformBrowser(this.platformId)) return;
     if (!this._isSupported.value) return;
 
-    await this.initializeFirebase();
-    this.initialized = true;
+    // Si ya se inició o está en progreso, reutilizar la misma Promise
+    if (!this.initPromise) {
+      this.initPromise = this.initializeFirebase();
+    }
+    await this.initPromise;
   }
 
   private checkSupport(): void {
@@ -73,8 +76,11 @@ export class PushNotificationService {
 
       // Si está soportado, ya tenemos permiso y NO se ha salido explícitamente, restaurar el estado
       if (isSupported && Notification.permission === 'granted' && !this.isOptedOut()) {
-        // Inicializar sin bloquear
-        this.initializeFirebase().catch(err => console.error('[Push] Auto-init error:', err));
+        // Inicializar sin bloquear, reutilizando el guard de Promise
+        if (!this.initPromise) {
+          this.initPromise = this.initializeFirebase();
+        }
+        this.initPromise.catch(err => console.error('[Push] Auto-init error:', err));
       }
 
     } catch (e) {
@@ -229,7 +235,7 @@ export class PushNotificationService {
       // Priorizar data sobre notification
       const titulo = payload.data?.title || payload.notification?.title || 'RNACE';
       const mensaje = payload.data?.body || payload.notification?.body || '';
-      const icon = payload.data?.icon || '/assets/icon/logofull.JPG';
+      const icon = payload.data?.icon || '/assets/icons/icon-192x192.png';
 
       const notification: PushNotification = {
         tipo: payload.data?.['tipo'] || 'default',
