@@ -227,6 +227,20 @@ export class ListaEsperaComponent implements OnInit {
         return;
       }
 
+      // Verificar si ya tiene reserva activa (previene error de clave duplicada)
+      const { data: reservaExistente } = await supabase()
+        .from('reservas')
+        .select('id')
+        .eq('sesion_id', sesion.sesion_id)
+        .eq('usuario_id', usuarioId)
+        .eq('estado', 'activa')
+        .maybeSingle();
+
+      if (reservaExistente) {
+        this.error.set('El usuario ya tiene una reserva activa en esta sesión');
+        return;
+      }
+
       // Usar la recuperación
       const { data, error } = await supabase().rpc('usar_recuperacion', {
         p_usuario_id: usuarioId,

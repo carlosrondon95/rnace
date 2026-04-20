@@ -449,6 +449,20 @@ export class ReservaCitaComponent implements OnInit {
     this.mensajeExito.set(null);
 
     try {
+      // Verificar si ya tiene reserva activa en esta sesión (previene error de clave duplicada)
+      const { data: reservaExistente } = await supabase()
+        .from('reservas')
+        .select('id')
+        .eq('sesion_id', sesion.id)
+        .eq('usuario_id', userId)
+        .eq('estado', 'activa')
+        .maybeSingle();
+
+      if (reservaExistente) {
+        this.error.set('Ya tienes una reserva activa en esta clase.');
+        return;
+      }
+
       const { data, error } = await supabase().rpc('usar_recuperacion', {
         p_usuario_id: userId,
         p_sesion_id: sesion.id,

@@ -864,6 +864,21 @@ export class CalendarioComponent implements OnInit {
     const uid = this.userId();
     if (!uid) return;
 
+    // Verificar si el usuario ya tiene una reserva activa en esta sesión
+    const { data: reservaExistente } = await supabase()
+      .from('reservas')
+      .select('id')
+      .eq('sesion_id', sesion.id)
+      .eq('usuario_id', uid)
+      .eq('estado', 'activa')
+      .maybeSingle();
+
+    if (reservaExistente) {
+      this.mensajeExito.set('Ya tienes plaza reservada en esta clase.');
+      setTimeout(() => this.mensajeExito.set(null), 4000);
+      return;
+    }
+
     this.sesionReclamar.set({
       id: sesion.id,
       fecha: sesion.fecha,
