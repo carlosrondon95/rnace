@@ -238,6 +238,10 @@ serve(async (req: Request) => {
     const results = await Promise.all(
       tokens.map(async ({ token, device_info }) => {
         try {
+          // Tag único: se usa TANTO en data (para el SW) como en webpush.notification (fallback).
+          // Deben ser idénticos para que si ambos se muestran, uno reemplace al otro.
+          const notifTag = `${payload.tipo}-${Date.now()}`;
+
           const response = await fetch(
             `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`,
             {
@@ -249,9 +253,9 @@ serve(async (req: Request) => {
               body: JSON.stringify({
                 message: {
                   token: token,
-                  // Al no enviar 'notification', forzamos un Data-Only payload.
-                  // Esto evita que iOS y la librería nativa de FCM intenten pintar
-                  // la notificación por defecto y entren en conflicto con el
+                  // Al no enviar 'notification' a nivel raíz, forzamos un Data-Only payload.
+                  // Esto evita que la librería nativa de FCM intente pintar
+                  // la notificación por defecto y entre en conflicto con el
                   // manual showNotification() de nuestro Service Worker.
 
                   // Data: el SW lee estos campos para construir la notificación 
@@ -262,39 +266,32 @@ serve(async (req: Request) => {
                     click_action: url,
                     tipo: payload.tipo,
                     url: url,
-                    tag: `${payload.tipo}-${Date.now()}`,
+                    tag: notifTag,
                     ...Object.fromEntries(
                       Object.entries(payload.data || {}).map(([k, v]) => [k, String(v)])
                     )
                   },
-                  // Configuración ANDROID: prioridad alta para despertar el dispositivo
-                  android: {
-                    priority: 'high'
-                  },
-                  // Configuración APPLE (iOS/macOS): necesita bloque aps para iOS
-                  apns: {
-                    payload: {
-                      aps: {
-                        alert: {
-                          title: content.titulo,
-                          body: content.mensaje
-                        },
-                        sound: 'default',
-                        badge: 1,
-                        'content-available': 1
-                      }
-                    },
-                    headers: {
-                      'apns-priority': '10',
-                      'apns-push-type': 'alert'
-                    }
-                  },
-                  // Configuración WEB (PWA): headers de urgencia
-                  // NO incluir webpush.notification para evitar auto-display
+                  // NOTA: Los tokens FCM de una PWA son tokens WEB.
+                  // Los bloques `android` y `apns` solo aplican a apps NATIVAS
+                  // con FCM SDK instalado, NO a PWAs en Chrome/Safari.
+                  // Para PWAs, solo el bloque `webpush` tiene efecto.
+
+                  // Configuración WEB (PWA): afecta Android Chrome + iOS Safari + Desktop
                   webpush: {
                     headers: {
                       Urgency: 'high',
                       TTL: '86400'
+                    },
+                    // Fallback: si el SW no llega a ejecutar showNotification a tiempo
+                    // (puede pasar en iOS Safari con PWA cerrada), el navegador usa esto.
+                    // Usamos el mismo tag que en data, así si AMBOS se muestran,
+                    // el segundo reemplaza al primero (no hay duplicado).
+                    notification: {
+                      title: content.titulo,
+                      body: content.mensaje,
+                      icon: '/assets/icons/icon-192x192.png',
+                      badge: '/assets/icons/icon-72x72.png',
+                      tag: notifTag
                     }
                   }
                 }

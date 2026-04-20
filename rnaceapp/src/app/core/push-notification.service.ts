@@ -130,6 +130,16 @@ export class PushNotificationService {
     // Extra safety: never run on server
     if (!isPlatformBrowser(this.platformId)) return false;
 
+    // Verificar iOS Standalone
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && (navigator as any).standalone === true);
+    
+    if (isIOS && !isStandalone) {
+      console.warn('[Push] iOS requiere que la PWA esté instalada (Añadir a pantalla de inicio) para pedir permisos.');
+      alert('Para activar las notificaciones en iPhone, primero debes pulsar "Compartir" y "Añadir a la pantalla de inicio".');
+      return false;
+    }
+
     // Asegurar que Firebase esté inicializado antes de solicitar permisos
     await this.ensureInitialized();
 
@@ -252,8 +262,10 @@ export class PushNotificationService {
         navigator.serviceWorker.ready.then(registration => {
           registration.showNotification(titulo, {
             body: mensaje,
-            // Usamos un icono seguro o lo omitimos para dejar el por defecto de la PWA
-            data: payload.data
+            icon: '/assets/icons/icon-192x192.png',
+            badge: '/assets/icons/icon-72x72.png',
+            data: payload.data,
+            tag: payload.data?.tag || undefined
           });
         });
       }

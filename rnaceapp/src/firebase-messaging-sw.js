@@ -29,7 +29,9 @@ self.addEventListener('push', function(event) {
     badge: '/assets/icons/icon-72x72.png',
     vibrate: [100, 50, 100],
     data: dataObj,
-    requireInteraction: false
+    requireInteraction: false,
+    tag: dataObj.tag || undefined,
+    renotify: !!dataObj.tag
   };
 
   event.waitUntil(
