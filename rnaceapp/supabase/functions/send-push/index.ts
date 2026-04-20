@@ -72,7 +72,7 @@ const TEMPLATES: Record<string, (data: Record<string, string>) => { titulo: stri
 };
 
 // Acciones para webpush
-function getActionsForType(tipo: string): Array<{ action: string; title: string }> {
+function _getActionsForType(tipo: string): Array<{ action: string; title: string }> {
   switch (tipo) {
     case 'reserva_confirmada':
       return [

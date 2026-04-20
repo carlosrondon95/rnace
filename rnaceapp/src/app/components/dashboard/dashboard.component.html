@@ -176,10 +176,6 @@
               <div class="recuperacion-info">
                 <span class="recuperacion-modalidad" [class]="'modalidad--' + recup.modalidad">
                   {{ recup.modalidad }}
-                </span>
-                <span class="recuperacion-expira">
-                  {{ getTextoValidez(recup) }}
-                </span>
               </div>
               <a routerLink="/recuperar-clase" class="btn-usar">
                 Usar
@@ -213,9 +209,6 @@
                   Clase del {{ getFechaCanceladaTexto(recup) }}
                 </span>
                 }
-                <span class="recuperacion-expira">
-                  {{ getTextoValidez(recup) }}
-                </span>
               </div>
               <a routerLink="/recuperar-clase" class="btn-usar">
                 Usar
@@ -248,9 +241,6 @@
                   Clase del {{ getFechaCanceladaTexto(recup) }}
                 </span>
                 }
-                <span class="recuperacion-expira">
-                  {{ getTextoValidez(recup) }}
-                </span>
               </div>
               <a [routerLink]="['/recuperar-clase']" [queryParams]="{ mes: recup.mes_origen, anio: recup.anio_origen }"
                 class="btn-usar">
