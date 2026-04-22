@@ -23,6 +23,7 @@ export class PushNotificationService {
   private platformId = inject(PLATFORM_ID);
   private firebaseApp: FirebaseApp | null = null;
   private messaging: Messaging | null = null;
+  private swRegistration: ServiceWorkerRegistration | null = null;
 
   private _currentToken = new BehaviorSubject<string | null>(null);
   private _permissionStatus = new BehaviorSubject<NotificationPermission>('default');
@@ -165,18 +166,26 @@ export class PushNotificationService {
       // Dynamic import again just to be safe inside the method
       const { getToken } = await import('firebase/messaging');
 
-      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      // Reutilizar el registro del SW existente para evitar reiniciar el SW
+      // (en iOS Safari, re-registrar puede causar que el SW pierda estado)
+      if (!this.swRegistration) {
+        this.swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        console.log('[Push] SW registrado:', this.swRegistration.scope);
+      }
       await navigator.serviceWorker.ready;
 
       const token = await getToken(this.messaging, {
         vapidKey: environment.firebaseVapidKey,
-        serviceWorkerRegistration: registration
+        serviceWorkerRegistration: this.swRegistration
       });
 
       if (token) {
+        console.log('[Push] Token FCM obtenido:', token.substring(0, 20) + '...');
         this._currentToken.next(token);
         await this.saveTokenToSupabase(token);
         return token;
+      } else {
+        console.warn('[Push] getToken devolvió null — ¿permisos denegados?');
       }
       return null;
     } catch (error) {
@@ -201,11 +210,18 @@ export class PushNotificationService {
   }
 
   private async saveTokenToSupabase(token: string): Promise<void> {
-    const userId = this.getUserId();
+    let userId = this.getUserId();
     console.log('[Push] Intentando guardar token para usuario:', userId);
 
+    // Si userId no está disponible aún (race condition con AuthService),
+    // esperar brevemente y reintentar
     if (!userId) {
-      console.warn('[Push] Usuario no autenticado, no se guarda token');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      userId = this.getUserId();
+    }
+
+    if (!userId) {
+      console.warn('[Push] Usuario no autenticado tras espera, no se guarda token');
       return;
     }
 
@@ -228,7 +244,7 @@ export class PushNotificationService {
       if (error) {
         console.error('[Push] SQL Error guardando token:', error.message, error.details, error.hint);
       } else {
-        console.log('[Push] Token guardado correctamente en Supabase:', data);
+        console.log('[Push] ✅ Token guardado correctamente en Supabase para', deviceInfo, ':', data);
       }
 
     } catch (err) {

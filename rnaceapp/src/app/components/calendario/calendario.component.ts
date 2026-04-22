@@ -2183,9 +2183,27 @@ export class CalendarioComponent implements OnInit {
 
   // Cancelar reserva desde el modal y recargar datos
   async cancelarReservaDesdeModal(reservaId: number) {
+    // Determinar si falta menos de 1 hora para la clase
+    const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
+    const dia = this.diaSeleccionado();
+    let generarRecuperacion = true;
+
+    if (sesion && dia) {
+      const fechaHoraReserva = new Date(`${dia.fecha}T${sesion.hora}:00`);
+      const ahora = new Date();
+      const diferenciaMs = fechaHoraReserva.getTime() - ahora.getTime();
+      const unaHoraMs = 60 * 60 * 1000;
+      generarRecuperacion = diferenciaMs >= unaHoraMs;
+    }
+
+    // Mensaje de confirmación adaptado según si se genera recuperación o no
+    const mensajeConfirmacion = generarRecuperacion
+      ? '¿Estás seguro de cancelar esta clase? Se generará una recuperación.'
+      : '¿Estás seguro de cancelar esta clase? Al cancelar con menos de 1 hora de antelación, no se generará recuperación.';
+
     if (!await this.confirmation.confirm({
       titulo: 'Cancelar clase',
-      mensaje: '¿Estás seguro de cancelar esta clase? Se generará una recuperación si corresponde.',
+      mensaje: mensajeConfirmacion,
       tipo: 'danger',
       textoConfirmar: 'Cancelar clase'
     })) {
@@ -2196,31 +2214,13 @@ export class CalendarioComponent implements OnInit {
     this.error.set(null);
 
     try {
-      // VALIDACIÓN LOCAL: Verificar si falta menos de 1 hora
-      const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
-      const dia = this.diaSeleccionado();
-
-      if (sesion && dia) {
-        const fechaHoraReserva = new Date(`${dia.fecha}T${sesion.hora}:00`);
-        const ahora = new Date();
-        const diferenciaMs = fechaHoraReserva.getTime() - ahora.getTime();
-        const unaHoraMs = 60 * 60 * 1000;
-
-        if (diferenciaMs < unaHoraMs) {
-          this.error.set('No se puede cancelar con menos de 1 hora de antelación.');
-          return;
-        }
-      }
-
-      this.guardando.set(true);
-      this.error.set(null);
-
       const uid = this.userId();
       if (!uid) return;
 
       const { data, error } = await supabase().rpc('cancelar_reserva', {
         p_usuario_id: uid,
         p_reserva_id: reservaId,
+        p_generar_recuperacion: generarRecuperacion,
       });
 
       if (error) {
@@ -2231,10 +2231,14 @@ export class CalendarioComponent implements OnInit {
       if (data && data.length > 0) {
         const resultado = data[0];
         if (resultado.ok) {
-          // ÉXITO: Mostrar Modal de Feedback en lugar de mensaje plano
+          // ÉXITO: Mostrar Modal de Feedback
+          const mensajeFeedback = generarRecuperacion
+            ? (resultado.mensaje || 'Reserva cancelada correctamente. Se ha generado una recuperación.')
+            : 'Clase cancelada correctamente. No se ha generado recuperación al cancelar con menos de 1 hora de antelación.';
+
           await this.confirmation.confirm({
             titulo: 'Clase cancelada',
-            mensaje: resultado.mensaje || 'Reserva cancelada correctamente. Se ha generado una recuperación.',
+            mensaje: mensajeFeedback,
             tipo: 'info',
             textoConfirmar: 'Entendido',
             textoCancelar: '' // Esto oculta el botón de cancelar
@@ -2245,8 +2249,8 @@ export class CalendarioComponent implements OnInit {
             'cliente_cancel_reserva',
             uid,
             this.auth.usuario()?.nombre || 'Cliente',
-            `Reserva cancelada por cliente: ${sesion?.hora || ''} ${sesion?.modalidad || ''} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})`,
-            { reserva_id: reservaId, hora: sesion?.hora, modalidad: sesion?.modalidad, fecha: dia?.fecha }
+            `Reserva cancelada por cliente: ${sesion?.hora || ''} ${sesion?.modalidad || ''} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})${generarRecuperacion ? '' : ' — sin recuperación (< 1h)'}`,
+            { reserva_id: reservaId, hora: sesion?.hora, modalidad: sesion?.modalidad, fecha: dia?.fecha, con_recuperacion: generarRecuperacion }
           );
 
           this.diaSeleccionado.set(null);

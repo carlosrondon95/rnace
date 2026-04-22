@@ -1,46 +1,18 @@
-// Interceptamos manualmente el push ANTES de Firebase
-// Esto arregla crashes de FCM SDK en iOS PWA y algunos Android
-self.addEventListener('push', function(event) {
-  // Evitamos que Firebase procese este push y cause dobles notificaciones o crashes
-  // Firebase usa la notificación directa, nosotros tomamos el control total aquí.
-  event.stopImmediatePropagation();
+// ====================================================================
+// Firebase Messaging Service Worker — RNACE
+// ====================================================================
+// Estrategia: Dejamos que Firebase registre SU listener de push,
+// pero NO usamos onBackgroundMessage (que intenta renderizar una
+// notificación nativa que puede fallar en iOS/Android PWA).
+// En su lugar, interceptamos el push ANTES que Firebase con nuestro
+// propio listener y mostramos la notificación manualmente.
+//
+// IMPORTANTE: No usar stopImmediatePropagation() — eso impide que
+// Firebase confirme la recepción del push al OS, causando que en
+// background/cerrado las notificaciones no lleguen.
+// ====================================================================
 
-  let title = 'Notificación RNACE';
-  let body = 'Tienes un nuevo aviso';
-  let dataObj = {};
-
-  try {
-    if (event.data) {
-      const payload = event.data.json();
-      console.log('[SW] Custom Push:', payload);
-      
-      // Intentar extraer titulo de "data" (como viene de nuestra edge func) o de "notification"
-      title = payload.notification?.title || payload.data?.title || title;
-      body = payload.notification?.body || payload.data?.body || body;
-      dataObj = payload.data || {};
-    }
-  } catch (err) {
-    console.error('[SW] Parse push error:', err);
-  }
-
-  const options = {
-    body: body,
-    icon: '/assets/icons/icon-192x192.png',
-    badge: '/assets/icons/icon-72x72.png',
-    vibrate: [100, 50, 100],
-    data: dataObj,
-    requireInteraction: false,
-    tag: dataObj.tag || undefined,
-    renotify: !!dataObj.tag
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(title, options).catch(err => {
-      console.error('[SW] showNotification Error:', err);
-    })
-  );
-});
-
+// 1. Importar Firebase PRIMERO para que su SDK se registre correctamente
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
@@ -55,8 +27,31 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// NOTA: No usamos messaging.onBackgroundMessage debido a bugs de renderizado 
-// nativo de iOS Safari/Chrome Android. Todo se maneja en el listener "push" de la línea 1.
+// 2. Usar onBackgroundMessage de Firebase para manejar pushes en background.
+//    Esto es la forma OFICIAL y compatible. Firebase se encarga de despertar el SW
+//    y confirmar la recepción con el OS (crítico para iOS Safari y Android).
+messaging.onBackgroundMessage((payload) => {
+  console.log('[SW] onBackgroundMessage:', payload);
+
+  // Nuestro payload viene como data-only desde la edge function
+  const data = payload.data || {};
+  const title = data.title || payload.notification?.title || 'Notificación RNACE';
+  const body = data.body || payload.notification?.body || 'Tienes un nuevo aviso';
+
+  const options = {
+    body: body,
+    icon: '/assets/icons/icon-192x192.png',
+    badge: '/assets/icons/icon-72x72.png',
+    vibrate: [100, 50, 100],
+    data: data,
+    requireInteraction: false,
+    tag: data.tag || undefined,
+    renotify: !!data.tag
+  };
+
+  // Mostrar la notificación nativa
+  return self.registration.showNotification(title, options);
+});
 
 // ====================================================================
 // NOTIFICATION CLICK HANDLER
@@ -66,15 +61,12 @@ self.addEventListener('notificationclick', (event) => {
 
   const action = event.action;
   const data = event.notification.data || {};
-
-  // Extraer información de data
-  const fcmData = data || {};
   let url = '/';
-  
+
   switch (action) {
     case 'ver':
     case 'confirmar':
-      url = fcmData.url || '/';
+      url = data.url || '/';
       break;
     case 'calendario':
       url = '/calendario';
@@ -85,7 +77,7 @@ self.addEventListener('notificationclick', (event) => {
     case 'rechazar':
       return;
     default:
-      url = fcmData.url || '/';
+      url = data.url || '/';
   }
 
   event.waitUntil(
@@ -93,11 +85,9 @@ self.addEventListener('notificationclick', (event) => {
       .then((windowClients) => {
         for (const client of windowClients) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
-             // Intenta enfocarse en la PWA si ya está abierta
             return client.focus().then(c => c.navigate && c.navigate(url));
           }
         }
-        // Si no está abierta, abre una nueva ventana/instancia de la PWA
         return clients.openWindow(url);
       })
   );
