@@ -281,6 +281,16 @@ serve(async (req: Request) => {
                     headers: {
                       Urgency: 'high',
                       TTL: '86400'
+                    },
+                    // iOS Safari REQUIRE que exista este bloque de 'notification' y que
+                    // las URLs de las imágenes sean ABSOLUTAS. Si no, Apple descarta
+                    // silenciosamente la notificación.
+                    notification: {
+                      title: content.titulo,
+                      body: content.mensaje,
+                      icon: 'https://www.rnace.es/assets/icons/icon-192x192.png',
+                      badge: 'https://www.rnace.es/assets/icons/icon-72x72.png',
+                      tag: notifTag
                     }
                   }
                 }
