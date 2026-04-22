@@ -1,61 +1,47 @@
 // ====================================================================
 // Firebase Messaging Service Worker — RNACE
 // ====================================================================
-// Estrategia: Dejamos que Firebase registre SU listener de push,
-// pero NO usamos onBackgroundMessage (que intenta renderizar una
-// notificación nativa que puede fallar en iOS/Android PWA).
-// En su lugar, interceptamos el push ANTES que Firebase con nuestro
-// propio listener y mostramos la notificación manualmente.
-//
-// IMPORTANTE: No usar stopImmediatePropagation() — eso impide que
-// Firebase confirme la recepción del push al OS, causando que en
-// background/cerrado las notificaciones no lleguen.
-// ====================================================================
 
-// 1. Importar Firebase PRIMERO para que su SDK se registre correctamente
-importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
-
-firebase.initializeApp({
-  apiKey: 'AIzaSyCzBNKc2TwhtqlgCCljwQMQPkPX6ujha1k',
-  authDomain: 'rnace-50c31.firebaseapp.com',
-  projectId: 'rnace-50c31',
-  storageBucket: 'rnace-50c31.appspot.com',
-  messagingSenderId: '626137220500',
-  appId: '1:626137220500:web:33bfa04ed535711ec0bb81'
-});
-
-const messaging = firebase.messaging();
-
-// 2. Usar onBackgroundMessage de Firebase para manejar pushes en background.
-//    Esto es la forma OFICIAL y compatible. Firebase se encarga de despertar el SW
-//    y confirmar la recepción con el OS (crítico para iOS Safari y Android).
-messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] onBackgroundMessage:', payload);
-
-  // Nuestro payload viene como data-only desde la edge function
+// 1. INTERCEPTAR EL PUSH NATIVAMENTE ANTES QUE FIREBASE
+// iOS Safari mata los Service Workers muy rápido si están en background.
+// Inicializar Firebase toma tiempo. Por eso interceptamos el evento push 
+// nativamente de forma ultrarrápida y evitamos el timeout de iOS.
+self.addEventListener('push', (event) => {
+  const payload = event.data ? event.data.json() : {};
   const data = payload.data || {};
-  const title = data.title || payload.notification?.title || 'Notificación RNACE';
-  const body = data.body || payload.notification?.body || 'Tienes un nuevo aviso';
 
-  const options = {
-    body: body,
-    icon: '/assets/icons/icon-192x192.png',
-    badge: '/assets/icons/icon-72x72.png',
-    vibrate: [100, 50, 100],
-    data: data,
-    requireInteraction: false,
-    tag: data.tag || undefined,
-    renotify: !!data.tag
-  };
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Comprobar si la PWA está abierta en pantalla
+      const isForeground = windowClients.some(client => client.visibilityState === 'visible');
 
-  // Mostrar la notificación nativa
-  return self.registration.showNotification(title, options);
+      if (isForeground) {
+        // La app está abierta. No mostramos notificación nativa.
+        // Firebase enviará los datos a la app y saldrá un toast.
+        return null;
+      }
+
+      // La app está cerrada o en segundo plano. Mostramos notificación nativa instantáneamente.
+      const title = data.title || 'RNACE';
+      const options = {
+        body: data.body || '',
+        icon: '/assets/icons/icon-192x192.png',
+        badge: '/assets/icons/icon-72x72.png',
+        data: data,
+        tag: data.tag || undefined,
+        renotify: !!data.tag
+      };
+
+      return self.registration.showNotification(title, options);
+    }).catch(err => {
+      console.error('[SW] Error en push nativo:', err);
+      // Fallback a prueba de fallos si falla el chequeo de ventanas
+      return self.registration.showNotification(data.title || 'RNACE', { body: data.body || '' });
+    })
+  );
 });
 
-// ====================================================================
-// NOTIFICATION CLICK HANDLER
-// ====================================================================
+// 2. CLICK HANDLER NATIVO
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
@@ -92,3 +78,22 @@ self.addEventListener('notificationclick', (event) => {
       })
   );
 });
+
+// 3. CARGAR FIREBASE EN BACKGROUND (SOLO PARA FOREGROUND)
+// Necesitamos que el SDK esté presente para que el frontend pueda registrarse
+// y recibir mensajes en foreground a través de la API de Firebase.
+// PERO ya no usamos onBackgroundMessage.
+importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+  apiKey: 'AIzaSyCzBNKc2TwhtqlgCCljwQMQPkPX6ujha1k',
+  authDomain: 'rnace-50c31.firebaseapp.com',
+  projectId: 'rnace-50c31',
+  storageBucket: 'rnace-50c31.appspot.com',
+  messagingSenderId: '626137220500',
+  appId: '1:626137220500:web:33bfa04ed535711ec0bb81'
+});
+
+// Esto inicializa el listener interno de Firebase para sincronizarse con la app web
+firebase.messaging();

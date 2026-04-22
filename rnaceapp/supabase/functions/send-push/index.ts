@@ -281,17 +281,6 @@ serve(async (req: Request) => {
                     headers: {
                       Urgency: 'high',
                       TTL: '86400'
-                    },
-                    // Fallback: si el SW no llega a ejecutar showNotification a tiempo
-                    // (puede pasar en iOS Safari con PWA cerrada), el navegador usa esto.
-                    // Usamos el mismo tag que en data, así si AMBOS se muestran,
-                    // el segundo reemplaza al primero (no hay duplicado).
-                    notification: {
-                      title: content.titulo,
-                      body: content.mensaje,
-                      icon: '/assets/icons/icon-192x192.png',
-                      badge: '/assets/icons/icon-72x72.png',
-                      tag: notifTag
                     }
                   }
                 }
