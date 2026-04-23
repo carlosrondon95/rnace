@@ -119,7 +119,7 @@ export class AuthService {
   }
 
   async logout() {
-    // Eliminar token FCM antes de cerrar sesión
+    // Desvincular dispositivo de OneSignal antes de cerrar sesión
     await this.pushService.removeToken();
 
     if (isPlatformBrowser(this.platformId)) {

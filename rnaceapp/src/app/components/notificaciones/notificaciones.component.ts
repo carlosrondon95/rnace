@@ -207,9 +207,6 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
       this.pushService.permissionStatus$.subscribe(status => {
         this.pushPermission.set(status);
         this.updatePushEnabled();
-      }),
-      this.pushService.currentToken$.subscribe(() => {
-        this.updatePushEnabled();
       })
     );
     // Initial check

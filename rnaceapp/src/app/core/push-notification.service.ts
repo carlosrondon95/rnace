@@ -1,12 +1,6 @@
 import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject } from 'rxjs';
-import { environment } from '../../environments/environment';
-import { supabase } from './supabase.client';
-
-// Define needed types locally or import type only
-import type { FirebaseApp } from 'firebase/app';
-import type { Messaging } from 'firebase/messaging';
 
 export interface PushNotification {
   tipo: string;
@@ -16,21 +10,24 @@ export interface PushNotification {
   timestamp: number;
 }
 
+// Declaración global del SDK de OneSignal (cargado desde index.html)
+declare global {
+  interface Window {
+    OneSignalDeferred: Array<(OneSignal: any) => void>;
+  }
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class PushNotificationService {
   private platformId = inject(PLATFORM_ID);
-  private firebaseApp: FirebaseApp | null = null;
-  private messaging: Messaging | null = null;
-  private swRegistration: ServiceWorkerRegistration | null = null;
+  private oneSignalReady = false;
 
-  private _currentToken = new BehaviorSubject<string | null>(null);
   private _permissionStatus = new BehaviorSubject<NotificationPermission>('default');
   private _notification = new BehaviorSubject<PushNotification | null>(null);
   private _isSupported = new BehaviorSubject<boolean>(false);
 
-  currentToken$ = this._currentToken.asObservable();
   permissionStatus$ = this._permissionStatus.asObservable();
   notification$ = this._notification.asObservable();
   isSupported$ = this._isSupported.asObservable();
@@ -38,24 +35,21 @@ export class PushNotificationService {
   private initPromise: Promise<void> | null = null;
 
   constructor() {
-    // Solo verificar soporte en el constructor, NO inicializar Firebase
-    // La inicialización se hace de forma lazy para evitar "Worker is not defined"
     if (isPlatformBrowser(this.platformId)) {
       this.checkSupport();
     }
   }
 
   /**
-   * Inicializa Firebase de forma lazy.
+   * Inicializa OneSignal y asocia el external_id del usuario.
    * Debe llamarse después de que el usuario haya iniciado sesión.
    */
   async ensureInitialized(): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) return;
     if (!this._isSupported.value) return;
 
-    // Si ya se inició o está en progreso, reutilizar la misma Promise
     if (!this.initPromise) {
-      this.initPromise = this.initializeFirebase();
+      this.initPromise = this.initializeOneSignal();
     }
     await this.initPromise;
   }
@@ -70,16 +64,14 @@ export class PushNotificationService {
 
       this._isSupported.next(isSupported);
 
-      // Actualizar estado de permiso INMEDIATAMENTE (el navegador ya lo sabe)
       if (isSupported) {
         this.checkPermissionStatus();
       }
 
-      // Si está soportado, ya tenemos permiso y NO se ha salido explícitamente, restaurar el estado
+      // Si ya tiene permiso y no se ha desactivado manualmente, inicializar
       if (isSupported && Notification.permission === 'granted' && !this.isOptedOut()) {
-        // Inicializar sin bloquear, reutilizando el guard de Promise
         if (!this.initPromise) {
-          this.initPromise = this.initializeFirebase();
+          this.initPromise = this.initializeOneSignal();
         }
         this.initPromise.catch(err => console.error('[Push] Auto-init error:', err));
       }
@@ -93,30 +85,67 @@ export class PushNotificationService {
     return this._isSupported.value;
   }
 
-  private async initializeFirebase(): Promise<void> {
+  private async initializeOneSignal(): Promise<void> {
     try {
-      if (!environment.firebase?.apiKey) {
-        console.warn('[Push] Firebase no configurado');
-        return;
-      }
+      // Esperar a que el SDK de OneSignal esté disponible
+      await this.waitForOneSignal();
+      this.oneSignalReady = true;
 
-      // Dynamic imports to avoid SSR issues
-      const { initializeApp } = await import('firebase/app');
-      const { getMessaging, onMessage } = await import('firebase/messaging');
-
-      this.firebaseApp = initializeApp(environment.firebase);
-      this.messaging = getMessaging(this.firebaseApp);
-
-      this.setupForegroundListener(onMessage);
+      // Configurar listener de notificaciones en foreground
+      this.setupForegroundListener();
       this.checkPermissionStatus();
 
-      // Auto-restore token if we have permission
+      // Si ya tiene permiso, hacer login con el userId
       if (Notification.permission === 'granted' && !this.isOptedOut()) {
-        console.log('[Push] Restaurando token al iniciar...');
-        this.getAndSaveToken().catch(e => console.error('[Push] Error restaurando token:', e));
+        console.log('[Push] OneSignal listo, restaurando sesión...');
+        await this.loginUser();
       }
     } catch (error) {
-      console.error('[Push] Error inicializando Firebase:', error);
+      console.error('[Push] Error inicializando OneSignal:', error);
+    }
+  }
+
+  /**
+   * Espera a que el SDK de OneSignal se haya cargado e inicializado.
+   */
+  private waitForOneSignal(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async (OneSignal: any) => {
+        console.log('[Push] OneSignal SDK listo');
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Asocia el usuario actual de la app con OneSignal usando external_id.
+   * Esto es lo que permite que la Edge Function envíe notificaciones al usuario correcto.
+   */
+  private async loginUser(): Promise<void> {
+    const userId = this.getUserId();
+    if (!userId) {
+      // Reintentar tras breve espera (race condition con AuthService)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const retryId = this.getUserId();
+      if (!retryId) {
+        console.warn('[Push] No se pudo obtener userId para OneSignal.login()');
+        return;
+      }
+      await this.doOneSignalLogin(retryId);
+      return;
+    }
+    await this.doOneSignalLogin(userId);
+  }
+
+  private async doOneSignalLogin(userId: string): Promise<void> {
+    try {
+      window.OneSignalDeferred.push(async (OneSignal: any) => {
+        await OneSignal.login(userId);
+        console.log('[Push] ✅ OneSignal.login() exitoso para userId:', userId);
+      });
+    } catch (error) {
+      console.error('[Push] Error en OneSignal.login():', error);
     }
   }
 
@@ -128,7 +157,6 @@ export class PushNotificationService {
 
   async requestPermission(): Promise<boolean> {
     if (!this.isSupported()) return false;
-    // Extra safety: never run on server
     if (!isPlatformBrowser(this.platformId)) return false;
 
     // Verificar iOS Standalone
@@ -141,56 +169,22 @@ export class PushNotificationService {
       return false;
     }
 
-    // Asegurar que Firebase esté inicializado antes de solicitar permisos
     await this.ensureInitialized();
 
     try {
+      // Pedir permiso de notificaciones del navegador
       const permission = await Notification.requestPermission();
       this._permissionStatus.next(permission);
 
       if (permission === 'granted') {
-        const token = await this.getAndSaveToken();
-        return token !== null;
+        // Hacer login en OneSignal para asociar el dispositivo al usuario
+        await this.loginUser();
+        return true;
       }
       return false;
     } catch (error) {
       console.error('[Push] Error solicitando permiso:', error);
       return false;
-    }
-  }
-
-  async getAndSaveToken(): Promise<string | null> {
-    if (!this.messaging || !isPlatformBrowser(this.platformId)) return null;
-
-    try {
-      // Dynamic import again just to be safe inside the method
-      const { getToken } = await import('firebase/messaging');
-
-      // Reutilizar el registro del SW existente para evitar reiniciar el SW
-      // (en iOS Safari, re-registrar puede causar que el SW pierda estado)
-      if (!this.swRegistration) {
-        this.swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        console.log('[Push] SW registrado:', this.swRegistration.scope);
-      }
-      await navigator.serviceWorker.ready;
-
-      const token = await getToken(this.messaging, {
-        vapidKey: environment.firebaseVapidKey,
-        serviceWorkerRegistration: this.swRegistration
-      });
-
-      if (token) {
-        console.log('[Push] Token FCM obtenido:', token.substring(0, 20) + '...');
-        this._currentToken.next(token);
-        await this.saveTokenToSupabase(token);
-        return token;
-      } else {
-        console.warn('[Push] getToken devolvió null — ¿permisos denegados?');
-      }
-      return null;
-    } catch (error) {
-      console.error('[Push] Error obteniendo token:', error);
-      return null;
     }
   }
 
@@ -209,108 +203,43 @@ export class PushNotificationService {
     return null;
   }
 
-  private async saveTokenToSupabase(token: string): Promise<void> {
-    let userId = this.getUserId();
-    console.log('[Push] Intentando guardar token para usuario:', userId);
+  private setupForegroundListener(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
 
-    // Si userId no está disponible aún (race condition con AuthService),
-    // esperar brevemente y reintentar
-    if (!userId) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      userId = this.getUserId();
-    }
+    window.OneSignalDeferred.push(async (OneSignal: any) => {
+      OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event: any) => {
+        console.log('[Push] Notificación en foreground:', event);
 
-    if (!userId) {
-      console.warn('[Push] Usuario no autenticado tras espera, no se guarda token');
-      return;
-    }
+        const notification = event.notification;
+        const pushNotif: PushNotification = {
+          tipo: notification.additionalData?.tipo || 'default',
+          titulo: notification.title || 'RNACE',
+          mensaje: notification.body || '',
+          data: notification.additionalData,
+          timestamp: Date.now()
+        };
 
-    // Check navigator safety
-    const userAgent = isPlatformBrowser(this.platformId) ? navigator.userAgent : 'Server';
-    const deviceInfo = /iPhone|iPad|iPod/.test(userAgent) ? 'iOS' :
-      /Android/.test(userAgent) ? 'Android' : 'Web';
+        this._notification.next(pushNotif);
 
-    try {
-      const { data, error } = await supabase()
-        .from('fcm_tokens')
-        .upsert({
-          user_id: userId,
-          token: token,
-          device_info: deviceInfo,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id,token' })
-        .select();
-
-      if (error) {
-        console.error('[Push] SQL Error guardando token:', error.message, error.details, error.hint);
-      } else {
-        console.log('[Push] ✅ Token guardado correctamente en Supabase para', deviceInfo, ':', data);
-      }
-
-    } catch (err) {
-      console.error('[Push] Excepción guardando token:', err);
-    }
-  }
-
-  private setupForegroundListener(onMessageFn: any): void {
-    if (!this.messaging || !isPlatformBrowser(this.platformId)) return;
-
-    onMessageFn(this.messaging, (payload: any) => {
-      console.log('[Push] Notificación en foreground:', payload);
-
-      // Priorizar data sobre notification
-      const titulo = payload.data?.title || payload.notification?.title || 'RNACE';
-      const mensaje = payload.data?.body || payload.notification?.body || '';
-      const icon = payload.data?.icon || '/assets/icons/icon-192x192.png';
-
-      const notification: PushNotification = {
-        tipo: payload.data?.['tipo'] || 'default',
-        titulo: titulo,
-        mensaje: mensaje,
-        data: payload.data,
-        timestamp: Date.now()
-      };
-
-      this._notification.next(notification);
-
-      // Mostrar notificación nativa en foreground
-      if (Notification.permission === 'granted' && navigator.serviceWorker) {
-        navigator.serviceWorker.ready.then(registration => {
-          registration.showNotification(titulo, {
-            body: mensaje,
-            icon: '/assets/icons/icon-192x192.png',
-            badge: '/assets/icons/icon-72x72.png',
-            data: payload.data,
-            tag: payload.data?.tag || undefined
-          });
-        });
-      }
+        // Dejar que OneSignal muestre la notificación nativamente
+        // (por defecto ya la muestra, no necesitamos showNotification manual)
+      });
     });
   }
 
+  /**
+   * Desvincula el dispositivo del usuario al cerrar sesión.
+   */
   async removeToken(): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) return;
 
-    const token = this._currentToken.value;
-    if (!token) return;
-
     try {
-      const userId = this.getUserId();
-      if (userId) {
-        const { error } = await supabase()
-          .from('fcm_tokens')
-          .delete()
-          .match({ user_id: userId, token: token });
-
-        if (error) {
-          console.error('[Push] Error eliminando token:', error);
-        } else {
-          console.log('[Push] Token eliminado correctamente');
-        }
-      }
-      this._currentToken.next(null);
+      window.OneSignalDeferred.push(async (OneSignal: any) => {
+        await OneSignal.logout();
+        console.log('[Push] OneSignal.logout() completado');
+      });
     } catch (error) {
-      console.error('[Push] Error eliminando token:', error);
+      console.error('[Push] Error en logout:', error);
     }
   }
 
@@ -319,7 +248,8 @@ export class PushNotificationService {
   }
 
   hasToken(): boolean {
-    return this._currentToken.value !== null;
+    // Con OneSignal, si tiene permiso y no ha hecho opt-out, consideramos que tiene "token"
+    return this._permissionStatus.value === 'granted' && !this.isOptedOut();
   }
 
   /**
@@ -332,17 +262,16 @@ export class PushNotificationService {
 
   /**
    * Check if push notifications are effectively enabled
-   * (granted permission AND not opted out AND has token)
+   * (granted permission AND not opted out)
    */
   isEffectivelyEnabled(): boolean {
     return this._permissionStatus.value === 'granted' &&
-      !this.isOptedOut() &&
-      this._currentToken.value !== null;
+      !this.isOptedOut();
   }
 
   /**
    * Opt out of push notifications (user preference)
-   * This removes the FCM token but keeps browser permission
+   * This does a OneSignal logout but keeps browser permission
    */
   async optOutNotifications(): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) return;
@@ -360,10 +289,10 @@ export class PushNotificationService {
 
     localStorage.removeItem('rnace_push_optout');
 
-    // If permission already granted, just get a new token
+    // If permission already granted, just login again
     if (this._permissionStatus.value === 'granted') {
-      const token = await this.getAndSaveToken();
-      return token !== null;
+      await this.loginUser();
+      return true;
     }
 
     // Otherwise, request permission

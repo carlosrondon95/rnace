@@ -32,6 +32,17 @@
   <link rel="icon" type="image/png" href="assets/icons/icon-96x96.png" />
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
+
+  <!-- OneSignal SDK -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.init({
+        appId: "40e80da3-452e-4482-81df-6b7bf447a9a1",
+      });
+    });
+  </script>
 </head>
 
 <body>

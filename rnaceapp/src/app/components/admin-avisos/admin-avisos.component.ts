@@ -247,7 +247,8 @@ export class AdminAvisosComponent {
 
   /**
    * Envía push notifications reales via la Edge Function send-push
-   * para cada usuario con token FCM registrado del grupo objetivo.
+   * para cada usuario activo del grupo objetivo.
+   * OneSignal gestiona los dispositivos internamente — solo necesitamos los user_id.
    */
   private async enviarPushNotifications(
     titulo: string,
@@ -255,14 +256,15 @@ export class AdminAvisosComponent {
     grupo: 'todos' | 'focus' | 'reducido'
   ): Promise<{ sent: number; errors: number }> {
     try {
-      // 1. Obtener todos los user_ids con tokens FCM
-      const { data: allTokens } = await supabase()
-        .from('fcm_tokens')
-        .select('user_id');
+      // 1. Obtener todos los usuarios activos
+      const { data: allUsers } = await supabase()
+        .from('usuarios')
+        .select('id')
+        .eq('activo', true);
 
-      if (!allTokens?.length) return { sent: 0, errors: 0 };
+      if (!allUsers?.length) return { sent: 0, errors: 0 };
 
-      let targetUserIds = [...new Set(allTokens.map(t => t.user_id))];
+      let targetUserIds = allUsers.map(u => u.id);
 
       // 2. Si no es "todos", filtrar por grupo
       if (grupo !== 'todos') {
