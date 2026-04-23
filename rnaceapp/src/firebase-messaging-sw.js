@@ -25,8 +25,8 @@ self.addEventListener('push', (event) => {
       const title = data.title || 'RNACE';
       const options = {
         body: data.body || '',
-        icon: '/assets/icons/icon-192x192.png',
-        badge: '/assets/icons/icon-72x72.png',
+        icon: self.location.origin + '/assets/icons/icon-192x192.png',
+        badge: self.location.origin + '/assets/icons/icon-72x72.png',
         data: data,
         tag: data.tag || undefined,
         renotify: !!data.tag

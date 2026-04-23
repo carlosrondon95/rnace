@@ -281,17 +281,11 @@ serve(async (req: Request) => {
                     headers: {
                       Urgency: 'high',
                       TTL: '86400'
-                    },
-                    // iOS Safari REQUIRE que exista este bloque de 'notification' y que
-                    // las URLs de las imágenes sean ABSOLUTAS. Si no, Apple descarta
-                    // silenciosamente la notificación.
-                    notification: {
-                      title: content.titulo,
-                      body: content.mensaje,
-                      icon: 'https://www.rnace.es/assets/icons/icon-192x192.png',
-                      badge: 'https://www.rnace.es/assets/icons/icon-72x72.png',
-                      tag: notifTag
                     }
+                    // NOTA: Eliminamos webpush.notification para que sea un payload
+                    // estrictamente Data-Only. Así evitamos que el Service Worker de 
+                    // Firebase intente mostrar la notificación por defecto y delegamos
+                    // el control 100% a nuestro listener nativo en firebase-messaging-sw.js.
                   }
                 }
               })
