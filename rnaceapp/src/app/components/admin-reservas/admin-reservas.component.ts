@@ -487,7 +487,10 @@ export class AdminReservasComponent implements OnInit {
               body: {
                 user_id: usuario.id,
                 tipo: 'reserva_cancelada',
-                data: { mensaje: data[0].mensaje }
+                data: {
+                  fecha: reserva.fechaRaw ? reserva.fechaRaw.split('-').reverse().join('/') : '',
+                  hora: reserva.hora
+                }
               }
             });
           } catch (pushErr) {

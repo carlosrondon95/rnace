@@ -269,7 +269,7 @@ export class ListaEsperaComponent implements OnInit {
           titulo: '¡Plaza asignada!',
           mensaje: mensajePlaza,
           sesion_id: sesion.sesion_id,
-          accion_url: '/calendario',
+          accion_url: `/calendario?sesion=${sesion.sesion_id}`,
         });
 
       // Enviar push notification real
@@ -278,7 +278,7 @@ export class ListaEsperaComponent implements OnInit {
           body: {
             user_id: usuarioId,
             tipo: 'plaza_asignada',
-            data: { mensaje: mensajePlaza, url: '/calendario' }
+            data: { mensaje: mensajePlaza, url: `/calendario?sesion=${sesion.sesion_id}` }
           }
         });
       } catch (pushErr) {
@@ -334,7 +334,7 @@ export class ListaEsperaComponent implements OnInit {
     this.procesando.set(true);
 
     try {
-      const mensajeHueco = `Hay plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}. ¡Date prisa!`;
+      const mensajeHueco = `Hay plaza en la clase de ${sesion.modalidad} del ${sesion.fecha} a las ${sesion.hora}.`;
       await supabase()
         .from('notificaciones')
         .insert({

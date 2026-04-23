@@ -1652,13 +1652,15 @@ export class CalendarioComponent implements OnInit {
               
               // Notificación push
               try {
+                const sesion = Array.isArray(reserva.sesiones) ? reserva.sesiones[0] : reserva.sesiones;
                 await client.functions.invoke('send-push', {
                   body: {
                     user_id: reserva.usuario_id,
                     tipo: 'reserva_cancelada',
                     data: { 
                       titulo: generarRecuperaciones ? 'Clase cancelada por festivo' : 'Clase cancelada por vacaciones', 
-                      mensaje: data[0].mensaje 
+                      fecha: sesion?.fecha ? sesion.fecha.split('-').reverse().join('/') : '',
+                      hora: sesion?.hora?.substring(0, 5) || ''
                     }
                   }
                 });
@@ -2365,7 +2367,10 @@ export class CalendarioComponent implements OnInit {
               body: {
                 user_id: reservaData.usuario_id,
                 tipo: 'reserva_cancelada',
-                data: { mensaje: data[0].mensaje }
+                data: { 
+                  fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
+                  hora: reserva.hora
+                }
               }
             });
           }

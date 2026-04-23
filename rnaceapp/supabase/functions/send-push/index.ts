@@ -24,8 +24,8 @@ const TEMPLATES: Record<string, (data: Record<string, string>) => { titulo: stri
   }),
 
   reserva_cancelada: (data) => ({
-    titulo: '❌ Reserva Cancelada',
-    mensaje: `Tu reserva del ${data.fecha || ''} a las ${data.hora || ''} ha sido cancelada.`
+    titulo: data.titulo || '❌ Reserva Cancelada',
+    mensaje: data.mensaje || `Tu reserva del ${data.fecha || ''} a las ${data.hora || ''} ha sido cancelada.`
   }),
 
   recordatorio: (data) => ({
@@ -72,7 +72,25 @@ async function sendOneSignalNotification(
   mensaje: string,
   data: Record<string, string>
 ): Promise<{ success: boolean; id?: string; error?: string }> {
-  const url = data.url || '/';
+  let url = data.url;
+  if (!url) {
+    switch (data.tipo) {
+      case 'reserva_confirmada':
+      case 'recordatorio':
+      case 'plaza_asignada':
+      case 'lista_espera':
+      case 'hueco_disponible':
+        url = '/calendario';
+        break;
+      case 'reserva_cancelada':
+      case 'admin':
+        url = '/notificaciones';
+        break;
+      default:
+        url = '/notificaciones';
+        break;
+    }
+  }
 
   const body: Record<string, any> = {
     app_id: ONESIGNAL_APP_ID,
@@ -83,7 +101,7 @@ async function sendOneSignalNotification(
     headings: { en: titulo },
     contents: { en: mensaje },
     // URL a abrir al hacer click
-    web_url: `https://www.rnace.es${url}`,
+    web_url: `https://centrornace.com${url}`,
     // Datos adicionales (accesibles desde el evento de click)
     data: {
       tipo: data.tipo || 'default',
@@ -91,8 +109,8 @@ async function sendOneSignalNotification(
       ...data
     },
     // Iconos para web
-    chrome_web_icon: 'https://www.rnace.es/assets/icons/icon-192x192.png',
-    chrome_web_badge: 'https://www.rnace.es/assets/icons/icon-72x72.png',
+    chrome_web_icon: 'https://centrornace.com/assets/icons/icon-192x192.png',
+    chrome_web_badge: 'https://centrornace.com/assets/icons/icon-72x72.png',
     // TTL: 24 horas
     ttl: 86400,
     // Prioridad alta
