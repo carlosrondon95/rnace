@@ -2168,6 +2168,9 @@ export class CalendarioComponent implements OnInit {
                   user_id: resultado.usuario_notificado,
                   tipo: 'hueco_disponible',
                   data: {
+                    modalidad: sesion?.modalidad || '',
+                    fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
+                    hora: sesion?.hora || '',
                     url: `/calendario?sesion=${sesion?.id}`
                     }
                   }
@@ -2281,6 +2284,9 @@ export class CalendarioComponent implements OnInit {
                   user_id: resultado.usuario_notificado,
                   tipo: 'hueco_disponible',
                   data: {
+                    modalidad: sesion?.modalidad || '',
+                    fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
+                    hora: sesion?.hora || '',
                     url: `/calendario?sesion=${sesion?.id}`
                   }
                 }
@@ -2397,6 +2403,9 @@ export class CalendarioComponent implements OnInit {
                 user_id: data[0].usuario_notificado,
                 tipo: 'hueco_disponible',
                 data: {
+                  modalidad: reserva.modalidad || '',
+                  fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
+                  hora: reserva.hora || '',
                   url: `/calendario?sesion=${reserva.sesion_id}`
                 }
               }

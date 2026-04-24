@@ -488,6 +488,9 @@ export class AdminReservasComponent implements OnInit {
                 user_id: data[0].usuario_notificado,
                 tipo: 'hueco_disponible',
                 data: {
+                  modalidad: reserva.modalidad || '',
+                  fecha: reserva.fechaRaw ? reserva.fechaRaw.split('-').reverse().join('/') : '',
+                  hora: reserva.hora || '',
                   url: `/calendario?sesion=${reserva.sesion_id}`
                 }
               }
