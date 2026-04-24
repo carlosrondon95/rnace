@@ -364,7 +364,7 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
     this.notificacionSeleccionada.set(notificacion);
 
     // Si es una notificación de plaza disponible o lista de espera, cargar detalles de la sesión
-    if ((notificacion.tipo === 'plaza_disponible' || notificacion.tipo === 'lista_espera') && notificacion.sesion_id) {
+    if ((notificacion.tipo === 'plaza_disponible' || notificacion.tipo === 'hueco_disponible' || notificacion.tipo === 'lista_espera') && notificacion.sesion_id) {
       try {
         const { data } = await supabase()
           .from('sesiones')
@@ -397,7 +397,7 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
     this.cerrarModal();
 
     // Para notificaciones de plaza disponible, navegar al calendario con el sesion_id
-    if ((notificacion.tipo === 'plaza_disponible' || notificacion.tipo === 'lista_espera') && notificacion.sesion_id) {
+    if ((notificacion.tipo === 'plaza_disponible' || notificacion.tipo === 'hueco_disponible' || notificacion.tipo === 'lista_espera') && notificacion.sesion_id) {
       this.router.navigate(['/calendario'], {
         queryParams: { sesion: notificacion.sesion_id }
       });

@@ -214,11 +214,11 @@
         }
       </div>
 
-      @if (notif.accion_url || ((notif.tipo === 'plaza_disponible' || notif.tipo === 'lista_espera') &&
+      @if (notif.accion_url || ((notif.tipo === 'plaza_disponible' || notif.tipo === 'hueco_disponible' || notif.tipo === 'lista_espera') &&
       notif.sesion_id)) {
       <div class="modal-footer">
         <button class="btn-action btn-success" (click)="ejecutarAccion(notif)">
-          @if (notif.tipo === 'plaza_disponible' || notif.tipo === 'lista_espera') {
+          @if (notif.tipo === 'plaza_disponible' || notif.tipo === 'hueco_disponible' || notif.tipo === 'lista_espera') {
           Reclamar plaza
           } @else {
           Ir a detalle
