@@ -10,7 +10,7 @@ const ONESIGNAL_REST_API_KEY = Deno.env.get('ONESIGNAL_REST_API_KEY')!;
 // Tipos
 interface NotificationRequest {
   user_id: string;
-  tipo: 'reserva_confirmada' | 'reserva_cancelada' | 'recordatorio' | 'lista_espera' | 'admin' | 'plaza_asignada' | 'hueco_disponible';
+  tipo: 'reserva_cancelada' | 'admin' | 'plaza_asignada' | 'hueco_disponible';
   titulo?: string;
   mensaje?: string;
   data?: Record<string, string>;
@@ -18,34 +18,19 @@ interface NotificationRequest {
 
 // Plantillas de mensajes
 const TEMPLATES: Record<string, (data: Record<string, string>) => { titulo: string; mensaje: string }> = {
-  reserva_confirmada: (data) => ({
-    titulo: '✅ Reserva Confirmada',
-    mensaje: `Tu reserva para el ${data.fecha || ''} a las ${data.hora || ''} ha sido confirmada.`
-  }),
-
   reserva_cancelada: (data) => ({
     titulo: data.titulo || '❌ Reserva Cancelada',
     mensaje: data.mensaje || `Tu reserva del ${data.fecha || ''} a las ${data.hora || ''} ha sido cancelada.`
   }),
 
-  recordatorio: (data) => ({
-    titulo: '⏰ Recordatorio',
-    mensaje: `Tu sesión comienza en ${data.minutos || '30'} minutos. ¡No llegues tarde!`
-  }),
-
-  lista_espera: (data) => ({
-    titulo: '🎉 ¡Plaza Disponible!',
-    mensaje: `Se ha liberado una plaza para el ${data.fecha || ''} a las ${data.hora || ''}. ¡Confírmala!`
-  }),
-
   plaza_asignada: (data) => ({
     titulo: '🎉 ¡Plaza Asignada!',
-    mensaje: data.mensaje || 'Se te ha asignado una plaza. ¡Revisa tu calendario!'
+    mensaje: data.mensaje || `Se te ha asignado plaza en la clase de ${data.modalidad || ''} del ${data.fecha || ''} a las ${data.hora || ''}.`
   }),
 
   hueco_disponible: (data) => ({
     titulo: '🔔 ¡Hay una plaza disponible!',
-    mensaje: data.mensaje || 'Hay una plaza disponible en una clase. ¡Date prisa!'
+    mensaje: data.mensaje || `Hay plaza en la clase de ${data.modalidad || ''} del ${data.fecha || ''} a las ${data.hora || ''}.`
   }),
 
   admin: (data) => ({
@@ -75,10 +60,7 @@ async function sendOneSignalNotification(
   let url = data.url;
   if (!url) {
     switch (data.tipo) {
-      case 'reserva_confirmada':
-      case 'recordatorio':
       case 'plaza_asignada':
-      case 'lista_espera':
       case 'hueco_disponible':
         url = '/calendario';
         break;

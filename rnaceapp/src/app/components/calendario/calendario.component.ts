@@ -2157,8 +2157,24 @@ export class CalendarioComponent implements OnInit {
             this.auth.usuario()?.nombre || 'Cliente',
             `Reserva cancelada por cliente: ${sesion?.hora || ''} ${sesion?.modalidad || ''} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})`,
             { reserva_id: reservaId, hora: sesion?.hora, modalidad: sesion?.modalidad, fecha: dia?.fecha }
-          );
-        } else {
+            // SEND PUSH TO WAITLIST IF ANYONE WAS NOTIFIED
+            if (resultado.usuario_notificado) {
+              const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
+              try {
+                await supabase().functions.invoke('send-push', {
+                  body: {
+                    user_id: resultado.usuario_notificado,
+                    tipo: 'hueco_disponible',
+                    data: {
+                      url: `/calendario?sesion=${sesion?.sesion_id}`
+                    }
+                  }
+                });
+              } catch (pushErr) {
+                console.warn('[Push] Error enviando push hueco_disponible:', pushErr);
+              }
+            }
+          } else {
           this.error.set(resultado.mensaje);
         }
       }
@@ -2254,6 +2270,23 @@ export class CalendarioComponent implements OnInit {
             `Reserva cancelada por cliente: ${sesion?.hora || ''} ${sesion?.modalidad || ''} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})${generarRecuperacion ? '' : ' — sin recuperación (< 1h)'}`,
             { reserva_id: reservaId, hora: sesion?.hora, modalidad: sesion?.modalidad, fecha: dia?.fecha, con_recuperacion: generarRecuperacion }
           );
+
+          // SEND PUSH TO WAITLIST IF ANYONE WAS NOTIFIED
+          if (resultado.usuario_notificado) {
+            try {
+              await supabase().functions.invoke('send-push', {
+                body: {
+                  user_id: resultado.usuario_notificado,
+                  tipo: 'hueco_disponible',
+                  data: {
+                    url: `/calendario?sesion=${sesion?.sesion_id}`
+                  }
+                }
+              });
+            } catch (pushErr) {
+              console.warn('[Push] Error enviando push hueco_disponible:', pushErr);
+            }
+          }
 
           this.diaSeleccionado.set(null);
           await this.cargarCalendario();
@@ -2353,6 +2386,23 @@ export class CalendarioComponent implements OnInit {
         );
 
         this.cerrarModalCancelarAdmin();
+
+        // Enviar push notification a la lista de espera
+        if (data[0].usuario_notificado) {
+          try {
+            await supabase().functions.invoke('send-push', {
+              body: {
+                user_id: data[0].usuario_notificado,
+                tipo: 'hueco_disponible',
+                data: {
+                  url: `/calendario?sesion=${reserva.sesion_id}`
+                }
+              }
+            });
+          } catch (pushErr) {
+            console.warn('[Push] Error enviando push hueco_disponible admin:', pushErr);
+          }
+        }
 
         // Enviar push notification al usuario afectado
         try {

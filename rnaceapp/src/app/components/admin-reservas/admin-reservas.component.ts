@@ -480,6 +480,23 @@ export class AdminReservasComponent implements OnInit {
 
         this.cerrarModalEliminar();
 
+        // Enviar push notification al usuario de la lista de espera si hubo notificado
+        if (data[0].usuario_notificado) {
+          try {
+            await supabase().functions.invoke('send-push', {
+              body: {
+                user_id: data[0].usuario_notificado,
+                tipo: 'hueco_disponible',
+                data: {
+                  url: `/calendario?sesion=${reserva.sesion_id}`
+                }
+              }
+            });
+          } catch (pushErr) {
+            console.warn('[Push] Error enviando push hueco_disponible admin:', pushErr);
+          }
+        }
+
         // Enviar push notification al usuario afectado
         if (usuario) {
           try {
