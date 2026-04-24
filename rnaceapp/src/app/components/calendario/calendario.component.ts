@@ -2157,16 +2157,18 @@ export class CalendarioComponent implements OnInit {
             this.auth.usuario()?.nombre || 'Cliente',
             `Reserva cancelada por cliente: ${sesion?.hora || ''} ${sesion?.modalidad || ''} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})`,
             { reserva_id: reservaId, hora: sesion?.hora, modalidad: sesion?.modalidad, fecha: dia?.fecha }
-            // SEND PUSH TO WAITLIST IF ANYONE WAS NOTIFIED
-            if (resultado.usuario_notificado) {
-              const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
-              try {
-                await supabase().functions.invoke('send-push', {
-                  body: {
-                    user_id: resultado.usuario_notificado,
-                    tipo: 'hueco_disponible',
-                    data: {
-                      url: `/calendario?sesion=${sesion?.sesion_id}`
+          );
+
+          // SEND PUSH TO WAITLIST IF ANYONE WAS NOTIFIED
+          if (resultado.usuario_notificado) {
+            const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
+            try {
+              await supabase().functions.invoke('send-push', {
+                body: {
+                  user_id: resultado.usuario_notificado,
+                  tipo: 'hueco_disponible',
+                  data: {
+                    url: `/calendario?sesion=${sesion?.id}`
                     }
                   }
                 });
@@ -2279,7 +2281,7 @@ export class CalendarioComponent implements OnInit {
                   user_id: resultado.usuario_notificado,
                   tipo: 'hueco_disponible',
                   data: {
-                    url: `/calendario?sesion=${sesion?.sesion_id}`
+                    url: `/calendario?sesion=${sesion?.id}`
                   }
                 }
               });
