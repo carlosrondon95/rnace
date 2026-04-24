@@ -1642,9 +1642,20 @@ export class CalendarioComponent implements OnInit {
 
         if (reservasAfectadas && reservasAfectadas.length > 0) {
           const promises = reservasAfectadas.map(async (reserva) => {
+            const sesion = Array.isArray(reserva.sesiones) ? reserva.sesiones[0] : reserva.sesiones;
+            const fechaFormateada = sesion?.fecha ? sesion.fecha.split('-').reverse().join('/') : '';
+            const horaFormateada = sesion?.hora?.substring(0, 5) || '';
+
+            const tituloNotif = generarRecuperaciones 
+              ? '🏖️ Clase cancelada por festivo' 
+              : '🏖️ Clase cancelada por vacaciones';
+            const mensajeNotif = `Tu clase del ${fechaFormateada} a las ${horaFormateada} ha sido cancelada por ${generarRecuperaciones ? 'festivo' : 'vacaciones'}.${generarRecuperaciones ? ' Se ha generado una recuperación.' : ''}`;
+
             const { data, error } = await client.rpc('cancelar_reserva_admin', {
               p_reserva_id: reserva.id,
-              p_generar_recuperacion: generarRecuperaciones
+              p_generar_recuperacion: generarRecuperaciones,
+              p_titulo_notif: tituloNotif,
+              p_mensaje_notif: mensajeNotif
             });
 
             if (!error && data && data.length > 0 && data[0].ok) {
@@ -1652,15 +1663,14 @@ export class CalendarioComponent implements OnInit {
               
               // Notificación push
               try {
-                const sesion = Array.isArray(reserva.sesiones) ? reserva.sesiones[0] : reserva.sesiones;
                 await client.functions.invoke('send-push', {
                   body: {
                     user_id: reserva.usuario_id,
                     tipo: 'reserva_cancelada',
                     data: { 
-                      titulo: generarRecuperaciones ? 'Clase cancelada por festivo' : 'Clase cancelada por vacaciones', 
-                      fecha: sesion?.fecha ? sesion.fecha.split('-').reverse().join('/') : '',
-                      hora: sesion?.hora?.substring(0, 5) || ''
+                      titulo: tituloNotif, 
+                      fecha: fechaFormateada,
+                      hora: horaFormateada
                     }
                   }
                 });
@@ -2417,24 +2427,16 @@ export class CalendarioComponent implements OnInit {
 
         // Enviar push notification al usuario afectado
         try {
-          const { data: reservaData } = await supabase()
-            .from('reservas')
-            .select('usuario_id')
-            .eq('id', reserva.id)
-            .single();
-
-          if (reservaData?.usuario_id) {
-            await supabase().functions.invoke('send-push', {
-              body: {
-                user_id: reservaData.usuario_id,
-                tipo: 'reserva_cancelada',
-                data: { 
-                  fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
-                  hora: reserva.hora
-                }
+          await supabase().functions.invoke('send-push', {
+            body: {
+              user_id: reserva.usuario_id,
+              tipo: 'reserva_cancelada',
+              data: { 
+                fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
+                hora: reserva.hora
               }
-            });
-          }
+            }
+          });
         } catch (pushErr) {
           console.warn('[Push] Error enviando push cancelación admin:', pushErr);
         }
