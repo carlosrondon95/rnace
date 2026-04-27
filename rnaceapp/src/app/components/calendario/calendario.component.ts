@@ -766,7 +766,7 @@ export class CalendarioComponent implements OnInit {
             try {
               await enviarHuecoDisponibleUsuario(
                 {
-                  user_id: uid,
+                  usuario_id: uid,
                   data: {
                     modalidad: data[0].modalidad_anterior || '',
                     fecha: data[0].fecha_anterior ? data[0].fecha_anterior.split('-').reverse().join('/') : '',
@@ -1052,7 +1052,7 @@ export class CalendarioComponent implements OnInit {
               try {
                 await enviarHuecoDisponibleUsuario(
                   {
-                    user_id: uid,
+                    usuario_id: uid,
                     data: {
                       modalidad: data[0].modalidad_anterior || '',
                       fecha: data[0].fecha_anterior ? data[0].fecha_anterior.split('-').reverse().join('/') : '',
@@ -1718,15 +1718,15 @@ export class CalendarioComponent implements OnInit {
               try {
                 await enviarPushUsuario(
                   {
-                    user_id: reserva.usuario_id,
-                    tipo: 'reserva_cancelada',
+                    usuario_id: reserva.usuario_id,
+                    tipo: 'cancelacion',
                     data: { 
                       titulo: tituloNotif, 
                       fecha: fechaFormateada,
                       hora: horaFormateada
                     }
                   },
-                  `reserva_cancelada festivo ${reserva.usuario_id}`,
+                  `cancelacion festivo ${reserva.usuario_id}`,
                 );
               } catch (e) {
                 console.warn('[Push] Error enviando push cancelacion:', e);
@@ -2156,7 +2156,7 @@ export class CalendarioComponent implements OnInit {
             try {
               await enviarHuecoDisponibleUsuario(
                 {
-                  user_id: uid,
+                  usuario_id: uid,
                   data: {
                     modalidad: data[0].modalidad_anterior || reserva.modalidad || '',
                     fecha: data[0].fecha_anterior ? data[0].fecha_anterior.split('-').reverse().join('/') : reserva.fecha.split('-').reverse().join('/'),
@@ -2260,7 +2260,7 @@ export class CalendarioComponent implements OnInit {
               try {
                 await enviarHuecoDisponibleUsuario(
                   {
-                    user_id: notifUid,
+                    usuario_id: notifUid,
                     data: {
                       modalidad: sesion?.modalidad || '',
                       fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
@@ -2382,7 +2382,7 @@ export class CalendarioComponent implements OnInit {
               try {
                 await enviarHuecoDisponibleUsuario(
                   {
-                    user_id: notifUid,
+                    usuario_id: notifUid,
                     data: {
                       modalidad: sesion?.modalidad || '',
                       fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
@@ -2507,7 +2507,7 @@ export class CalendarioComponent implements OnInit {
             try {
               await enviarHuecoDisponibleUsuario(
                 {
-                  user_id: notifUid,
+                  usuario_id: notifUid,
                   data: {
                     modalidad: reserva.modalidad || '',
                     fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
@@ -2527,14 +2527,14 @@ export class CalendarioComponent implements OnInit {
         try {
           await enviarPushUsuario(
             {
-              user_id: reserva.usuario_id,
-              tipo: 'reserva_cancelada',
+              usuario_id: reserva.usuario_id,
+              tipo: 'cancelacion',
               data: { 
                 fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
                 hora: reserva.hora
               }
             },
-            `reserva_cancelada admin ${reserva.usuario_id}`,
+            `cancelacion admin ${reserva.usuario_id}`,
           );
         } catch (pushErr) {
           console.warn('[Push] Error enviando push cancelación admin:', pushErr);

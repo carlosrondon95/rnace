@@ -10,6 +10,12 @@ export interface PushNotification {
   timestamp: number;
 }
 
+export interface OneSignalPushSubscriptionState {
+  id: string | null;
+  token: string | null;
+  optedIn: boolean;
+}
+
 // Declaración global del SDK de OneSignal (cargado desde index.html)
 declare global {
   interface Window {
@@ -25,17 +31,27 @@ export class PushNotificationService {
   private oneSignalReady = false;
   private oneSignalInstance: any = null;
   private foregroundListenerReady = false;
+  private permissionListenerReady = false;
+  private subscriptionListenerReady = false;
 
   private _permissionStatus = new BehaviorSubject<NotificationPermission>('default');
   private _notification = new BehaviorSubject<PushNotification | null>(null);
   private _isSupported = new BehaviorSubject<boolean>(false);
+  private _oneSignalSubscription = new BehaviorSubject<OneSignalPushSubscriptionState>({
+    id: null,
+    token: null,
+    optedIn: false,
+  });
 
   permissionStatus$ = this._permissionStatus.asObservable();
   notification$ = this._notification.asObservable();
   isSupported$ = this._isSupported.asObservable();
+  oneSignalSubscription$ = this._oneSignalSubscription.asObservable();
 
   private initPromise: Promise<void> | null = null;
   private syncPromise: Promise<boolean> | null = null;
+  private permissionRequestPromise: Promise<boolean> | null = null;
+  private grantedSubscriptionPromise: Promise<boolean> | null = null;
 
   constructor() {
     if (isPlatformBrowser(this.platformId)) {
@@ -96,7 +112,10 @@ export class PushNotificationService {
 
       // Configurar listener de notificaciones en foreground
       this.setupForegroundListener();
+      this.setupOneSignalStateListeners();
+      this.updateSupportFromOneSignal();
       this.checkPermissionStatus();
+      this.updateOneSignalSubscriptionState();
 
       if (!this.isOptedOut()) {
         console.log('[Push] OneSignal listo, sincronizando usuario...');
@@ -172,6 +191,7 @@ export class PushNotificationService {
     await this.loginUser();
     await this.ensurePushSubscriptionActive();
     this.checkPermissionStatus();
+    this.updateOneSignalSubscriptionState();
     return this.isEffectivelyEnabled();
   }
 
@@ -226,26 +246,113 @@ export class PushNotificationService {
   }
 
   private checkPermissionStatus(): void {
-    if ('Notification' in window) {
+    if (isPlatformBrowser(this.platformId) && 'Notification' in window) {
       this._permissionStatus.next(Notification.permission);
     }
   }
 
-  private async ensurePushSubscriptionActive(): Promise<void> {
-    if (!isPlatformBrowser(this.platformId)) return;
-    if (!this.oneSignalInstance || Notification.permission !== 'granted') return;
+  private updateSupportFromOneSignal(): void {
+    if (!this.oneSignalInstance?.Notifications?.isPushSupported) return;
 
     try {
+      this._isSupported.next(Boolean(this.oneSignalInstance.Notifications.isPushSupported()));
+    } catch (error) {
+      console.warn('[Push] No se pudo verificar soporte con OneSignal:', error);
+    }
+  }
+
+  private readOneSignalSubscriptionState(): OneSignalPushSubscriptionState {
+    const pushSubscription = this.oneSignalInstance?.User?.PushSubscription;
+
+    return {
+      id: pushSubscription?.id ?? null,
+      token: pushSubscription?.token ?? null,
+      optedIn: pushSubscription?.optedIn === true,
+    };
+  }
+
+  private updateOneSignalSubscriptionState(state?: OneSignalPushSubscriptionState): void {
+    this._oneSignalSubscription.next(state ?? this.readOneSignalSubscriptionState());
+  }
+
+  private hasRegisteredOneSignalSubscription(): boolean {
+    const subscription = this._oneSignalSubscription.value;
+    return subscription.optedIn && Boolean(subscription.id || subscription.token);
+  }
+
+  private async waitForRegisteredSubscription(timeoutMs = 10000): Promise<boolean> {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < timeoutMs) {
+      this.checkPermissionStatus();
+      this.updateOneSignalSubscriptionState();
+
+      if (this.isEffectivelyEnabled()) {
+        return true;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    this.checkPermissionStatus();
+    this.updateOneSignalSubscriptionState();
+    return this.isEffectivelyEnabled();
+  }
+
+  private async ensurePushSubscriptionActive(): Promise<boolean> {
+    if (!this.grantedSubscriptionPromise) {
+      this.grantedSubscriptionPromise = this.ensurePushSubscriptionActiveOnce().finally(() => {
+        this.grantedSubscriptionPromise = null;
+      });
+    }
+
+    return await this.grantedSubscriptionPromise;
+  }
+
+  private async ensurePushSubscriptionActiveOnce(): Promise<boolean> {
+    if (!isPlatformBrowser(this.platformId)) return false;
+    this.checkPermissionStatus();
+
+    if (
+      !this.oneSignalInstance ||
+      !('Notification' in window) ||
+      Notification.permission !== 'granted' ||
+      this.isOptedOut()
+    ) {
+      this.updateOneSignalSubscriptionState();
+      return false;
+    }
+
+    try {
+      await this.loginUser();
       const pushSubscription = this.oneSignalInstance.User?.PushSubscription;
       if (pushSubscription?.optIn) {
         await pushSubscription.optIn();
       }
+      this.updateOneSignalSubscriptionState();
+      const registered = await this.waitForRegisteredSubscription();
+      if (registered) {
+        await this.loginUser();
+      }
+      return registered;
     } catch (error) {
       console.warn('[Push] No se pudo reactivar la suscripcion de OneSignal:', error);
+      this.updateOneSignalSubscriptionState();
+      return false;
     }
   }
 
   async requestPermission(): Promise<boolean> {
+    if (!this.permissionRequestPromise) {
+      this.permissionRequestPromise = this.requestPermissionOnce().finally(() => {
+        this.permissionRequestPromise = null;
+      });
+    }
+
+    return await this.permissionRequestPromise;
+  }
+
+  private async requestPermissionOnce(): Promise<boolean> {
     if (!this.isSupported()) return false;
     if (!isPlatformBrowser(this.platformId)) return false;
 
@@ -262,19 +369,28 @@ export class PushNotificationService {
     await this.ensureInitialized();
 
     try {
-      // Pedir permiso de notificaciones del navegador
-      const permission = await Notification.requestPermission();
-      this._permissionStatus.next(permission);
+      await this.loginUser();
 
-      if (permission === 'granted') {
-        // Hacer login en OneSignal para asociar el dispositivo al usuario
-        await this.loginUser();
-        await this.ensurePushSubscriptionActive();
-        return true;
+      const pushSubscription = this.oneSignalInstance?.User?.PushSubscription;
+
+      if (pushSubscription?.optIn) {
+        // OneSignal optIn re-subscribes if a token exists, or asks for native permission if needed.
+        await pushSubscription.optIn();
+      } else if (this.oneSignalInstance?.Notifications?.requestPermission) {
+        await this.oneSignalInstance.Notifications.requestPermission();
+      } else {
+        await Notification.requestPermission();
       }
-      return false;
+
+      this.checkPermissionStatus();
+
+      if (this._permissionStatus.value !== 'granted') return false;
+
+      return await this.ensurePushSubscriptionActive();
     } catch (error) {
       console.error('[Push] Error solicitando permiso:', error);
+      this.checkPermissionStatus();
+      this.updateOneSignalSubscriptionState();
       return false;
     }
   }
@@ -329,6 +445,44 @@ export class PushNotificationService {
     }
   }
 
+  private setupOneSignalStateListeners(): void {
+    if (!isPlatformBrowser(this.platformId) || !this.oneSignalInstance) return;
+
+    const notifications = this.oneSignalInstance.Notifications;
+    if (!this.permissionListenerReady && notifications?.addEventListener) {
+      notifications.addEventListener('permissionChange', async (permission: boolean) => {
+        this.checkPermissionStatus();
+        this.updateOneSignalSubscriptionState();
+
+        if (permission && !this.isOptedOut()) {
+          await this.loginUser();
+          await this.ensurePushSubscriptionActive();
+        }
+      });
+      this.permissionListenerReady = true;
+    }
+
+    const pushSubscription = this.oneSignalInstance.User?.PushSubscription;
+    if (!this.subscriptionListenerReady && pushSubscription?.addEventListener) {
+      pushSubscription.addEventListener('change', async (event: any) => {
+        const current = event?.current;
+        this.updateOneSignalSubscriptionState(current
+          ? {
+              id: current.id ?? null,
+              token: current.token ?? null,
+              optedIn: current.optedIn === true,
+            }
+          : undefined);
+        this.checkPermissionStatus();
+
+        if (this.getUserId() && current?.optedIn === true && !this.isOptedOut()) {
+          await this.loginUser();
+        }
+      });
+      this.subscriptionListenerReady = true;
+    }
+  }
+
   /**
    * Desvincula el dispositivo del usuario al cerrar sesión.
    */
@@ -355,8 +509,7 @@ export class PushNotificationService {
   }
 
   hasToken(): boolean {
-    // Con OneSignal, si tiene permiso y no ha hecho opt-out, consideramos que tiene "token"
-    return this._permissionStatus.value === 'granted' && !this.isOptedOut();
+    return this.isEffectivelyEnabled();
   }
 
   /**
@@ -372,8 +525,11 @@ export class PushNotificationService {
    * (granted permission AND not opted out)
    */
   isEffectivelyEnabled(): boolean {
-    return this._permissionStatus.value === 'granted' &&
-      !this.isOptedOut();
+    if (this._permissionStatus.value !== 'granted' || this.isOptedOut()) {
+      return false;
+    }
+
+    return this.oneSignalReady && this.hasRegisteredOneSignalSubscription();
   }
 
   /**
@@ -383,8 +539,19 @@ export class PushNotificationService {
   async optOutNotifications(): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) return;
 
-    localStorage.setItem('rnace_push_optout', 'true');
-    await this.removeToken();
+    try {
+      await this.ensureInitialized();
+      const pushSubscription = this.oneSignalInstance?.User?.PushSubscription;
+      if (pushSubscription?.optOut) {
+        await pushSubscription.optOut();
+      }
+    } catch (error) {
+      console.warn('[Push] No se pudo hacer optOut en OneSignal:', error);
+    } finally {
+      localStorage.setItem('rnace_push_optout', 'true');
+      await this.removeToken();
+      this.updateOneSignalSubscriptionState();
+    }
   }
 
   /**
@@ -399,8 +566,7 @@ export class PushNotificationService {
     // If permission already granted, just login again
     if (this._permissionStatus.value === 'granted') {
       await this.loginUser();
-      await this.ensurePushSubscriptionActive();
-      return true;
+      return await this.ensurePushSubscriptionActive();
     }
 
     // Otherwise, request permission

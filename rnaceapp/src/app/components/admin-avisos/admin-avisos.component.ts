@@ -252,7 +252,7 @@ export class AdminAvisosComponent {
   /**
    * Envía push notifications reales via la Edge Function send-push
    * para cada usuario activo del grupo objetivo.
-   * OneSignal gestiona los dispositivos internamente — solo necesitamos los user_id.
+   * OneSignal gestiona los dispositivos internamente; usamos usuarios.id como external_id.
    */
   private async enviarPushNotifications(
     titulo: string,
@@ -299,8 +299,8 @@ export class AdminAvisosComponent {
           batch.map(userId =>
             enviarPushUsuario(
               {
-                user_id: userId,
-                tipo: 'admin',
+                usuario_id: userId,
+                tipo: this.tipo(),
                 data: { titulo, mensaje }
               },
               `aviso admin ${userId}`,

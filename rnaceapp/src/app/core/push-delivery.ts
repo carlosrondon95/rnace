@@ -1,9 +1,16 @@
 import { supabase } from './supabase.client';
 
-export type PushTipo = 'reserva_cancelada' | 'admin' | 'plaza_asignada' | 'hueco_disponible';
+export type PushTipo =
+  | 'cancelacion'
+  | 'admin_info'
+  | 'admin_warning'
+  | 'admin_urgent'
+  | 'admin_promo'
+  | 'plaza_asignada'
+  | 'hueco_disponible';
 
 export interface PushDeliveryRequest {
-  user_id: string;
+  usuario_id: string;
   tipo: PushTipo;
   titulo?: string;
   mensaje?: string;
@@ -15,6 +22,16 @@ export interface PushDeliveryResult {
   skipped: boolean;
   error?: string;
   onesignalId?: string;
+}
+
+interface SendPushFunctionBody {
+  // RNACE usa usuario_id internamente; user_id queda solo para compatibilidad con la Edge Function ya desplegada.
+  usuario_id: string;
+  user_id: string;
+  tipo: PushTipo;
+  titulo?: string;
+  mensaje?: string;
+  data?: Record<string, string>;
 }
 
 function getSesionId(data?: Record<string, string>): number | null {
@@ -82,7 +99,24 @@ export async function enviarPushUsuario(
   body: PushDeliveryRequest,
   contexto: string,
 ): Promise<PushDeliveryResult> {
-  const { data, error } = await supabase().functions.invoke('send-push', { body });
+  const sesionId = getSesionId(body.data);
+  const dataPayload = {
+    ...(body.data || {}),
+    ...(sesionId !== null ? { sesion_id: String(sesionId) } : {}),
+  };
+
+  const functionBody: SendPushFunctionBody = {
+    usuario_id: body.usuario_id,
+    user_id: body.usuario_id,
+    tipo: body.tipo,
+    titulo: body.titulo,
+    mensaje: body.mensaje,
+    data: dataPayload,
+  };
+
+  const { data, error } = await supabase().functions.invoke('send-push', {
+    body: functionBody,
+  });
 
   if (error) {
     console.warn(`[Push] ${contexto}: error invocando send-push`, error);
@@ -108,6 +142,6 @@ export async function enviarHuecoDisponibleUsuario(
   body: Omit<PushDeliveryRequest, 'tipo'>,
   contexto: string,
 ): Promise<PushDeliveryResult> {
-  await asegurarNotificacionInternaHueco(body.user_id, body.data, contexto);
+  await asegurarNotificacionInternaHueco(body.usuario_id, body.data, contexto);
   return enviarPushUsuario({ ...body, tipo: 'hueco_disponible' }, contexto);
 }

@@ -277,7 +277,7 @@ export class ListaEsperaComponent implements OnInit {
       try {
         await enviarPushUsuario(
           {
-            user_id: usuarioId,
+            usuario_id: usuarioId,
             tipo: 'plaza_asignada',
             data: { mensaje: mensajePlaza, url: `/calendario?sesion=${sesion.sesion_id}` }
           },
@@ -352,7 +352,7 @@ export class ListaEsperaComponent implements OnInit {
       try {
         await enviarPushUsuario(
           {
-            user_id: usuarioId,
+            usuario_id: usuarioId,
             tipo: 'hueco_disponible',
             data: { mensaje: mensajeHueco, url: `/calendario?sesion=${sesion.sesion_id}` }
           },

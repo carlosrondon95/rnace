@@ -491,7 +491,7 @@ export class AdminReservasComponent implements OnInit {
             try {
               await enviarHuecoDisponibleUsuario(
                 {
-                  user_id: notifUid,
+                  usuario_id: notifUid,
                   data: {
                     modalidad: reserva.modalidad || '',
                     fecha: reserva.fechaRaw ? reserva.fechaRaw.split('-').reverse().join('/') : '',
@@ -512,14 +512,14 @@ export class AdminReservasComponent implements OnInit {
           try {
             await enviarPushUsuario(
               {
-                user_id: usuario.id,
-                tipo: 'reserva_cancelada',
+                usuario_id: usuario.id,
+                tipo: 'cancelacion',
                 data: {
                   fecha: reserva.fechaRaw ? reserva.fechaRaw.split('-').reverse().join('/') : '',
                   hora: reserva.hora
                 }
               },
-              `reserva_cancelada admin ${usuario.id}`,
+              `cancelacion admin ${usuario.id}`,
             );
           } catch (pushErr) {
             console.warn('[Push] Error enviando push cancelación admin:', pushErr);
