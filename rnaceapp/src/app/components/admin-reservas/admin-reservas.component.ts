@@ -481,8 +481,12 @@ export class AdminReservasComponent implements OnInit {
         this.cerrarModalEliminar();
 
         // Enviar push notification a TODOS los de la lista de espera
-        if (data[0].usuarios_notificados?.length > 0) {
-          for (const notifUid of data[0].usuarios_notificados) {
+        let usersToNotify = data[0].usuarios_notificados;
+        if (typeof usersToNotify === 'string') {
+          usersToNotify = usersToNotify.replace(/[{}]/g, '').split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
+        if (usersToNotify?.length > 0) {
+          for (const notifUid of usersToNotify) {
             try {
               await supabase().functions.invoke('send-push', {
                 body: {
