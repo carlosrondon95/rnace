@@ -756,8 +756,12 @@ export class CalendarioComponent implements OnInit {
         setTimeout(() => this.mensajeExito.set(null), 4000);
 
         // NOTIFICAR LISTA DE ESPERA si se liberó un hueco en la sesión anterior
-        if (data[0].usuarios_notificados?.length > 0) {
-          for (const uid of data[0].usuarios_notificados) {
+        let usersToNotify = data[0].usuarios_notificados;
+        if (typeof usersToNotify === 'string') {
+          usersToNotify = usersToNotify.replace(/[{}]/g, '').split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
+        if (usersToNotify?.length > 0) {
+          for (const uid of usersToNotify) {
             try {
               await supabase().functions.invoke('send-push', {
                 body: {
@@ -1038,8 +1042,12 @@ export class CalendarioComponent implements OnInit {
           await this.cargarCalendario();
 
           // NOTIFICAR LISTA DE ESPERA si se liberó un hueco en la sesión anterior
-          if (data[0].usuarios_notificados?.length > 0) {
-            for (const uid of data[0].usuarios_notificados) {
+          let usersToNotify = data[0].usuarios_notificados;
+          if (typeof usersToNotify === 'string') {
+            usersToNotify = usersToNotify.replace(/[{}]/g, '').split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
+          if (usersToNotify?.length > 0) {
+            for (const uid of usersToNotify) {
               try {
                 await supabase().functions.invoke('send-push', {
                   body: {
@@ -2137,8 +2145,12 @@ export class CalendarioComponent implements OnInit {
         );
 
         // NOTIFICAR LISTA DE ESPERA si se liberó un hueco en la sesión anterior
-        if (data[0].usuarios_notificados?.length > 0) {
-          for (const uid of data[0].usuarios_notificados) {
+        let usersToNotify = data[0].usuarios_notificados;
+        if (typeof usersToNotify === 'string') {
+          usersToNotify = usersToNotify.replace(/[{}]/g, '').split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
+        if (usersToNotify?.length > 0) {
+          for (const uid of usersToNotify) {
             try {
               await supabase().functions.invoke('send-push', {
                 body: {
@@ -2236,9 +2248,13 @@ export class CalendarioComponent implements OnInit {
           );
 
           // SEND PUSH TO WAITLIST IF ANYONE WAS NOTIFIED
-          if (resultado.usuarios_notificados?.length > 0) {
+          let usersToNotify = resultado.usuarios_notificados;
+          if (typeof usersToNotify === 'string') {
+            usersToNotify = usersToNotify.replace(/[{}]/g, '').split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
+          if (usersToNotify?.length > 0) {
             const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
-            for (const notifUid of resultado.usuarios_notificados) {
+            for (const notifUid of usersToNotify) {
               try {
                 await supabase().functions.invoke('send-push', {
                   body: {
@@ -2355,8 +2371,12 @@ export class CalendarioComponent implements OnInit {
           );
 
           // SEND PUSH TO WAITLIST IF ANYONE WAS NOTIFIED
-          if (resultado.usuarios_notificados?.length > 0) {
-            for (const notifUid of resultado.usuarios_notificados) {
+          let usersToNotify = resultado.usuarios_notificados;
+          if (typeof usersToNotify === 'string') {
+            usersToNotify = usersToNotify.replace(/[{}]/g, '').split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
+          if (usersToNotify?.length > 0) {
+            for (const notifUid of usersToNotify) {
               try {
                 await supabase().functions.invoke('send-push', {
                   body: {
@@ -2476,8 +2496,12 @@ export class CalendarioComponent implements OnInit {
         this.cerrarModalCancelarAdmin();
 
         // Enviar push notification a TODOS los de la lista de espera
-        if (data[0].usuarios_notificados?.length > 0) {
-          for (const notifUid of data[0].usuarios_notificados) {
+        let usersToNotify = data[0].usuarios_notificados;
+        if (typeof usersToNotify === 'string') {
+          usersToNotify = usersToNotify.replace(/[{}]/g, '').split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
+        if (usersToNotify?.length > 0) {
+          for (const notifUid of usersToNotify) {
             try {
               await supabase().functions.invoke('send-push', {
                 body: {
