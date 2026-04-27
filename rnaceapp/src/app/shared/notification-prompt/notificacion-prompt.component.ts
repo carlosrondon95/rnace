@@ -79,14 +79,21 @@ import { Subscription } from 'rxjs';
       </div>
     }
 
-    <!-- Badge de denegado -->
+    <!-- Estado bloqueado -->
     @if (permissionDenied()) {
-      <div class="status-badge status-badge--denied">
-        <span class="material-symbols-rounded">notifications_off</span>
-        Notificaciones bloqueadas
-        <button class="btn-info" (click)="showHelpModal.set(true)">
-          <span class="material-symbols-rounded">help</span>
-        </button>
+      <div class="prompt-card prompt-card--blocked">
+        <div class="prompt-icon prompt-icon--blocked">
+          <span class="material-symbols-rounded">notifications_off</span>
+        </div>
+        <div class="prompt-content">
+          <h4>Notificaciones bloqueadas</h4>
+          <p>Actívalas desde los ajustes del navegador para recibir avisos push.</p>
+        </div>
+        <div class="prompt-actions">
+          <button class="btn-primary" (click)="showHelpModal.set(true)">
+            Ver pasos
+          </button>
+        </div>
       </div>
     }
 
@@ -162,6 +169,11 @@ import { Subscription } from 'rxjs';
 
       &.prompt-icon--notification {
         background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+      }
+
+      &.prompt-icon--blocked {
+        background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
         color: white;
       }
     }
@@ -351,7 +363,8 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
   private pushService = inject(PushNotificationService);
   private installService = inject(InstallPromptService);
   private subscriptions: Subscription[] = [];
-  private readonly notificationDismissMs = 1000 * 60 * 60 * 24;
+  private notificationReminderTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly notificationDismissMs = 1000 * 60 * 60 * 2;
 
   // Signals
   showInstallPrompt = signal(false);
@@ -389,6 +402,9 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscriptions.forEach(s => s.unsubscribe());
+    if (this.notificationReminderTimer) {
+      clearTimeout(this.notificationReminderTimer);
+    }
   }
 
 
@@ -417,6 +433,13 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
           this.pushService.isSupported() &&
           !this.isDismissed('notification')
         );
+
+        if (status === 'default') {
+          this.scheduleNotificationReminder();
+        } else if (this.notificationReminderTimer) {
+          clearTimeout(this.notificationReminderTimer);
+          this.notificationReminderTimer = null;
+        }
       })
     );
   }
@@ -458,6 +481,7 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
   dismissNotifications(): void {
     this.showNotificationPrompt.set(false);
     this.setDismissed('notification');
+    this.scheduleNotificationReminder();
   }
 
   private isDismissed(key: string): boolean {
@@ -480,5 +504,26 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
   private setDismissed(key: string): void {
     if (!isPlatformBrowser(this.platformId)) return;
     localStorage.setItem(`dismiss_${key}`, String(Date.now()));
+  }
+
+  private scheduleNotificationReminder(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    if (this.notificationReminderTimer) {
+      clearTimeout(this.notificationReminderTimer);
+      this.notificationReminderTimer = null;
+    }
+
+    if (this.pushService.getPermissionStatus() !== 'default') return;
+    if (!this.pushService.isSupported()) return;
+
+    const dismissedAt = Number(localStorage.getItem('dismiss_notification') || '0');
+    const elapsed = Date.now() - dismissedAt;
+    const delay = Math.max(this.notificationDismissMs - elapsed, 0);
+
+    this.notificationReminderTimer = setTimeout(() => {
+      if (this.pushService.getPermissionStatus() === 'default' && this.pushService.isSupported()) {
+        this.showNotificationPrompt.set(true);
+      }
+    }, delay);
   }
 }
