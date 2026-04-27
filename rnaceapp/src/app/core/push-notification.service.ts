@@ -23,6 +23,7 @@ declare global {
 export class PushNotificationService {
   private platformId = inject(PLATFORM_ID);
   private oneSignalReady = false;
+  private oneSignalInstance: any = null;
 
   private _permissionStatus = new BehaviorSubject<NotificationPermission>('default');
   private _notification = new BehaviorSubject<PushNotification | null>(null);
@@ -107,12 +108,14 @@ export class PushNotificationService {
 
   /**
    * Espera a que el SDK de OneSignal se haya cargado e inicializado.
+   * Guarda la referencia al SDK para usarla directamente después.
    */
   private waitForOneSignal(): Promise<void> {
     return new Promise<void>((resolve) => {
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       window.OneSignalDeferred.push(async (OneSignal: any) => {
         console.log('[Push] OneSignal SDK listo');
+        this.oneSignalInstance = OneSignal;
         resolve();
       });
     });
@@ -126,7 +129,7 @@ export class PushNotificationService {
     const userId = this.getUserId();
     if (!userId) {
       // Reintentar tras breve espera (race condition con AuthService)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
       const retryId = this.getUserId();
       if (!retryId) {
         console.warn('[Push] No se pudo obtener userId para OneSignal.login()');
@@ -138,15 +141,54 @@ export class PushNotificationService {
     await this.doOneSignalLogin(userId);
   }
 
+  /**
+   * Ejecuta OneSignal.login() de forma robusta con reintentos.
+   * A diferencia de la versión anterior que usaba OneSignalDeferred.push()
+   * (fire-and-forget), esta versión usa la referencia directa al SDK
+   * y espera realmente a que el login complete.
+   */
   private async doOneSignalLogin(userId: string): Promise<void> {
-    try {
-      window.OneSignalDeferred.push(async (OneSignal: any) => {
-        await OneSignal.login(userId);
-        console.log('[Push] ✅ OneSignal.login() exitoso para userId:', userId);
-      });
-    } catch (error) {
-      console.error('[Push] Error en OneSignal.login():', error);
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 2000;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        if (this.oneSignalInstance) {
+          // Usar la referencia directa al SDK (más fiable)
+          await this.oneSignalInstance.login(userId);
+          console.log(`[Push] ✅ OneSignal.login() exitoso para userId: ${userId} (intento ${attempt})`);
+          return;
+        } else {
+          // Fallback: usar el patrón deferred con Promise wrapper
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error('OneSignal.login() timeout (10s)'));
+            }, 10000);
+
+            window.OneSignalDeferred.push(async (OneSignal: any) => {
+              try {
+                this.oneSignalInstance = OneSignal;
+                await OneSignal.login(userId);
+                clearTimeout(timeout);
+                console.log(`[Push] ✅ OneSignal.login() exitoso para userId: ${userId} (intento ${attempt}, deferred)`);
+                resolve();
+              } catch (innerErr) {
+                clearTimeout(timeout);
+                reject(innerErr);
+              }
+            });
+          });
+          return;
+        }
+      } catch (error) {
+        console.error(`[Push] ❌ Error en OneSignal.login() intento ${attempt}/${MAX_RETRIES}:`, error);
+        if (attempt < MAX_RETRIES) {
+          console.log(`[Push] Reintentando en ${RETRY_DELAY_MS}ms...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        }
+      }
     }
+    console.error(`[Push] ❌ OneSignal.login() falló después de ${MAX_RETRIES} intentos para userId: ${userId}`);
   }
 
   private checkPermissionStatus(): void {
@@ -206,7 +248,7 @@ export class PushNotificationService {
   private setupForegroundListener(): void {
     if (!isPlatformBrowser(this.platformId)) return;
 
-    window.OneSignalDeferred.push(async (OneSignal: any) => {
+    const setupListener = (OneSignal: any) => {
       OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event: any) => {
         console.log('[Push] Notificación en foreground:', event);
 
@@ -224,7 +266,16 @@ export class PushNotificationService {
         // Dejar que OneSignal muestre la notificación nativamente
         // (por defecto ya la muestra, no necesitamos showNotification manual)
       });
-    });
+    };
+
+    if (this.oneSignalInstance) {
+      setupListener(this.oneSignalInstance);
+    } else {
+      window.OneSignalDeferred.push(async (OneSignal: any) => {
+        this.oneSignalInstance = OneSignal;
+        setupListener(OneSignal);
+      });
+    }
   }
 
   /**
@@ -234,10 +285,15 @@ export class PushNotificationService {
     if (!isPlatformBrowser(this.platformId)) return;
 
     try {
-      window.OneSignalDeferred.push(async (OneSignal: any) => {
-        await OneSignal.logout();
+      if (this.oneSignalInstance) {
+        await this.oneSignalInstance.logout();
         console.log('[Push] OneSignal.logout() completado');
-      });
+      } else {
+        window.OneSignalDeferred.push(async (OneSignal: any) => {
+          await OneSignal.logout();
+          console.log('[Push] OneSignal.logout() completado');
+        });
+      }
     } catch (error) {
       console.error('[Push] Error en logout:', error);
     }
