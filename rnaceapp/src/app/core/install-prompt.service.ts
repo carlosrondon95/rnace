@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject } from 'rxjs';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -10,6 +11,7 @@ interface BeforeInstallPromptEvent extends Event {
   providedIn: 'root'
 })
 export class InstallPromptService {
+  private platformId = inject(PLATFORM_ID);
   private deferredPrompt: BeforeInstallPromptEvent | null = null;
 
   private _canInstall = new BehaviorSubject<boolean>(false);
@@ -21,6 +23,8 @@ export class InstallPromptService {
   isIOS$ = this._isIOS.asObservable();
 
   constructor() {
+    if (!isPlatformBrowser(this.platformId)) return;
+
     this.detectPlatform();
     this.checkIfInstalled();
     this.listenForInstallPrompt();
@@ -59,6 +63,7 @@ export class InstallPromptService {
   }
 
   async promptInstall(): Promise<boolean> {
+    if (!isPlatformBrowser(this.platformId)) return false;
     if (!this.deferredPrompt) return false;
 
     try {

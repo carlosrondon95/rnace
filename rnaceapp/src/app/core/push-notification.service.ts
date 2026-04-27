@@ -24,6 +24,7 @@ export class PushNotificationService {
   private platformId = inject(PLATFORM_ID);
   private oneSignalReady = false;
   private oneSignalInstance: any = null;
+  private foregroundListenerReady = false;
 
   private _permissionStatus = new BehaviorSubject<NotificationPermission>('default');
   private _notification = new BehaviorSubject<PushNotification | null>(null);
@@ -69,8 +70,8 @@ export class PushNotificationService {
         this.checkPermissionStatus();
       }
 
-      // Si ya tiene permiso y no se ha desactivado manualmente, inicializar
-      if (isSupported && Notification.permission === 'granted' && !this.isOptedOut()) {
+      // Al abrir la app, dejamos OneSignal listo y vinculado si ya hay usuario local.
+      if (isSupported && this.getUserId() && !this.isOptedOut()) {
         if (!this.initPromise) {
           this.initPromise = this.initializeOneSignal();
         }
@@ -96,10 +97,10 @@ export class PushNotificationService {
       this.setupForegroundListener();
       this.checkPermissionStatus();
 
-      // Si ya tiene permiso, hacer login con el userId
-      if (Notification.permission === 'granted' && !this.isOptedOut()) {
-        console.log('[Push] OneSignal listo, restaurando sesión...');
+      if (!this.isOptedOut()) {
+        console.log('[Push] OneSignal listo, sincronizando usuario...');
         await this.loginUser();
+        await this.ensurePushSubscriptionActive();
       }
     } catch (error) {
       console.error('[Push] Error inicializando OneSignal:', error);
@@ -111,9 +112,14 @@ export class PushNotificationService {
    * Guarda la referencia al SDK para usarla directamente después.
    */
   private waitForOneSignal(): Promise<void> {
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('OneSignal SDK no estuvo listo tras 15s'));
+      }, 15000);
+
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       window.OneSignalDeferred.push(async (OneSignal: any) => {
+        clearTimeout(timeout);
         console.log('[Push] OneSignal SDK listo');
         this.oneSignalInstance = OneSignal;
         resolve();
@@ -139,6 +145,18 @@ export class PushNotificationService {
       return;
     }
     await this.doOneSignalLogin(userId);
+  }
+
+  async syncCurrentUserSubscription(): Promise<boolean> {
+    if (!isPlatformBrowser(this.platformId) || !this.isSupported()) return false;
+    if (this.isOptedOut()) return false;
+
+    await this.ensureInitialized();
+    await this.loginUser();
+    await this.ensurePushSubscriptionActive();
+    this.checkPermissionStatus();
+
+    return this.isEffectivelyEnabled();
   }
 
   /**
@@ -197,6 +215,20 @@ export class PushNotificationService {
     }
   }
 
+  private async ensurePushSubscriptionActive(): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) return;
+    if (!this.oneSignalInstance || Notification.permission !== 'granted') return;
+
+    try {
+      const pushSubscription = this.oneSignalInstance.User?.PushSubscription;
+      if (pushSubscription?.optIn) {
+        await pushSubscription.optIn();
+      }
+    } catch (error) {
+      console.warn('[Push] No se pudo reactivar la suscripcion de OneSignal:', error);
+    }
+  }
+
   async requestPermission(): Promise<boolean> {
     if (!this.isSupported()) return false;
     if (!isPlatformBrowser(this.platformId)) return false;
@@ -221,6 +253,7 @@ export class PushNotificationService {
       if (permission === 'granted') {
         // Hacer login en OneSignal para asociar el dispositivo al usuario
         await this.loginUser();
+        await this.ensurePushSubscriptionActive();
         return true;
       }
       return false;
@@ -247,6 +280,7 @@ export class PushNotificationService {
 
   private setupForegroundListener(): void {
     if (!isPlatformBrowser(this.platformId)) return;
+    if (this.foregroundListenerReady) return;
 
     const setupListener = (OneSignal: any) => {
       OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event: any) => {
@@ -266,6 +300,7 @@ export class PushNotificationService {
         // Dejar que OneSignal muestre la notificación nativamente
         // (por defecto ya la muestra, no necesitamos showNotification manual)
       });
+      this.foregroundListenerReady = true;
     };
 
     if (this.oneSignalInstance) {
@@ -348,6 +383,7 @@ export class PushNotificationService {
     // If permission already granted, just login again
     if (this._permissionStatus.value === 'granted') {
       await this.loginUser();
+      await this.ensurePushSubscriptionActive();
       return true;
     }
 

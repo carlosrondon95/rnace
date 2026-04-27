@@ -15,7 +15,14 @@
 
 # Service Worker: NUNCA cachear, siempre servir la última versión
 [[headers]]
-  for = "/firebase-messaging-sw.js"
+  for = "/OneSignalSDKWorker.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/OneSignalSDKUpdaterWorker.js"
   [headers.values]
     Content-Type = "application/javascript"
     Cache-Control = "no-cache, no-store, must-revalidate"

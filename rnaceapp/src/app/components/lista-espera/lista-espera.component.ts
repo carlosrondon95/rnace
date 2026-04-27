@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
 import { supabase } from '../../core/supabase.client';
+import { enviarPushUsuario } from '../../core/push-delivery';
 
 interface SesionAgrupada {
   sesion_id: number;
@@ -274,13 +275,14 @@ export class ListaEsperaComponent implements OnInit {
 
       // Enviar push notification real
       try {
-        await supabase().functions.invoke('send-push', {
-          body: {
+        await enviarPushUsuario(
+          {
             user_id: usuarioId,
             tipo: 'plaza_asignada',
             data: { mensaje: mensajePlaza, url: `/calendario?sesion=${sesion.sesion_id}` }
-          }
-        });
+          },
+          `plaza_asignada ${usuarioId}`,
+        );
       } catch (pushErr) {
         console.warn('[Push] Error enviando push plaza_asignada:', pushErr);
       }
@@ -348,13 +350,14 @@ export class ListaEsperaComponent implements OnInit {
 
       // Enviar push notification real
       try {
-        await supabase().functions.invoke('send-push', {
-          body: {
+        await enviarPushUsuario(
+          {
             user_id: usuarioId,
             tipo: 'hueco_disponible',
             data: { mensaje: mensajeHueco, url: `/calendario?sesion=${sesion.sesion_id}` }
-          }
-        });
+          },
+          `hueco_disponible ${usuarioId}`,
+        );
       } catch (pushErr) {
         console.warn('[Push] Error enviando push hueco_disponible:', pushErr);
       }

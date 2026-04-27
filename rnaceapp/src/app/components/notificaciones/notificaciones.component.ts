@@ -263,6 +263,7 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
 
       const notificaciones: Notificacion[] = (data || []).map((n) => ({
         ...n,
+        sesion_id: n.sesion_id ?? this.extraerSesionIdDesdeUrl(n.accion_url),
         tiempo_relativo: this.calcularTiempoRelativo(n.creado_en),
       }));
 
@@ -364,12 +365,14 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
     this.notificacionSeleccionada.set(notificacion);
 
     // Si es una notificación de plaza disponible o lista de espera, cargar detalles de la sesión
-    if ((notificacion.tipo === 'plaza_disponible' || notificacion.tipo === 'hueco_disponible' || notificacion.tipo === 'lista_espera') && notificacion.sesion_id) {
+    const sesionId = this.getSesionId(notificacion);
+
+    if ((notificacion.tipo === 'plaza_disponible' || notificacion.tipo === 'hueco_disponible' || notificacion.tipo === 'lista_espera') && sesionId) {
       try {
         const { data } = await supabase()
           .from('sesiones')
           .select('fecha, hora, modalidad')
-          .eq('id', notificacion.sesion_id)
+          .eq('id', sesionId)
           .single();
 
         if (data) {
@@ -397,9 +400,11 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
     this.cerrarModal();
 
     // Para notificaciones de plaza disponible, navegar al calendario con el sesion_id
-    if ((notificacion.tipo === 'plaza_disponible' || notificacion.tipo === 'hueco_disponible' || notificacion.tipo === 'lista_espera') && notificacion.sesion_id) {
+    const sesionId = this.getSesionId(notificacion);
+
+    if ((notificacion.tipo === 'plaza_disponible' || notificacion.tipo === 'hueco_disponible' || notificacion.tipo === 'lista_espera') && sesionId) {
       this.router.navigate(['/calendario'], {
-        queryParams: { sesion: notificacion.sesion_id }
+        queryParams: { sesion: sesionId }
       });
       return;
     }
@@ -464,6 +469,26 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
 
   irAEnviarAviso() {
     this.router.navigateByUrl('/admin-avisos');
+  }
+
+  private getSesionId(notificacion: Notificacion): number | null {
+    return notificacion.sesion_id ?? this.extraerSesionIdDesdeUrl(notificacion.accion_url);
+  }
+
+  private extraerSesionIdDesdeUrl(url: string | null): number | null {
+    if (!url) return null;
+
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://centrornace.com';
+      const parsed = new URL(url, origin);
+      const sesion = parsed.searchParams.get('sesion');
+      if (!sesion) return null;
+
+      const id = Number(sesion);
+      return Number.isFinite(id) ? id : null;
+    } catch {
+      return null;
+    }
   }
 
   volver() {

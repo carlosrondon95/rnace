@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/auth.service';
 import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
 import { supabase } from '../../core/supabase.client';
+import { enviarPushUsuario } from '../../core/push-delivery';
 
 @Component({
   standalone: true,
@@ -228,8 +229,11 @@ export class AdminAvisosComponent {
         const pushMsg = pushResult.sent > 0
           ? ` Push enviado a ${pushResult.sent} dispositivo(s).`
           : ' (Sin dispositivos con push activo)';
+        const errorMsg = pushResult.errors > 0
+          ? ` ${pushResult.errors} usuario(s) sin push activo o con error.`
+          : '';
 
-        this.success.set(`¡Aviso enviado correctamente!${pushMsg}`);
+        this.success.set(`¡Aviso enviado correctamente!${pushMsg}${errorMsg}`);
         this.titulo.set('');
         this.mensaje.set('');
         setTimeout(() => this.success.set(null), 7000);
@@ -293,18 +297,19 @@ export class AdminAvisosComponent {
         const batch = targetUserIds.slice(i, i + batchSize);
         const results = await Promise.allSettled(
           batch.map(userId =>
-            supabase().functions.invoke('send-push', {
-              body: {
+            enviarPushUsuario(
+              {
                 user_id: userId,
                 tipo: 'admin',
                 data: { titulo, mensaje }
-              }
-            })
+              },
+              `aviso admin ${userId}`,
+            )
           )
         );
 
         for (const result of results) {
-          if (result.status === 'fulfilled' && !result.value.error) {
+          if (result.status === 'fulfilled' && result.value.ok) {
             sent++;
           } else {
             errors++;

@@ -5,14 +5,19 @@ import { CommonModule } from '@angular/common';
 import { NavbarComponent } from './shared/navbar/navbar.component';
 import { ConfirmationModalComponent } from './shared/confirmation-modal/confirmation-modal.component';
 import { IosInstallBannerComponent } from './shared/ios-install-banner/ios-install-banner.component';
+import { AuthService } from './core/auth.service';
+import { NotificationPromptComponent } from './shared/notification-prompt/notificacion-prompt.component';
 import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NavbarComponent, CommonModule, ConfirmationModalComponent, IosInstallBannerComponent],
+  imports: [RouterOutlet, NavbarComponent, CommonModule, ConfirmationModalComponent, IosInstallBannerComponent, NotificationPromptComponent],
   template: `
     <app-navbar *ngIf="mostrarNavbar()" />
+    <div class="app-prompt-shell" *ngIf="mostrarNavbar()">
+      <app-notification-prompt />
+    </div>
     <router-outlet />
     <app-confirmation-modal />
     <app-ios-install-banner />
@@ -22,13 +27,22 @@ import { filter } from 'rxjs/operators';
       display: block;
       min-height: 100vh;
     }
+
+    .app-prompt-shell {
+      width: min(100%, 720px);
+      margin: 0 auto;
+      padding: 0 var(--space-md);
+    }
   `]
 })
 export class App {
   private router = inject(Router);
+  private auth = inject(AuthService);
   mostrarNavbar = signal(true);
 
   constructor() {
+    void this.auth.sincronizarPushSiHayUsuario();
+
     // Verificar ruta inicial
     this.actualizarNavbar(this.router.url);
 

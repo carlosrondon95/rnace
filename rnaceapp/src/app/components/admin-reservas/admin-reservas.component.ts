@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { supabase } from '../../core/supabase.client';
 import { AuditService } from '../../core/audit.service';
+import { enviarPushUsuario } from '../../core/push-delivery';
 
 type VistaActual = 'grupos' | 'usuarios' | 'reservas';
 type TipoGrupo = 'focus' | 'reducido' | 'hibrido' | 'especial';
@@ -488,8 +489,8 @@ export class AdminReservasComponent implements OnInit {
         if (usersToNotify?.length > 0) {
           for (const notifUid of usersToNotify) {
             try {
-              await supabase().functions.invoke('send-push', {
-                body: {
+              await enviarPushUsuario(
+                {
                   user_id: notifUid,
                   tipo: 'hueco_disponible',
                   data: {
@@ -498,8 +499,9 @@ export class AdminReservasComponent implements OnInit {
                     hora: reserva.hora || '',
                     url: `/calendario?sesion=${reserva.sesion_id}`
                   }
-                }
-              });
+                },
+                `hueco_disponible admin ${notifUid}`,
+              );
             } catch (pushErr) {
               console.warn('[Push] Error enviando push hueco_disponible admin:', pushErr);
             }
@@ -509,16 +511,17 @@ export class AdminReservasComponent implements OnInit {
         // Enviar push notification al usuario afectado
         if (usuario) {
           try {
-            await supabase().functions.invoke('send-push', {
-              body: {
+            await enviarPushUsuario(
+              {
                 user_id: usuario.id,
                 tipo: 'reserva_cancelada',
                 data: {
                   fecha: reserva.fechaRaw ? reserva.fechaRaw.split('-').reverse().join('/') : '',
                   hora: reserva.hora
                 }
-              }
-            });
+              },
+              `reserva_cancelada admin ${usuario.id}`,
+            );
           } catch (pushErr) {
             console.warn('[Push] Error enviando push cancelación admin:', pushErr);
           }

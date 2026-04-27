@@ -8,6 +8,7 @@ import { ConfirmationService } from '../../shared/confirmation-modal/confirmatio
 import { supabase } from '../../core/supabase.client';
 import { CustomSelectComponent, SelectOption } from '../../shared/ui/custom-select/custom-select.component';
 import { AuditService } from '../../core/audit.service';
+import { enviarPushUsuario } from '../../core/push-delivery';
 
 interface DiaCalendario {
   fecha: string;
@@ -763,8 +764,8 @@ export class CalendarioComponent implements OnInit {
         if (usersToNotify?.length > 0) {
           for (const uid of usersToNotify) {
             try {
-              await supabase().functions.invoke('send-push', {
-                body: {
+              await enviarPushUsuario(
+                {
                   user_id: uid,
                   tipo: 'hueco_disponible',
                   data: {
@@ -773,8 +774,9 @@ export class CalendarioComponent implements OnInit {
                     hora: data[0].hora_anterior || '',
                     url: `/calendario?sesion=${data[0].sesion_anterior_id}`
                   }
-                }
-              });
+                },
+                `hueco_disponible cambio turno ${uid}`,
+              );
             } catch (pushErr) {
               console.warn('[Push] Error enviando push hueco_disponible (cambio turno):', pushErr);
             }
@@ -1049,8 +1051,8 @@ export class CalendarioComponent implements OnInit {
           if (usersToNotify?.length > 0) {
             for (const uid of usersToNotify) {
               try {
-                await supabase().functions.invoke('send-push', {
-                  body: {
+                await enviarPushUsuario(
+                  {
                     user_id: uid,
                     tipo: 'hueco_disponible',
                     data: {
@@ -1059,8 +1061,9 @@ export class CalendarioComponent implements OnInit {
                       hora: data[0].hora_anterior || '',
                       url: `/calendario?sesion=${data[0].sesion_anterior_id}`
                     }
-                  }
-                });
+                  },
+                  `hueco_disponible reclamar plaza ${uid}`,
+                );
               } catch (pushErr) {
                 console.warn('[Push] Error enviando push hueco_disponible (reclamar plaza):', pushErr);
               }
@@ -1715,8 +1718,8 @@ export class CalendarioComponent implements OnInit {
               
               // Notificación push
               try {
-                await client.functions.invoke('send-push', {
-                  body: {
+                await enviarPushUsuario(
+                  {
                     user_id: reserva.usuario_id,
                     tipo: 'reserva_cancelada',
                     data: { 
@@ -1724,8 +1727,9 @@ export class CalendarioComponent implements OnInit {
                       fecha: fechaFormateada,
                       hora: horaFormateada
                     }
-                  }
-                });
+                  },
+                  `reserva_cancelada festivo ${reserva.usuario_id}`,
+                );
               } catch (e) {
                 console.warn('[Push] Error enviando push cancelacion:', e);
               }
@@ -2152,8 +2156,8 @@ export class CalendarioComponent implements OnInit {
         if (usersToNotify?.length > 0) {
           for (const uid of usersToNotify) {
             try {
-              await supabase().functions.invoke('send-push', {
-                body: {
+              await enviarPushUsuario(
+                {
                   user_id: uid,
                   tipo: 'hueco_disponible',
                   data: {
@@ -2162,8 +2166,9 @@ export class CalendarioComponent implements OnInit {
                     hora: data[0].hora_anterior || reserva.hora || '',
                     url: `/calendario?sesion=${data[0].sesion_anterior_id || reserva.sesion_id}`
                   }
-                }
-              });
+                },
+                `hueco_disponible cambio turno admin ${uid}`,
+              );
             } catch (pushErr) {
               console.warn('[Push] Error enviando push hueco_disponible (cambio turno):', pushErr);
             }
@@ -2256,8 +2261,8 @@ export class CalendarioComponent implements OnInit {
             const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
             for (const notifUid of usersToNotify) {
               try {
-                await supabase().functions.invoke('send-push', {
-                  body: {
+                await enviarPushUsuario(
+                  {
                     user_id: notifUid,
                     tipo: 'hueco_disponible',
                     data: {
@@ -2266,8 +2271,9 @@ export class CalendarioComponent implements OnInit {
                       hora: sesion?.hora || '',
                       url: `/calendario?sesion=${sesion?.id}`
                     }
-                  }
-                });
+                  },
+                  `hueco_disponible cancelar reserva ${notifUid}`,
+                );
               } catch (pushErr) {
                 console.warn('[Push] Error enviando push hueco_disponible:', pushErr);
               }
@@ -2378,8 +2384,8 @@ export class CalendarioComponent implements OnInit {
           if (usersToNotify?.length > 0) {
             for (const notifUid of usersToNotify) {
               try {
-                await supabase().functions.invoke('send-push', {
-                  body: {
+                await enviarPushUsuario(
+                  {
                     user_id: notifUid,
                     tipo: 'hueco_disponible',
                     data: {
@@ -2388,8 +2394,9 @@ export class CalendarioComponent implements OnInit {
                       hora: sesion?.hora || '',
                       url: `/calendario?sesion=${sesion?.id}`
                     }
-                  }
-                });
+                  },
+                  `hueco_disponible cancelar reserva ${notifUid}`,
+                );
               } catch (pushErr) {
                 console.warn('[Push] Error enviando push hueco_disponible:', pushErr);
               }
@@ -2503,8 +2510,8 @@ export class CalendarioComponent implements OnInit {
         if (usersToNotify?.length > 0) {
           for (const notifUid of usersToNotify) {
             try {
-              await supabase().functions.invoke('send-push', {
-                body: {
+              await enviarPushUsuario(
+                {
                   user_id: notifUid,
                   tipo: 'hueco_disponible',
                   data: {
@@ -2513,8 +2520,9 @@ export class CalendarioComponent implements OnInit {
                     hora: reserva.hora || '',
                     url: `/calendario?sesion=${reserva.sesion_id}`
                   }
-                }
-              });
+                },
+                `hueco_disponible admin ${notifUid}`,
+              );
             } catch (pushErr) {
               console.warn('[Push] Error enviando push hueco_disponible admin:', pushErr);
             }
@@ -2523,16 +2531,17 @@ export class CalendarioComponent implements OnInit {
 
         // Enviar push notification al usuario afectado
         try {
-          await supabase().functions.invoke('send-push', {
-            body: {
+          await enviarPushUsuario(
+            {
               user_id: reserva.usuario_id,
               tipo: 'reserva_cancelada',
               data: { 
                 fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
                 hora: reserva.hora
               }
-            }
-          });
+            },
+            `reserva_cancelada admin ${reserva.usuario_id}`,
+          );
         } catch (pushErr) {
           console.warn('[Push] Error enviando push cancelación admin:', pushErr);
         }

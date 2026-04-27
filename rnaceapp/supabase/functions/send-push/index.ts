@@ -135,11 +135,30 @@ serve(async (req: Request) => {
   }
 
   try {
-    const payload: NotificationRequest = await req.json();
+    let payload: NotificationRequest;
+    try {
+      payload = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ success: false, error: 'JSON invalido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Validar campos
-    if (!payload.user_id) throw new Error('user_id es requerido');
-    if (!payload.tipo) throw new Error('tipo es requerido');
+    if (!payload.user_id) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'user_id es requerido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!payload.tipo) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'tipo es requerido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Cliente Supabase con service key
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -154,7 +173,7 @@ serve(async (req: Request) => {
     if (userError || !usuario) {
       return new Response(
         JSON.stringify({ success: false, message: 'Usuario no encontrado' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

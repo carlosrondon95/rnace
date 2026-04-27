@@ -48,6 +48,7 @@ export class AuthService {
       if (guardado) {
         const usuario = JSON.parse(guardado) as Usuario;
         this.usuarioActual.set(usuario);
+        void this.sincronizarPushSiHayUsuario();
       }
     } catch (error) {
       console.error('Error cargando usuario guardado:', error);
@@ -108,7 +109,7 @@ export class AuthService {
 
       // Inicializar push notifications después del login exitoso
       // Esto se hace de forma lazy para evitar "Worker is not defined" en SSR
-      await this.pushService.ensureInitialized();
+      await this.pushService.syncCurrentUserSubscription();
 
       return { success: true };
 
@@ -127,6 +128,11 @@ export class AuthService {
       localStorage.removeItem('rnace_token');
     }
     this.usuarioActual.set(null);
+  }
+
+  async sincronizarPushSiHayUsuario(): Promise<void> {
+    if (!this.estaLogueado()) return;
+    await this.pushService.syncCurrentUserSubscription();
   }
 
   // Crear usuario básico (solo datos de autenticación)

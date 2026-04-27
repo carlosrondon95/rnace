@@ -4,7 +4,6 @@ import { Component, inject, computed, signal, OnInit, OnDestroy } from '@angular
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
-import { NotificationPromptComponent } from '../../shared/notification-prompt/notificacion-prompt.component';
 
 interface ProximaClase {
   id: number;
@@ -56,7 +55,7 @@ interface EstadisticasAdmin {
 @Component({
   standalone: true,
   selector: 'app-dashboard',
-  imports: [CommonModule, RouterLink, NotificationPromptComponent],
+  imports: [CommonModule, RouterLink],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
 })

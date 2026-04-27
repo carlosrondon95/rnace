@@ -1,5 +1,5 @@
-import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, PLATFORM_ID, inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { PushNotificationService } from '../../core/push-notification.service';
 import { InstallPromptService } from '../../core/install-prompt.service';
 import { Subscription } from 'rxjs';
@@ -347,9 +347,11 @@ import { Subscription } from 'rxjs';
   `]
 })
 export class NotificationPromptComponent implements OnInit, OnDestroy {
+  private platformId = inject(PLATFORM_ID);
   private pushService = inject(PushNotificationService);
   private installService = inject(InstallPromptService);
   private subscriptions: Subscription[] = [];
+  private readonly notificationDismissMs = 1000 * 60 * 60 * 24;
 
   // Signals
   showInstallPrompt = signal(false);
@@ -370,6 +372,8 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
   iosSteps: string[] = [];
 
   ngOnInit(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
     this.checkPlatform();
     this.iosSteps = this.installService.getIOSInstructions();
     this.setupSubscriptions();
@@ -377,6 +381,8 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
   }
 
   private checkPlatform(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+
     const ua = navigator.userAgent.toLowerCase();
     this.isAndroid.set(ua.indexOf('android') > -1);
   }
@@ -427,12 +433,12 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
 
   dismissInstall(): void {
     this.showInstallPrompt.set(false);
-    localStorage.setItem('dismiss_install', 'true');
+    this.setDismissed('install');
   }
 
   dismissIOS(): void {
     this.showIOSInstructions.set(false);
-    localStorage.setItem('dismiss_ios', 'true');
+    this.setDismissed('ios');
   }
 
   async enableNotifications(): Promise<void> {
@@ -451,10 +457,28 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
 
   dismissNotifications(): void {
     this.showNotificationPrompt.set(false);
-    localStorage.setItem('dismiss_notification', 'true');
+    this.setDismissed('notification');
   }
 
   private isDismissed(key: string): boolean {
-    return localStorage.getItem(`dismiss_${key}`) === 'true';
+    if (!isPlatformBrowser(this.platformId)) return true;
+
+    const raw = localStorage.getItem(`dismiss_${key}`);
+    if (!raw) return false;
+
+    if (raw === 'true') {
+      return key !== 'notification';
+    }
+
+    const dismissedAt = Number(raw);
+    if (!Number.isFinite(dismissedAt)) return false;
+
+    const ttl = key === 'notification' ? this.notificationDismissMs : Number.POSITIVE_INFINITY;
+    return Date.now() - dismissedAt < ttl;
+  }
+
+  private setDismissed(key: string): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    localStorage.setItem(`dismiss_${key}`, String(Date.now()));
   }
 }
