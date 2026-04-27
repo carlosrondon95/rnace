@@ -35,6 +35,7 @@ export class PushNotificationService {
   isSupported$ = this._isSupported.asObservable();
 
   private initPromise: Promise<void> | null = null;
+  private syncPromise: Promise<boolean> | null = null;
 
   constructor() {
     if (isPlatformBrowser(this.platformId)) {
@@ -151,11 +152,26 @@ export class PushNotificationService {
     if (!isPlatformBrowser(this.platformId) || !this.isSupported()) return false;
     if (this.isOptedOut()) return false;
 
+    if (!this.syncPromise) {
+      this.syncPromise = this.syncCurrentUserSubscriptionOnce().finally(() => {
+        this.syncPromise = null;
+      });
+    }
+
+    return await this.syncPromise;
+  }
+
+  private async syncCurrentUserSubscriptionOnce(): Promise<boolean> {
     await this.ensureInitialized();
+
+    if (!this.oneSignalInstance) {
+      this.checkPermissionStatus();
+      return false;
+    }
+
     await this.loginUser();
     await this.ensurePushSubscriptionActive();
     this.checkPermissionStatus();
-
     return this.isEffectivelyEnabled();
   }
 
