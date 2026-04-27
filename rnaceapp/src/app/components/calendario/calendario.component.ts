@@ -8,7 +8,7 @@ import { ConfirmationService } from '../../shared/confirmation-modal/confirmatio
 import { supabase } from '../../core/supabase.client';
 import { CustomSelectComponent, SelectOption } from '../../shared/ui/custom-select/custom-select.component';
 import { AuditService } from '../../core/audit.service';
-import { enviarPushUsuario } from '../../core/push-delivery';
+import { enviarHuecoDisponibleUsuario, enviarPushUsuario } from '../../core/push-delivery';
 
 interface DiaCalendario {
   fecha: string;
@@ -764,10 +764,9 @@ export class CalendarioComponent implements OnInit {
         if (usersToNotify?.length > 0) {
           for (const uid of usersToNotify) {
             try {
-              await enviarPushUsuario(
+              await enviarHuecoDisponibleUsuario(
                 {
                   user_id: uid,
-                  tipo: 'hueco_disponible',
                   data: {
                     modalidad: data[0].modalidad_anterior || '',
                     fecha: data[0].fecha_anterior ? data[0].fecha_anterior.split('-').reverse().join('/') : '',
@@ -1051,10 +1050,9 @@ export class CalendarioComponent implements OnInit {
           if (usersToNotify?.length > 0) {
             for (const uid of usersToNotify) {
               try {
-                await enviarPushUsuario(
+                await enviarHuecoDisponibleUsuario(
                   {
                     user_id: uid,
-                    tipo: 'hueco_disponible',
                     data: {
                       modalidad: data[0].modalidad_anterior || '',
                       fecha: data[0].fecha_anterior ? data[0].fecha_anterior.split('-').reverse().join('/') : '',
@@ -2156,10 +2154,9 @@ export class CalendarioComponent implements OnInit {
         if (usersToNotify?.length > 0) {
           for (const uid of usersToNotify) {
             try {
-              await enviarPushUsuario(
+              await enviarHuecoDisponibleUsuario(
                 {
                   user_id: uid,
-                  tipo: 'hueco_disponible',
                   data: {
                     modalidad: data[0].modalidad_anterior || reserva.modalidad || '',
                     fecha: data[0].fecha_anterior ? data[0].fecha_anterior.split('-').reverse().join('/') : reserva.fecha.split('-').reverse().join('/'),
@@ -2261,10 +2258,9 @@ export class CalendarioComponent implements OnInit {
             const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
             for (const notifUid of usersToNotify) {
               try {
-                await enviarPushUsuario(
+                await enviarHuecoDisponibleUsuario(
                   {
                     user_id: notifUid,
-                    tipo: 'hueco_disponible',
                     data: {
                       modalidad: sesion?.modalidad || '',
                       fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
@@ -2384,10 +2380,9 @@ export class CalendarioComponent implements OnInit {
           if (usersToNotify?.length > 0) {
             for (const notifUid of usersToNotify) {
               try {
-                await enviarPushUsuario(
+                await enviarHuecoDisponibleUsuario(
                   {
                     user_id: notifUid,
-                    tipo: 'hueco_disponible',
                     data: {
                       modalidad: sesion?.modalidad || '',
                       fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
@@ -2510,10 +2505,9 @@ export class CalendarioComponent implements OnInit {
         if (usersToNotify?.length > 0) {
           for (const notifUid of usersToNotify) {
             try {
-              await enviarPushUsuario(
+              await enviarHuecoDisponibleUsuario(
                 {
                   user_id: notifUid,
-                  tipo: 'hueco_disponible',
                   data: {
                     modalidad: reserva.modalidad || '',
                     fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',

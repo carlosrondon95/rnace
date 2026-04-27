@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { supabase } from '../../core/supabase.client';
 import { AuditService } from '../../core/audit.service';
-import { enviarPushUsuario } from '../../core/push-delivery';
+import { enviarHuecoDisponibleUsuario, enviarPushUsuario } from '../../core/push-delivery';
 
 type VistaActual = 'grupos' | 'usuarios' | 'reservas';
 type TipoGrupo = 'focus' | 'reducido' | 'hibrido' | 'especial';
@@ -489,10 +489,9 @@ export class AdminReservasComponent implements OnInit {
         if (usersToNotify?.length > 0) {
           for (const notifUid of usersToNotify) {
             try {
-              await enviarPushUsuario(
+              await enviarHuecoDisponibleUsuario(
                 {
                   user_id: notifUid,
-                  tipo: 'hueco_disponible',
                   data: {
                     modalidad: reserva.modalidad || '',
                     fecha: reserva.fechaRaw ? reserva.fechaRaw.split('-').reverse().join('/') : '',
