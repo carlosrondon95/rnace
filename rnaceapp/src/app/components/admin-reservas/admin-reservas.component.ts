@@ -480,23 +480,25 @@ export class AdminReservasComponent implements OnInit {
 
         this.cerrarModalEliminar();
 
-        // Enviar push notification al usuario de la lista de espera si hubo notificado
-        if (data[0].usuario_notificado) {
-          try {
-            await supabase().functions.invoke('send-push', {
-              body: {
-                user_id: data[0].usuario_notificado,
-                tipo: 'hueco_disponible',
-                data: {
-                  modalidad: reserva.modalidad || '',
-                  fecha: reserva.fechaRaw ? reserva.fechaRaw.split('-').reverse().join('/') : '',
-                  hora: reserva.hora || '',
-                  url: `/calendario?sesion=${reserva.sesion_id}`
+        // Enviar push notification a TODOS los de la lista de espera
+        if (data[0].usuarios_notificados?.length > 0) {
+          for (const notifUid of data[0].usuarios_notificados) {
+            try {
+              await supabase().functions.invoke('send-push', {
+                body: {
+                  user_id: notifUid,
+                  tipo: 'hueco_disponible',
+                  data: {
+                    modalidad: reserva.modalidad || '',
+                    fecha: reserva.fechaRaw ? reserva.fechaRaw.split('-').reverse().join('/') : '',
+                    hora: reserva.hora || '',
+                    url: `/calendario?sesion=${reserva.sesion_id}`
+                  }
                 }
-              }
-            });
-          } catch (pushErr) {
-            console.warn('[Push] Error enviando push hueco_disponible admin:', pushErr);
+              });
+            } catch (pushErr) {
+              console.warn('[Push] Error enviando push hueco_disponible admin:', pushErr);
+            }
           }
         }
 
