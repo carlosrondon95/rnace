@@ -993,6 +993,19 @@ export class CalendarioComponent implements OnInit {
     this.recuperacionSeleccionada.set(null);
   }
 
+  seleccionarOpcionReclamar(opcion: 'cambiar' | 'recuperacion') {
+    this.opcionReclamarSeleccionada.set(opcion);
+
+    if (opcion === 'cambiar') {
+      this.recuperacionSeleccionada.set(null);
+      return;
+    }
+
+    this.reservaSeleccionadaParaCambio.set(null);
+    const primeraRecuperacion = this.recuperacionesDisponibles()[0];
+    this.recuperacionSeleccionada.set(primeraRecuperacion?.id ?? null);
+  }
+
   async confirmarReclamarPlaza() {
     const sesion = this.sesionReclamar();
     const opcion = this.opcionReclamarSeleccionada();
@@ -1007,6 +1020,8 @@ export class CalendarioComponent implements OnInit {
     this.error.set(null);
 
     try {
+      let plazaReclamada = false;
+
       if (opcion === 'cambiar') {
         const reservaId = this.reservaSeleccionadaParaCambio();
         if (!reservaId) {
@@ -1037,6 +1052,7 @@ export class CalendarioComponent implements OnInit {
 
         if (error) throw error;
         if (data && data[0]?.ok) {
+          plazaReclamada = true;
           this.mensajeExito.set('¡Plaza reclamada! Tu reserva ha sido cambiada.');
           setTimeout(() => this.mensajeExito.set(null), 4000);
           this.cerrarModalReclamarPlaza();
@@ -1086,6 +1102,7 @@ export class CalendarioComponent implements OnInit {
 
         if (error) throw error;
         if (data && data[0]?.ok) {
+          plazaReclamada = true;
           this.mensajeExito.set('¡Plaza reclamada con recuperación!');
           setTimeout(() => this.mensajeExito.set(null), 4000);
           this.cerrarModalReclamarPlaza();
@@ -1096,16 +1113,26 @@ export class CalendarioComponent implements OnInit {
       }
 
       // Quitar de lista de espera ya que reclamó la plaza
-      await supabase().rpc('quitar_lista_espera', {
-        p_usuario_id: uid,
-        p_sesion_id: sesion.id
-      });
+      if (plazaReclamada) {
+        await this.quitarDeListaEsperaTrasReclamar(uid, sesion.id);
+      }
 
     } catch (err: any) {
       console.error('Error:', err);
       this.error.set(err.message || 'Error al reclamar la plaza');
     } finally {
       this.reclamandoPlaza.set(false);
+    }
+  }
+
+  private async quitarDeListaEsperaTrasReclamar(usuarioId: string, sesionId: number) {
+    const { error } = await supabase().rpc('quitar_lista_espera', {
+      p_usuario_id: usuarioId,
+      p_sesion_id: sesionId
+    });
+
+    if (error) {
+      console.warn('No se pudo quitar de lista de espera tras reclamar plaza:', error);
     }
   }
 

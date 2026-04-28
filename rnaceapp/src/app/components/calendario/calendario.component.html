@@ -895,8 +895,7 @@
 
           <!-- Opción 1: Cambiar reserva existente -->
           @if (misReservasParaCambio().length > 0) {
-          <button class="btn-opcion-reclamar"
-            (click)="opcionReclamarSeleccionada.set('cambiar'); recuperacionSeleccionada.set(null)">
+          <button class="btn-opcion-reclamar" (click)="seleccionarOpcionReclamar('cambiar')">
             <span class="material-symbols-rounded">swap_horiz</span>
             <div class="opcion-texto">
               <strong>Cambiar una reserva existente</strong>
@@ -908,8 +907,7 @@
 
           <!-- Opción 2: Usar recuperación -->
           @if (recuperacionesDisponibles().length > 0) {
-          <button class="btn-opcion-reclamar"
-            (click)="opcionReclamarSeleccionada.set('recuperacion'); reservaSeleccionadaParaCambio.set(null)">
+          <button class="btn-opcion-reclamar" (click)="seleccionarOpcionReclamar('recuperacion')">
             <span class="material-symbols-rounded">replay</span>
             <div class="opcion-texto">
               <strong>Usar una recuperación</strong>
