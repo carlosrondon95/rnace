@@ -392,6 +392,12 @@ entrypoint = "./functions/send-push/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/send-push/*.html" ]
 
+[functions.register-push-subscription]
+enabled = true
+verify_jwt = true
+import_map = "./functions/register-push-subscription/deno.json"
+entrypoint = "./functions/register-push-subscription/index.ts"
+
 [functions.login]
 enabled = true
 verify_jwt = true

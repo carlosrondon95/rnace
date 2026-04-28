@@ -22,6 +22,7 @@ export interface PushDeliveryResult {
   skipped: boolean;
   error?: string;
   onesignalId?: string;
+  target?: 'external_id' | 'subscription_id';
 }
 
 interface SendPushFunctionBody {
@@ -135,7 +136,7 @@ export async function enviarPushUsuario(
     return { ok: false, skipped: false, error: message };
   }
 
-  return { ok: true, skipped: false, onesignalId: data.onesignal_id };
+  return { ok: true, skipped: false, onesignalId: data.onesignal_id, target: data.target };
 }
 
 export async function enviarHuecoDisponibleUsuario(

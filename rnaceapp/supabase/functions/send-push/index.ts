@@ -29,6 +29,16 @@ interface NotificationRequest {
   data?: Record<string, string>;
 }
 
+type OneSignalTarget = 'external_id' | 'subscription_id';
+
+interface OneSignalResult {
+  success: boolean;
+  id?: string;
+  error?: string;
+  recipients?: number | null;
+  target?: OneSignalTarget;
+}
+
 const cancelacionTemplate = (data: Record<string, string>) => ({
   titulo: data.titulo || 'Reserva Cancelada',
   mensaje:
@@ -93,7 +103,8 @@ async function sendOneSignalNotification(
   titulo: string,
   mensaje: string,
   data: Record<string, string>,
-): Promise<{ success: boolean; id?: string; error?: string }> {
+  fallbackSubscriptionIds: string[],
+): Promise<OneSignalResult> {
   let url = data.url;
   if (!url) {
     switch (data.tipo) {
@@ -114,8 +125,6 @@ async function sendOneSignalNotification(
 
   const body: Record<string, unknown> = {
     app_id: ONESIGNAL_APP_ID,
-    include_aliases: { external_id: [userId] },
-    target_channel: 'push',
     headings: { en: titulo },
     contents: { en: mensaje },
     web_url: `https://centrornace.com${url}`,
@@ -130,7 +139,43 @@ async function sendOneSignalNotification(
     priority: 10,
   };
 
-  const response = await fetch('https://onesignal.com/api/v1/notifications', {
+  const externalIdResult = await postOneSignalNotification(
+    {
+      ...body,
+      include_aliases: { external_id: [userId] },
+      target_channel: 'push',
+    },
+    'external_id',
+  );
+
+  if (externalIdResult.success || externalIdResult.recipients !== 0) {
+    return externalIdResult;
+  }
+
+  if (fallbackSubscriptionIds.length === 0) {
+    return externalIdResult;
+  }
+
+  console.warn('[OneSignal] Sin destinatarios por external_id; reintentando por subscription_id', {
+    usuario_id: userId,
+    subscriptions: fallbackSubscriptionIds.length,
+  });
+
+  return await postOneSignalNotification(
+    {
+      ...body,
+      include_subscription_ids: fallbackSubscriptionIds,
+      target_channel: 'push',
+    },
+    'subscription_id',
+  );
+}
+
+async function postOneSignalNotification(
+  body: Record<string, unknown>,
+  target: OneSignalTarget,
+): Promise<OneSignalResult> {
+  const response = await fetch('https://api.onesignal.com/notifications?c=push', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -147,25 +192,51 @@ async function sendOneSignalNotification(
         ? result.errors.join(', ')
         : JSON.stringify(result.errors)
       : `HTTP ${response.status}`;
-    console.error('[OneSignal] Error:', errorMsg);
-    return { success: false, error: errorMsg };
+    console.error('[OneSignal] Error:', { target, error: errorMsg });
+    return { success: false, error: errorMsg, target };
   }
 
   const recipients = typeof result.recipients === 'number' ? result.recipients : null;
   if (!result.id || recipients === 0) {
     const errorMsg =
       recipients === 0
-        ? 'OneSignal no encontro subscriptions para este external_id'
+        ? `OneSignal no encontro subscriptions para este ${target}`
         : 'OneSignal no devolvio notification id';
     console.warn('[OneSignal] Sin destinatarios validos:', {
-      usuario_id: userId,
+      target,
       notification_id: result.id ?? null,
       recipients,
     });
-    return { success: false, error: errorMsg };
+    return { success: false, error: errorMsg, recipients, target };
   }
 
-  return { success: true, id: result.id };
+  return { success: true, id: result.id, recipients, target };
+}
+
+async function getFallbackSubscriptionIds(
+  supabase: ReturnType<typeof createClient>,
+  usuarioId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .select('subscription_id')
+    .eq('usuario_id', usuarioId)
+    .eq('opted_in', true)
+    .order('last_seen_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.warn('[Push] No se pudieron leer fallback subscription_ids:', error.message);
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      (data || [])
+        .map((row) => String(row.subscription_id || '').trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 serve(async (req: Request) => {
@@ -241,6 +312,7 @@ serve(async (req: Request) => {
       : { titulo: payload.titulo || 'RNACE', mensaje: payload.mensaje || '' };
 
     console.log(`[OneSignal] Enviando "${content.titulo}" a usuario ${usuarioId}`);
+    const fallbackSubscriptionIds = await getFallbackSubscriptionIds(supabase, usuarioId);
 
     const result = await sendOneSignalNotification(
       usuarioId,
@@ -250,12 +322,15 @@ serve(async (req: Request) => {
         ...Object.fromEntries(Object.entries(payload.data || {}).map(([k, v]) => [k, String(v)])),
         tipo,
       },
+      fallbackSubscriptionIds,
     );
 
     return new Response(
       JSON.stringify({
         success: result.success,
         onesignal_id: result.id,
+        recipients: result.recipients,
+        target: result.target,
         error: result.error,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

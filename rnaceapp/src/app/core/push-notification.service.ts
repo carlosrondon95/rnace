@@ -1,6 +1,7 @@
 import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject } from 'rxjs';
+import { supabase } from './supabase.client';
 
 export interface PushNotification {
   tipo: string;
@@ -35,7 +36,10 @@ export class PushNotificationService {
   private foregroundListenerReady = false;
   private permissionListenerReady = false;
   private subscriptionListenerReady = false;
+  private userListenerReady = false;
   private lifecycleListenerReady = false;
+  private lastSavedSubscriptionSignature: string | null = null;
+  private saveSubscriptionPromise: Promise<boolean> | null = null;
 
   private _permissionStatus = new BehaviorSubject<NotificationPermission>('default');
   private _notification = new BehaviorSubject<PushNotification | null>(null);
@@ -222,6 +226,7 @@ export class PushNotificationService {
           await this.oneSignalInstance.login(usuarioId);
           await this.waitForExternalId(usuarioId);
           this.updateOneSignalSubscriptionState();
+          await this.saveCurrentSubscription('doOneSignalLogin');
           console.log(`[Push] OneSignal.login() exitoso para usuario_id: ${usuarioId} (intento ${attempt})`);
           return this.isLinkedToCurrentUser();
         } else {
@@ -246,6 +251,7 @@ export class PushNotificationService {
           });
           await this.waitForExternalId(usuarioId);
           this.updateOneSignalSubscriptionState();
+          await this.saveCurrentSubscription('doOneSignalLogin-deferred');
           return this.isLinkedToCurrentUser();
         }
       } catch (error) {
@@ -296,6 +302,10 @@ export class PushNotificationService {
   private hasRegisteredOneSignalSubscription(): boolean {
     const subscription = this._oneSignalSubscription.value;
     return subscription.optedIn && Boolean(subscription.id || subscription.token);
+  }
+
+  private hasOneSignalSubscriptionId(): boolean {
+    return Boolean(this._oneSignalSubscription.value.id);
   }
 
   private isLinkedToCurrentUser(state = this._oneSignalSubscription.value): boolean {
@@ -358,6 +368,7 @@ export class PushNotificationService {
       this.updateOneSignalSubscriptionState();
     }
 
+    await this.saveCurrentSubscription(contexto);
     return this.isEffectivelyEnabled();
   }
 
@@ -392,7 +403,8 @@ export class PushNotificationService {
       this.checkPermissionStatus();
       this.updateOneSignalSubscriptionState();
 
-      if (this.hasRegisteredOneSignalSubscription() && this.isLinkedToCurrentUser()) {
+      if (this.hasRegisteredOneSignalSubscription()) {
+        await this.saveCurrentSubscription('waitForRegisteredSubscription');
         return true;
       }
 
@@ -401,7 +413,11 @@ export class PushNotificationService {
 
     this.checkPermissionStatus();
     this.updateOneSignalSubscriptionState();
-    return this.hasRegisteredOneSignalSubscription() && this.isLinkedToCurrentUser();
+    if (this.hasRegisteredOneSignalSubscription()) {
+      await this.saveCurrentSubscription('waitForRegisteredSubscription-timeout');
+      return true;
+    }
+    return false;
   }
 
   private async ensurePushSubscriptionActive(): Promise<boolean> {
@@ -436,6 +452,7 @@ export class PushNotificationService {
       }
       await this.loginUser();
       this.updateOneSignalSubscriptionState();
+      await this.saveCurrentSubscription('ensurePushSubscriptionActive');
       const registered = await this.waitForRegisteredSubscription();
       await this.relinkCurrentSubscription('ensurePushSubscriptionActive');
       return registered || this.isEffectivelyEnabled();
@@ -491,6 +508,7 @@ export class PushNotificationService {
       if (this._permissionStatus.value !== 'granted') return false;
 
       const enabled = await this.ensurePushSubscriptionActive();
+      await this.saveCurrentSubscription('requestPermission');
       this.scheduleSubscriptionRelinkChecks('requestPermission');
       return enabled;
     } catch (error) {
@@ -514,6 +532,91 @@ export class PushNotificationService {
       console.error('[Push] Error obteniendo userId:', error);
     }
     return null;
+  }
+
+  private getAuthToken(): string | null {
+    if (!isPlatformBrowser(this.platformId)) return null;
+    return localStorage.getItem('rnace_token');
+  }
+
+  private async saveCurrentSubscription(
+    contexto: string,
+    optedInOverride?: boolean,
+  ): Promise<boolean> {
+    if (!isPlatformBrowser(this.platformId)) return false;
+
+    const usuarioId = this.getUserId();
+    const authToken = this.getAuthToken();
+    const state = this._oneSignalSubscription.value;
+
+    if (!usuarioId || !authToken || !state.id) {
+      return false;
+    }
+
+    const optedIn =
+      optedInOverride ??
+      (state.optedIn && this._permissionStatus.value === 'granted' && !this.isOptedOut());
+
+    if (optedInOverride === undefined && !optedIn) {
+      return false;
+    }
+
+    const signature = [
+      usuarioId,
+      state.id,
+      state.token ?? '',
+      state.onesignalId ?? '',
+      state.externalId ?? '',
+      optedIn ? '1' : '0',
+    ].join('|');
+
+    if (signature === this.lastSavedSubscriptionSignature) {
+      return true;
+    }
+
+    if (this.saveSubscriptionPromise) {
+      return await this.saveSubscriptionPromise;
+    }
+
+    this.saveSubscriptionPromise = (async () => {
+      try {
+        const { error } = await supabase().functions.invoke('register-push-subscription', {
+          headers: {
+            'x-rnace-token': authToken,
+          },
+          body: {
+            usuario_id: usuarioId,
+            subscription_id: state.id,
+            token: state.token,
+            onesignal_id: state.onesignalId,
+            external_id: state.externalId,
+            opted_in: optedIn,
+            user_agent: navigator.userAgent,
+          },
+        });
+
+        if (error) {
+          console.warn(`[Push] ${contexto}: no se pudo registrar la subscription en Supabase`, error);
+          return false;
+        }
+
+        this.lastSavedSubscriptionSignature = signature;
+        console.log(`[Push] ${contexto}: subscription guardada`, {
+          usuario_id: usuarioId,
+          subscription_id: state.id,
+          external_id: state.externalId,
+          opted_in: optedIn,
+        });
+        return true;
+      } catch (error) {
+        console.warn(`[Push] ${contexto}: error guardando subscription`, error);
+        return false;
+      } finally {
+        this.saveSubscriptionPromise = null;
+      }
+    })();
+
+    return await this.saveSubscriptionPromise;
   }
 
   private setupForegroundListener(): void {
@@ -563,10 +666,27 @@ export class PushNotificationService {
         if (permission && !this.isOptedOut()) {
           await this.loginUser();
           await this.ensurePushSubscriptionActive();
+          await this.saveCurrentSubscription('permissionChange');
           this.scheduleSubscriptionRelinkChecks('permissionChange');
         }
       });
       this.permissionListenerReady = true;
+    }
+
+    const user = this.oneSignalInstance.User;
+    if (!this.userListenerReady && user?.addEventListener) {
+      user.addEventListener('change', async () => {
+        this.updateOneSignalSubscriptionState();
+        this.checkPermissionStatus();
+
+        if (this.getUserId() && !this.isOptedOut()) {
+          await this.saveCurrentSubscription('User.change');
+          if (this.hasOneSignalSubscriptionId() && !this.isLinkedToCurrentUser()) {
+            await this.relinkCurrentSubscription('User.change');
+          }
+        }
+      });
+      this.userListenerReady = true;
     }
 
     const pushSubscription = this.oneSignalInstance.User?.PushSubscription;
@@ -586,6 +706,7 @@ export class PushNotificationService {
 
         if (this.getUserId() && current?.optedIn === true && !this.isOptedOut()) {
           await this.loginUser();
+          await this.saveCurrentSubscription('PushSubscription.change');
           await this.relinkCurrentSubscription('PushSubscription.change');
           this.scheduleSubscriptionRelinkChecks('PushSubscription.change');
         }
@@ -600,6 +721,7 @@ export class PushNotificationService {
     const syncVisibleSession = () => {
       if (document.visibilityState === 'visible' && this.getUserId() && !this.isOptedOut()) {
         void this.relinkCurrentSubscription('app-visible');
+        void this.saveCurrentSubscription('app-visible');
       }
     };
 
@@ -615,6 +737,9 @@ export class PushNotificationService {
     if (!isPlatformBrowser(this.platformId)) return;
 
     try {
+      this.updateOneSignalSubscriptionState();
+      await this.saveCurrentSubscription('removeToken', false);
+
       if (this.oneSignalInstance) {
         await this.oneSignalInstance.logout();
         console.log('[Push] OneSignal.logout() completado');
@@ -656,8 +781,7 @@ export class PushNotificationService {
 
     return (
       this.oneSignalReady &&
-      this.hasRegisteredOneSignalSubscription() &&
-      this.isLinkedToCurrentUser()
+      this.hasRegisteredOneSignalSubscription()
     );
   }
 
@@ -674,6 +798,8 @@ export class PushNotificationService {
       if (pushSubscription?.optOut) {
         await pushSubscription.optOut();
       }
+      this.updateOneSignalSubscriptionState();
+      await this.saveCurrentSubscription('optOutNotifications', false);
     } catch (error) {
       console.warn('[Push] No se pudo hacer optOut en OneSignal:', error);
     } finally {
@@ -694,8 +820,10 @@ export class PushNotificationService {
 
     // If permission already granted, just login again
     if (this._permissionStatus.value === 'granted') {
+      await this.ensureInitialized();
       await this.loginUser();
       const enabled = await this.ensurePushSubscriptionActive();
+      await this.saveCurrentSubscription('optInNotifications');
       this.scheduleSubscriptionRelinkChecks('optInNotifications');
       return enabled;
     }
