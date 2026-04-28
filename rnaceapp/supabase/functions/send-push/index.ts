@@ -151,6 +151,20 @@ async function sendOneSignalNotification(
     return { success: false, error: errorMsg };
   }
 
+  const recipients = typeof result.recipients === 'number' ? result.recipients : null;
+  if (!result.id || recipients === 0) {
+    const errorMsg =
+      recipients === 0
+        ? 'OneSignal no encontro subscriptions para este external_id'
+        : 'OneSignal no devolvio notification id';
+    console.warn('[OneSignal] Sin destinatarios validos:', {
+      usuario_id: userId,
+      notification_id: result.id ?? null,
+      recipients,
+    });
+    return { success: false, error: errorMsg };
+  }
+
   return { success: true, id: result.id };
 }
 
