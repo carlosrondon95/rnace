@@ -69,10 +69,10 @@
     "related_applications": [],
     "shortcuts": [
         {
-            "name": "Reservar Cita",
-            "short_name": "Reservar",
-            "description": "Reservar una nueva cita",
-            "url": "/reserva-cita",
+            "name": "Recuperar Clase",
+            "short_name": "Recuperar",
+            "description": "Usar una recuperación de clase",
+            "url": "/recuperar-clase",
             "icons": [
                 {
                     "src": "assets/icons/icon-96x96.png",

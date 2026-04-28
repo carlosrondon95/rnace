@@ -148,7 +148,7 @@ async function sendOneSignalNotification(
     'external_id',
   );
 
-  if (externalIdResult.success || externalIdResult.recipients !== 0) {
+  if (externalIdResult.success) {
     return externalIdResult;
   }
 
@@ -156,8 +156,26 @@ async function sendOneSignalNotification(
     return externalIdResult;
   }
 
+  const relinked = await relinkSubscriptionsToExternalId(userId, fallbackSubscriptionIds);
+  if (relinked > 0) {
+    const relinkedExternalIdResult = await postOneSignalNotification(
+      {
+        ...body,
+        include_aliases: { external_id: [userId] },
+        target_channel: 'push',
+      },
+      'external_id',
+    );
+
+    if (relinkedExternalIdResult.success) {
+      return relinkedExternalIdResult;
+    }
+  }
+
   console.warn('[OneSignal] Sin destinatarios por external_id; reintentando por subscription_id', {
     usuario_id: userId,
+    external_id_error: externalIdResult.error,
+    external_id_recipients: externalIdResult.recipients,
     subscriptions: fallbackSubscriptionIds.length,
   });
 
@@ -169,6 +187,62 @@ async function sendOneSignalNotification(
     },
     'subscription_id',
   );
+}
+
+async function relinkSubscriptionsToExternalId(
+  externalId: string,
+  subscriptionIds: string[],
+): Promise<number> {
+  const results = await Promise.all(
+    subscriptionIds.map((subscriptionId) =>
+      transferSubscriptionToExternalId(subscriptionId, externalId),
+    ),
+  );
+
+  return results.filter(Boolean).length;
+}
+
+async function transferSubscriptionToExternalId(
+  subscriptionId: string,
+  externalId: string,
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `https://api.onesignal.com/apps/${encodeURIComponent(ONESIGNAL_APP_ID)}/subscriptions/${encodeURIComponent(subscriptionId)}/owner`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Key ${ONESIGNAL_REST_API_KEY}`,
+        },
+        body: JSON.stringify({
+          identity: {
+            external_id: externalId,
+          },
+        }),
+      },
+    );
+
+    if (response.ok) {
+      return true;
+    }
+
+    const errorText = await response.text();
+    console.warn('[OneSignal] No se pudo vincular subscription antes del envio:', {
+      subscription_id: subscriptionId,
+      external_id: externalId,
+      status: response.status,
+      error: errorText || `HTTP ${response.status}`,
+    });
+    return false;
+  } catch (error) {
+    console.warn('[OneSignal] Error vinculando subscription antes del envio:', {
+      subscription_id: subscriptionId,
+      external_id: externalId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
 }
 
 async function postOneSignalNotification(
@@ -184,7 +258,13 @@ async function postOneSignalNotification(
     body: JSON.stringify(body),
   });
 
-  const result = await response.json();
+  const responseText = await response.text();
+  let result: Record<string, any> = {};
+  try {
+    result = responseText ? JSON.parse(responseText) : {};
+  } catch {
+    result = { errors: responseText || `HTTP ${response.status}` };
+  }
 
   if (!response.ok || result.errors) {
     const errorMsg = result.errors
@@ -231,11 +311,7 @@ async function getFallbackSubscriptionIds(
   }
 
   return Array.from(
-    new Set(
-      (data || [])
-        .map((row) => String(row.subscription_id || '').trim())
-        .filter(Boolean),
-    ),
+    new Set((data || []).map((row) => String(row.subscription_id || '').trim()).filter(Boolean)),
   );
 }
 
@@ -338,7 +414,10 @@ serve(async (req: Request) => {
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }

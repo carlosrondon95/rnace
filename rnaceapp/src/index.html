@@ -43,6 +43,21 @@
         serviceWorkerPath: "OneSignalSDKWorker.js",
         serviceWorkerParam: { scope: "/" },
         autoResubscribe: true,
+        promptOptions: {
+          slidedown: {
+            prompts: [
+              {
+                type: "push",
+                autoPrompt: false,
+                text: {
+                  actionMessage: "Activa las notificaciones para recibir avisos de reservas y plazas libres.",
+                  acceptButton: "Permitir",
+                  cancelButton: "Ahora no"
+                }
+              }
+            ]
+          }
+        }
       });
     });
   </script>

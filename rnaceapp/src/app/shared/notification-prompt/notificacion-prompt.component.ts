@@ -57,8 +57,8 @@ import { Subscription } from 'rxjs';
           <span class="material-symbols-rounded">notifications</span>
         </div>
         <div class="prompt-content">
-          <h4>Activar notificaciones</h4>
-          <p>Recordatorios, confirmaciones y plazas libres</p>
+          <h4>{{ permissionGranted() ? 'Reactivar notificaciones' : 'Activar notificaciones' }}</h4>
+          <p>{{ permissionGranted() ? 'Completa la conexión push de este dispositivo' : 'Recordatorios, confirmaciones y plazas libres' }}</p>
         </div>
         <div class="prompt-actions">
           <button class="btn-dismiss" (click)="dismissNotifications()">
@@ -365,6 +365,7 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
   private subscriptions: Subscription[] = [];
   private notificationReminderTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly notificationDismissMs = 1000 * 60 * 60 * 2;
+  private readonly notificationDismissStorageKey = 'dismiss_notification_pwa_20260428';
 
   // Signals
   showInstallPrompt = signal(false);
@@ -428,11 +429,7 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
       this.pushService.permissionStatus$.subscribe((status: NotificationPermission) => {
         this.permissionGranted.set(status === 'granted');
         this.permissionDenied.set(status === 'denied');
-        this.showNotificationPrompt.set(
-          status === 'default' &&
-          this.pushService.isSupported() &&
-          !this.isDismissed('notification')
-        );
+        this.updateNotificationPromptVisibility();
 
         if (status === 'default') {
           this.scheduleNotificationReminder();
@@ -440,6 +437,9 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
           clearTimeout(this.notificationReminderTimer);
           this.notificationReminderTimer = null;
         }
+      }),
+      this.pushService.oneSignalSubscription$.subscribe(() => {
+        this.updateNotificationPromptVisibility();
       })
     );
   }
@@ -484,10 +484,27 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
     this.scheduleNotificationReminder();
   }
 
+  private updateNotificationPromptVisibility(): void {
+    const status = this.pushService.getPermissionStatus();
+    const canAskOrRepair =
+      status === 'default' ||
+      (status === 'granted' && !this.pushService.isEffectivelyEnabled());
+
+    this.showNotificationPrompt.set(
+      canAskOrRepair &&
+      this.pushService.isSupported() &&
+      !this.isDismissed('notification')
+    );
+  }
+
+  private getDismissStorageKey(key: string): string {
+    return key === 'notification' ? this.notificationDismissStorageKey : `dismiss_${key}`;
+  }
+
   private isDismissed(key: string): boolean {
     if (!isPlatformBrowser(this.platformId)) return true;
 
-    const raw = localStorage.getItem(`dismiss_${key}`);
+    const raw = localStorage.getItem(this.getDismissStorageKey(key));
     if (!raw) return false;
 
     if (raw === 'true') {
@@ -503,7 +520,7 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
 
   private setDismissed(key: string): void {
     if (!isPlatformBrowser(this.platformId)) return;
-    localStorage.setItem(`dismiss_${key}`, String(Date.now()));
+    localStorage.setItem(this.getDismissStorageKey(key), String(Date.now()));
   }
 
   private scheduleNotificationReminder(): void {
@@ -516,7 +533,7 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
     if (this.pushService.getPermissionStatus() !== 'default') return;
     if (!this.pushService.isSupported()) return;
 
-    const dismissedAt = Number(localStorage.getItem('dismiss_notification') || '0');
+    const dismissedAt = Number(localStorage.getItem(this.notificationDismissStorageKey) || '0');
     const elapsed = Date.now() - dismissedAt;
     const delay = Math.max(this.notificationDismissMs - elapsed, 0);
 

@@ -463,6 +463,52 @@ export class PushNotificationService {
     }
   }
 
+  private async promptForPushPermission(): Promise<boolean> {
+    this.checkPermissionStatus();
+
+    if (
+      this._permissionStatus.value === 'default' &&
+      this.oneSignalInstance?.Slidedown?.promptPush
+    ) {
+      await this.oneSignalInstance.Slidedown.promptPush({ force: true });
+      return true;
+    }
+
+    const pushSubscription = this.oneSignalInstance?.User?.PushSubscription;
+
+    if (pushSubscription?.optIn) {
+      await pushSubscription.optIn();
+      return false;
+    }
+
+    if (this.oneSignalInstance?.Notifications?.requestPermission) {
+      await this.oneSignalInstance.Notifications.requestPermission();
+      return false;
+    }
+
+    await Notification.requestPermission();
+    return false;
+  }
+
+  private async waitForPermissionOrSubscription(timeoutMs = 15000): Promise<boolean> {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < timeoutMs) {
+      this.checkPermissionStatus();
+      this.updateOneSignalSubscriptionState();
+
+      if (this._permissionStatus.value !== 'default' || this.hasRegisteredOneSignalSubscription()) {
+        return true;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    this.checkPermissionStatus();
+    this.updateOneSignalSubscriptionState();
+    return this._permissionStatus.value !== 'default' || this.hasRegisteredOneSignalSubscription();
+  }
+
   async requestPermission(): Promise<boolean> {
     if (!this.permissionRequestPromise) {
       this.permissionRequestPromise = this.requestPermissionOnce().finally(() => {
@@ -490,23 +536,17 @@ export class PushNotificationService {
     await this.ensureInitialized();
 
     try {
-      await this.loginUser();
+      const usedSlidedown = await this.promptForPushPermission();
 
-      const pushSubscription = this.oneSignalInstance?.User?.PushSubscription;
-
-      if (pushSubscription?.optIn) {
-        // OneSignal optIn re-subscribes if a token exists, or asks for native permission if needed.
-        await pushSubscription.optIn();
-      } else if (this.oneSignalInstance?.Notifications?.requestPermission) {
-        await this.oneSignalInstance.Notifications.requestPermission();
-      } else {
-        await Notification.requestPermission();
+      if (usedSlidedown) {
+        await this.waitForPermissionOrSubscription();
       }
 
       this.checkPermissionStatus();
 
       if (this._permissionStatus.value !== 'granted') return false;
 
+      await this.loginUser();
       const enabled = await this.ensurePushSubscriptionActive();
       await this.saveCurrentSubscription('requestPermission');
       this.scheduleSubscriptionRelinkChecks('requestPermission');
@@ -548,6 +588,7 @@ export class PushNotificationService {
     const usuarioId = this.getUserId();
     const authToken = this.getAuthToken();
     const state = this._oneSignalSubscription.value;
+    const externalId = state.externalId === usuarioId ? state.externalId : usuarioId;
 
     if (!usuarioId || !authToken || !state.id) {
       return false;
@@ -566,7 +607,7 @@ export class PushNotificationService {
       state.id,
       state.token ?? '',
       state.onesignalId ?? '',
-      state.externalId ?? '',
+      externalId,
       optedIn ? '1' : '0',
     ].join('|');
 
@@ -589,7 +630,7 @@ export class PushNotificationService {
             subscription_id: state.id,
             token: state.token,
             onesignal_id: state.onesignalId,
-            external_id: state.externalId,
+            external_id: externalId,
             opted_in: optedIn,
             user_agent: navigator.userAgent,
           },
@@ -604,7 +645,7 @@ export class PushNotificationService {
         console.log(`[Push] ${contexto}: subscription guardada`, {
           usuario_id: usuarioId,
           subscription_id: state.id,
-          external_id: state.externalId,
+          external_id: externalId,
           opted_in: optedIn,
         });
         return true;
