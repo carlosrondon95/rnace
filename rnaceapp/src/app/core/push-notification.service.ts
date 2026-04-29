@@ -580,14 +580,16 @@ export class PushNotificationService {
       return this.hasRegisteredOneSignalSubscription();
     }
 
+    const optInPromise = Promise.resolve(pushSubscription.optIn());
     try {
       await this.withTimeout(
-        Promise.resolve(pushSubscription.optIn()),
+        optInPromise,
         this.oneSignalOptInTimeoutMs,
         `OneSignal.PushSubscription.optIn() timeout (${this.oneSignalOptInTimeoutMs / 1000}s)`,
       );
     } catch (error) {
       console.warn(`[Push] ${contexto}: OneSignal optIn no completo a tiempo`, error);
+      this.watchLateOptInCompletion(optInPromise, contexto);
       void this.logPushActivation(
         'optin_timeout',
         'warn',
@@ -615,6 +617,30 @@ export class PushNotificationService {
       );
     }
     return registered;
+  }
+
+  private watchLateOptInCompletion(optInPromise: Promise<unknown>, contexto: string): void {
+    optInPromise
+      .then(async () => {
+        this.checkPermissionStatus();
+        this.updateOneSignalSubscriptionState();
+
+        if (!this.hasRegisteredOneSignalSubscription()) {
+          return;
+        }
+
+        await this.saveCurrentSubscription(`${contexto}-optIn-late`);
+        await this.relinkCurrentSubscription(`${contexto}-optIn-late`);
+        void this.logPushActivation(
+          'optin_completed_after_timeout',
+          'info',
+          'OneSignal optIn completo despues del timeout',
+          { contexto },
+        );
+      })
+      .catch((error) => {
+        console.warn(`[Push] ${contexto}: OneSignal optIn fallo despues del timeout`, error);
+      });
   }
 
   private async ensurePushSubscriptionActive(): Promise<boolean> {

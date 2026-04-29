@@ -68,6 +68,34 @@
             </div>
           </div>
 
+          @if (hasTechnicalIds(log)) {
+            <div class="technical-grid">
+              @if (getOneSignalId(log); as onesignalId) {
+                <div>
+                  <span class="meta-label">OneSignal ID</span>
+                  <span class="meta-value technical-value">{{ onesignalId }}</span>
+                </div>
+              }
+              @if (getExternalId(log); as externalId) {
+                <div>
+                  <span class="meta-label">External ID</span>
+                  <span class="meta-value technical-value">{{ externalId }}</span>
+                </div>
+              }
+              @if (getSubscriptionId(log); as subscriptionId) {
+                <div>
+                  <span class="meta-label">Subscription ID</span>
+                  <span class="meta-value technical-value">
+                    {{ subscriptionId }}
+                    @if (getSubscriptionExtra(log); as extra) {
+                      <span class="technical-extra">{{ extra }}</span>
+                    }
+                  </span>
+                </div>
+              }
+            </div>
+          }
+
           @if (log.details['error']) {
             <p class="error-detail">{{ log.details['error'] }}</p>
           }

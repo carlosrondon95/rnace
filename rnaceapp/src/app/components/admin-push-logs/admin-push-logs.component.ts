@@ -12,11 +12,22 @@ interface PushActivationLog {
   details: Record<string, any>;
   user_agent: string | null;
   created_at: string;
+  push_subscription?: PushSubscriptionSummary | null;
   usuarios?: {
     nombre: string | null;
     telefono: string | null;
     rol: string | null;
   } | null;
+}
+
+interface PushSubscriptionSummary {
+  source: 'onesignal' | 'database' | 'none';
+  count: number;
+  active_count: number;
+  latest_subscription_id: string | null;
+  latest_onesignal_id: string | null;
+  external_id: string | null;
+  last_seen_at: string | null;
 }
 
 @Component({
@@ -134,9 +145,54 @@ export class AdminPushLogsComponent implements OnInit {
 
   getEstado(log: PushActivationLog): string {
     const details = log.details || {};
-    const subscription = details['subscription_id'] ? 'subscription' : 'sin subscription';
     const permission = details['permission'] || 'sin permiso';
+    const subscription = this.getSubscriptionStatus(log);
     return `${permission} · ${subscription}`;
+  }
+
+  getSubscriptionStatus(log: PushActivationLog): string {
+    const subscription = log.push_subscription;
+    const source = subscription?.source;
+    const count = subscription?.active_count || subscription?.count || 0;
+
+    if (count > 0) {
+      const label = count === 1 ? '1 subscription' : `${count} subscriptions`;
+      const sourceLabel = source === 'onesignal' ? 'OneSignal' : 'BD';
+      return `${label} ${sourceLabel}`;
+    }
+
+    if (this.getSubscriptionId(log)) {
+      return 'subscription local';
+    }
+
+    return 'sin subscription detectada';
+  }
+
+  getOneSignalId(log: PushActivationLog): string | null {
+    return this.asText(log.push_subscription?.latest_onesignal_id || log.details?.['onesignal_id']);
+  }
+
+  getExternalId(log: PushActivationLog): string | null {
+    return this.asText(log.push_subscription?.external_id || log.details?.['external_id']);
+  }
+
+  getSubscriptionId(log: PushActivationLog): string | null {
+    return this.asText(
+      log.push_subscription?.latest_subscription_id || log.details?.['subscription_id'],
+    );
+  }
+
+  getSubscriptionExtra(log: PushActivationLog): string | null {
+    const count = log.push_subscription?.active_count || log.push_subscription?.count || 0;
+    return count > 1 ? `+${count - 1}` : null;
+  }
+
+  hasTechnicalIds(log: PushActivationLog): boolean {
+    return Boolean(this.getOneSignalId(log) || this.getExternalId(log) || this.getSubscriptionId(log));
+  }
+
+  private asText(value: unknown): string | null {
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
   }
 
   getDevice(log: PushActivationLog): string {
