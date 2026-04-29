@@ -272,6 +272,40 @@ export class PushNotificationService {
     }
   }
 
+  private async requestBrowserPermissionFromUserGesture(): Promise<NotificationPermission> {
+    this.checkPermissionStatus();
+    if (this._permissionStatus.value !== 'default') {
+      return this._permissionStatus.value;
+    }
+
+    const result = await Notification.requestPermission();
+
+    if (typeof result === 'string') {
+      this._permissionStatus.next(result as NotificationPermission);
+    } else {
+      this.checkPermissionStatus();
+    }
+
+    return await this.waitForPermissionDecision();
+  }
+
+  private async waitForPermissionDecision(timeoutMs = 3000): Promise<NotificationPermission> {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < timeoutMs) {
+      this.checkPermissionStatus();
+
+      if (this._permissionStatus.value !== 'default') {
+        return this._permissionStatus.value;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+
+    this.checkPermissionStatus();
+    return this._permissionStatus.value;
+  }
+
   private updateSupportFromOneSignal(): void {
     if (!this.oneSignalInstance?.Notifications?.isPushSupported) return;
 
@@ -463,52 +497,6 @@ export class PushNotificationService {
     }
   }
 
-  private async promptForPushPermission(): Promise<boolean> {
-    this.checkPermissionStatus();
-
-    if (
-      this._permissionStatus.value === 'default' &&
-      this.oneSignalInstance?.Slidedown?.promptPush
-    ) {
-      await this.oneSignalInstance.Slidedown.promptPush({ force: true });
-      return true;
-    }
-
-    const pushSubscription = this.oneSignalInstance?.User?.PushSubscription;
-
-    if (pushSubscription?.optIn) {
-      await pushSubscription.optIn();
-      return false;
-    }
-
-    if (this.oneSignalInstance?.Notifications?.requestPermission) {
-      await this.oneSignalInstance.Notifications.requestPermission();
-      return false;
-    }
-
-    await Notification.requestPermission();
-    return false;
-  }
-
-  private async waitForPermissionOrSubscription(timeoutMs = 15000): Promise<boolean> {
-    const startedAt = Date.now();
-
-    while (Date.now() - startedAt < timeoutMs) {
-      this.checkPermissionStatus();
-      this.updateOneSignalSubscriptionState();
-
-      if (this._permissionStatus.value !== 'default' || this.hasRegisteredOneSignalSubscription()) {
-        return true;
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-
-    this.checkPermissionStatus();
-    this.updateOneSignalSubscriptionState();
-    return this._permissionStatus.value !== 'default' || this.hasRegisteredOneSignalSubscription();
-  }
-
   async requestPermission(): Promise<boolean> {
     if (!this.permissionRequestPromise) {
       this.permissionRequestPromise = this.requestPermissionOnce().finally(() => {
@@ -522,6 +510,7 @@ export class PushNotificationService {
   private async requestPermissionOnce(): Promise<boolean> {
     if (!this.isSupported()) return false;
     if (!isPlatformBrowser(this.platformId)) return false;
+    localStorage.removeItem('rnace_push_optout');
 
     // Verificar iOS Standalone
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -533,20 +522,22 @@ export class PushNotificationService {
       return false;
     }
 
-    await this.ensureInitialized();
-
     try {
-      const usedSlidedown = await this.promptForPushPermission();
+      const permission = await this.requestBrowserPermissionFromUserGesture();
+      if (permission !== 'granted') return false;
 
-      if (usedSlidedown) {
-        await this.waitForPermissionOrSubscription();
+      await this.ensureInitialized();
+      await this.loginUser();
+
+      const pushSubscription = this.oneSignalInstance?.User?.PushSubscription;
+
+      if (pushSubscription?.optIn) {
+        await pushSubscription.optIn();
       }
 
       this.checkPermissionStatus();
-
       if (this._permissionStatus.value !== 'granted') return false;
 
-      await this.loginUser();
       const enabled = await this.ensurePushSubscriptionActive();
       await this.saveCurrentSubscription('requestPermission');
       this.scheduleSubscriptionRelinkChecks('requestPermission');
