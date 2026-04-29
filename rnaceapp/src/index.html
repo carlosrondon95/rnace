@@ -37,26 +37,34 @@
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
-    OneSignalDeferred.push(async function(OneSignal) {
-      await OneSignal.init({
-        appId: "40e80da3-452e-4482-81df-6b7bf447a9a1",
-        serviceWorkerPath: "OneSignalSDKWorker.js",
-        serviceWorkerParam: { scope: "/" },
-        autoResubscribe: true,
-        promptOptions: {
-          slidedown: {
-            prompts: [
-              {
-                type: "push",
-                autoPrompt: false,
-                text: {
-                  actionMessage: "Activa las notificaciones para recibir avisos de reservas y plazas libres.",
-                  acceptButton: "Permitir",
-                  cancelButton: "Ahora no"
-                }
+    window.OneSignalInitPromise = window.OneSignalInitPromise || new Promise(function(resolve, reject) {
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        try {
+          await OneSignal.init({
+            appId: "40e80da3-452e-4482-81df-6b7bf447a9a1",
+            serviceWorkerPath: "/OneSignalSDKWorker.js",
+            serviceWorkerParam: { scope: "/" },
+            autoResubscribe: true,
+            promptOptions: {
+              slidedown: {
+                prompts: [
+                  {
+                    type: "push",
+                    autoPrompt: false,
+                    text: {
+                      actionMessage: "Activa las notificaciones para recibir avisos de reservas y plazas libres.",
+                      acceptButton: "Permitir",
+                      cancelButton: "Ahora no"
+                    }
+                  }
+                ]
               }
-            ]
-          }
+            }
+          });
+          resolve(OneSignal);
+        } catch (error) {
+          console.error("[Push] Error inicializando OneSignal", error);
+          reject(error);
         }
       });
     });

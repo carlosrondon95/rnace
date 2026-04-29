@@ -513,6 +513,7 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
     this.showNotificationPrompt.set(
       canAskOrRepair &&
       this.pushService.isSupported() &&
+      this.pushService.canAttemptPushActivation() &&
       !this.isDismissed('notification')
     );
   }
