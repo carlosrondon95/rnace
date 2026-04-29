@@ -107,9 +107,8 @@ export class AuthService {
 
       this.guardarUsuario(usuarioLimpio);
 
-      // Inicializar push notifications después del login exitoso
-      // Esto se hace de forma lazy para evitar "Worker is not defined" en SSR
-      await this.pushService.syncCurrentUserSubscription();
+      // Sincronizar push en segundo plano para que OneSignal no bloquee el login.
+      void this.sincronizarPushSiHayUsuario();
 
       return { success: true };
 
@@ -132,7 +131,11 @@ export class AuthService {
 
   async sincronizarPushSiHayUsuario(): Promise<void> {
     if (!this.estaLogueado()) return;
-    await this.pushService.syncCurrentUserSubscription();
+    try {
+      await this.pushService.syncCurrentUserSubscription();
+    } catch (error) {
+      console.warn('[Auth] No se pudo sincronizar push tras login:', error);
+    }
   }
 
   // Crear usuario básico (solo datos de autenticación)
