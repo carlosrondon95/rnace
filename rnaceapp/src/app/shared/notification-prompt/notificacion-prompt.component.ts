@@ -59,6 +59,9 @@ import { Subscription } from 'rxjs';
         <div class="prompt-content">
           <h4>{{ permissionGranted() ? 'Reactivar notificaciones' : 'Activar notificaciones' }}</h4>
           <p>{{ permissionGranted() ? 'Completa la conexión push de este dispositivo' : 'Recordatorios, confirmaciones y plazas libres' }}</p>
+          @if (activationError()) {
+            <p class="prompt-error">{{ activationError() }}</p>
+          }
         </div>
         <div class="prompt-actions">
           <button class="btn-dismiss" (click)="dismissNotifications()">
@@ -200,6 +203,12 @@ import { Subscription } from 'rxjs';
       margin: 4px 0;
       font-size: var(--font-size-xs);
       color: var(--color-text-secondary);
+    }
+
+    .prompt-error {
+      margin-top: var(--space-sm) !important;
+      color: var(--color-danger) !important;
+      font-weight: 500;
     }
 
     .prompt-actions {
@@ -374,6 +383,7 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
   showSuccess = signal(false);
   showHelpModal = signal(false);
   requesting = signal(false);
+  activationError = signal<string | null>(null);
 
   isInstalled = signal(false);
   isIOS = signal(false);
@@ -466,19 +476,31 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
 
   async enableNotifications(): Promise<void> {
     this.requesting.set(true);
+    this.activationError.set(null);
     try {
       const success = await this.pushService.optInNotifications();
       if (success) {
         this.showNotificationPrompt.set(false);
         this.showSuccess.set(true);
         setTimeout(() => this.showSuccess.set(false), 5000);
+      } else {
+        const message = this.permissionDenied()
+          ? 'Permiso bloqueado en el navegador'
+          : 'No se pudo completar la activación. Recarga la app e inténtalo otra vez.';
+        this.activationError.set(message);
+        setTimeout(() => this.activationError.set(null), 7000);
       }
+    } catch (error) {
+      console.error('[Push] Error activando notificaciones desde el prompt:', error);
+      this.activationError.set('No se pudo completar la activación. Recarga la app e inténtalo otra vez.');
+      setTimeout(() => this.activationError.set(null), 7000);
     } finally {
       this.requesting.set(false);
     }
   }
 
   dismissNotifications(): void {
+    this.activationError.set(null);
     this.showNotificationPrompt.set(false);
     this.setDismissed('notification');
     this.scheduleNotificationReminder();

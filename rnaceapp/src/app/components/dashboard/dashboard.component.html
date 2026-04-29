@@ -17,6 +17,8 @@
     </header>
 
     <!-- Prompt de instalación PWA y notificaciones -->
+    <app-notification-prompt />
+
     <!-- ==================== CLIENTE ==================== -->
     @if (isCliente()) {
     <!-- Próximas clases - STACK CARDS -->
@@ -461,6 +463,15 @@
         <div class="action-content">
           <h3>Registro de actividad</h3>
           <p>Historial de cambios</p>
+        </div>
+        <span class="action-arrow material-symbols-rounded">arrow_forward</span>
+      </a>
+
+      <a routerLink="/admin-push-logs" class="action-card">
+        <span class="action-icon material-symbols-rounded">notifications_active</span>
+        <div class="action-content">
+          <h3>Logs push</h3>
+          <p>Activaciones y fallos</p>
         </div>
         <span class="action-arrow material-symbols-rounded">arrow_forward</span>
       </a>

@@ -111,6 +111,16 @@ export const routes: Routes = [
     canActivate: [authGuard, adminGuard],
   },
 
+  // Logs de activacion push (admin)
+  {
+    path: 'admin-push-logs',
+    loadComponent: () =>
+      import('./components/admin-push-logs/admin-push-logs.component').then(
+        (m) => m.AdminPushLogsComponent,
+      ),
+    canActivate: [authGuard, adminGuard],
+  },
+
   // Ruta catch-all
   {
     path: '**',

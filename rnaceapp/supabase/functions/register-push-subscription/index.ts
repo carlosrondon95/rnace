@@ -7,6 +7,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const JWT_SECRET = Deno.env.get('JWT_SECRET')!;
 const ONESIGNAL_APP_ID = Deno.env.get('ONESIGNAL_APP_ID') || '';
 const ONESIGNAL_REST_API_KEY = Deno.env.get('ONESIGNAL_REST_API_KEY') || '';
+const ONESIGNAL_LINK_TIMEOUT_MS = 8000;
 
 interface RegisterPushSubscriptionRequest {
   usuario_id?: string;
@@ -83,37 +84,48 @@ async function linkSubscriptionToExternalId(
   }
 
   try {
-    const response = await fetch(
-      `https://api.onesignal.com/apps/${encodeURIComponent(ONESIGNAL_APP_ID)}/subscriptions/${encodeURIComponent(subscriptionId)}/owner`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Key ${ONESIGNAL_REST_API_KEY}`,
-        },
-        body: JSON.stringify({
-          identity: {
-            external_id: externalId,
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ONESIGNAL_LINK_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(
+        `https://api.onesignal.com/apps/${encodeURIComponent(ONESIGNAL_APP_ID)}/subscriptions/${encodeURIComponent(subscriptionId)}/owner`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Key ${ONESIGNAL_REST_API_KEY}`,
           },
-        }),
-      },
-    );
+          body: JSON.stringify({
+            identity: {
+              external_id: externalId,
+            },
+          }),
+          signal: controller.signal,
+        },
+      );
 
-    if (response.ok) {
-      return { linked: true };
+      if (response.ok) {
+        return { linked: true };
+      }
+
+      const responseText = await response.text();
+      const error = responseText || `HTTP ${response.status}`;
+      console.warn('[Push] OneSignal no pudo vincular subscription con external_id:', {
+        subscription_id: subscriptionId,
+        external_id: externalId,
+        status: response.status,
+        error,
+      });
+      return { linked: false, error };
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const responseText = await response.text();
-    const error = responseText || `HTTP ${response.status}`;
-    console.warn('[Push] OneSignal no pudo vincular subscription con external_id:', {
-      subscription_id: subscriptionId,
-      external_id: externalId,
-      status: response.status,
-      error,
-    });
-    return { linked: false, error };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message =
+      error instanceof DOMException && error.name === 'AbortError'
+        ? `Timeout vinculando subscription en OneSignal (${ONESIGNAL_LINK_TIMEOUT_MS / 1000}s)`
+        : error instanceof Error ? error.message : String(error);
     console.warn('[Push] Error vinculando subscription con external_id:', {
       subscription_id: subscriptionId,
       external_id: externalId,

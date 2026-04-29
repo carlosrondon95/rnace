@@ -6,18 +6,14 @@ import { NavbarComponent } from './shared/navbar/navbar.component';
 import { ConfirmationModalComponent } from './shared/confirmation-modal/confirmation-modal.component';
 import { IosInstallBannerComponent } from './shared/ios-install-banner/ios-install-banner.component';
 import { AuthService } from './core/auth.service';
-import { NotificationPromptComponent } from './shared/notification-prompt/notificacion-prompt.component';
 import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NavbarComponent, CommonModule, ConfirmationModalComponent, IosInstallBannerComponent, NotificationPromptComponent],
+  imports: [RouterOutlet, NavbarComponent, CommonModule, ConfirmationModalComponent, IosInstallBannerComponent],
   template: `
     <app-navbar *ngIf="mostrarNavbar()" />
-    <div class="app-prompt-shell" *ngIf="mostrarNavbar()">
-      <app-notification-prompt />
-    </div>
     <router-outlet />
     <app-confirmation-modal />
     <app-ios-install-banner />
@@ -26,23 +22,6 @@ import { filter } from 'rxjs/operators';
     :host {
       display: block;
       min-height: 100vh;
-    }
-
-    .app-prompt-shell {
-      position: fixed;
-      top: calc(var(--safe-area-top) + var(--navbar-height) + var(--space-sm));
-      left: 0;
-      right: 0;
-      z-index: 350;
-      width: 100%;
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 0 var(--space-md);
-      pointer-events: none;
-    }
-
-    .app-prompt-shell app-notification-prompt {
-      pointer-events: auto;
     }
   `]
 })

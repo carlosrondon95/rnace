@@ -1,0 +1,78 @@
+<main class="push-logs-page">
+  <header class="page-header">
+    <button type="button" class="icon-button" (click)="volver()" aria-label="Volver">
+      <span class="material-symbols-rounded">arrow_back</span>
+    </button>
+
+    <div>
+      <h1>Logs push</h1>
+      <p>Activación de notificaciones por usuario y dispositivo</p>
+    </div>
+
+    <button type="button" class="icon-button" (click)="cargarLogs()" [disabled]="cargando()" aria-label="Actualizar">
+      <span class="material-symbols-rounded">refresh</span>
+    </button>
+  </header>
+
+  <div class="filters">
+    <button type="button" [class.active]="filtro() === 'todos'" (click)="setFiltro('todos')">
+      Todos
+    </button>
+    <button type="button" [class.active]="filtro() === 'errores'" (click)="setFiltro('errores')">
+      Fallos
+    </button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (cargando()) {
+    <div class="loading">
+      <div class="spinner"></div>
+      <span>Cargando logs...</span>
+    </div>
+  } @else if (logsFiltrados().length === 0) {
+    <section class="empty-state">
+      <span class="material-symbols-rounded">notifications</span>
+      <p>No hay logs con este filtro</p>
+    </section>
+  } @else {
+    <section class="logs-list">
+      @for (log of logsFiltrados(); track trackById($index, log)) {
+        <article class="log-card" [class.log-card--warn]="log.level === 'warn'" [class.log-card--error]="log.level === 'error'">
+          <div class="log-card__top">
+            <span class="level" [class]="'level--' + log.level">{{ log.level }}</span>
+            <span class="date">{{ formatoFecha(log.created_at) }}</span>
+          </div>
+
+          <h2>{{ log.event }}</h2>
+          <p class="message">{{ log.message || 'Sin mensaje' }}</p>
+
+          <div class="meta-grid">
+            <div>
+              <span class="meta-label">Usuario</span>
+              <span class="meta-value">{{ nombreUsuario(log) }}</span>
+            </div>
+            <div>
+              <span class="meta-label">Rol</span>
+              <span class="meta-value">{{ log.usuario_rol || log.usuarios?.rol || 'sin rol' }}</span>
+            </div>
+            <div>
+              <span class="meta-label">Estado</span>
+              <span class="meta-value">{{ getEstado(log) }}</span>
+            </div>
+            <div>
+              <span class="meta-label">Dispositivo</span>
+              <span class="meta-value">{{ getDevice(log) }}</span>
+            </div>
+          </div>
+
+          @if (log.details['error']) {
+            <p class="error-detail">{{ log.details['error'] }}</p>
+          }
+        </article>
+      }
+    </section>
+  }
+</main>

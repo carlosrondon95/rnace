@@ -40,6 +40,12 @@ export class PushNotificationService {
   private lifecycleListenerReady = false;
   private lastSavedSubscriptionSignature: string | null = null;
   private saveSubscriptionPromise: Promise<boolean> | null = null;
+  private readonly sdkReadyTimeoutMs = 15000;
+  private readonly oneSignalLoginTimeoutMs = 12000;
+  private readonly oneSignalOptInTimeoutMs = 15000;
+  private readonly permissionPromptTimeoutMs = 30000;
+  private readonly registerSubscriptionTimeoutMs = 15000;
+  private readonly logPushActivationTimeoutMs = 6000;
 
   private _permissionStatus = new BehaviorSubject<NotificationPermission>('default');
   private _notification = new BehaviorSubject<PushNotification | null>(null);
@@ -128,14 +134,22 @@ export class PushNotificationService {
       this.updateOneSignalSubscriptionState();
 
       if (!this.isOptedOut()) {
-        console.log('[Push] OneSignal listo, sincronizando usuario...');
-        await this.loginUser();
-        await this.ensurePushSubscriptionActive();
-        this.scheduleSubscriptionRelinkChecks('initializeOneSignal');
+        void this.syncOneSignalUserAfterInit('initializeOneSignal');
       }
     } catch (error) {
       console.error('[Push] Error inicializando OneSignal:', error);
       this.initPromise = null;
+    }
+  }
+
+  private async syncOneSignalUserAfterInit(contexto: string): Promise<void> {
+    try {
+      console.log(`[Push] OneSignal listo, sincronizando usuario (${contexto})...`);
+      await this.loginUser();
+      await this.ensurePushSubscriptionActive();
+      this.scheduleSubscriptionRelinkChecks(contexto);
+    } catch (error) {
+      console.warn(`[Push] ${contexto}: no se pudo sincronizar usuario en segundo plano`, error);
     }
   }
 
@@ -146,8 +160,8 @@ export class PushNotificationService {
   private waitForOneSignal(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error('OneSignal SDK no estuvo listo tras 15s'));
-      }, 15000);
+        reject(new Error(`OneSignal SDK no estuvo listo tras ${this.sdkReadyTimeoutMs / 1000}s`));
+      }, this.sdkReadyTimeoutMs);
 
       window.OneSignalDeferred = window.OneSignalDeferred || [];
       window.OneSignalDeferred.push(async (OneSignal: any) => {
@@ -176,6 +190,81 @@ export class PushNotificationService {
       return await this.doOneSignalLogin(retryId);
     }
     return await this.doOneSignalLogin(userId);
+  }
+
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    message: string,
+  ): Promise<T> {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
+
+  private serializeError(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    return String(error);
+  }
+
+  private async logPushActivation(
+    event: string,
+    level: 'info' | 'warn' | 'error',
+    message: string,
+    details: Record<string, any> = {},
+  ): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    const authToken = this.getAuthToken();
+    if (!authToken) return;
+
+    const state = this._oneSignalSubscription.value;
+
+    try {
+      const { error } = await this.withTimeout(
+        supabase().functions.invoke('push-activation-log', {
+          headers: {
+            'x-rnace-token': authToken,
+          },
+          body: {
+            event,
+            level,
+            message,
+            user_agent: navigator.userAgent,
+            details: {
+              permission: this._permissionStatus.value,
+              supported: this._isSupported.value,
+              opted_out: this.isOptedOut(),
+              onesignal_ready: this.oneSignalReady,
+              onesignal_id: state.onesignalId,
+              external_id: state.externalId,
+              subscription_id: state.id,
+              has_token: Boolean(state.token),
+              opted_in: state.optedIn,
+              ...details,
+            },
+          },
+        }),
+        this.logPushActivationTimeoutMs,
+        `push-activation-log timeout (${this.logPushActivationTimeoutMs / 1000}s)`,
+      );
+
+      if (error) {
+        console.warn('[PushLog] No se pudo guardar log de activacion push:', error);
+      }
+    } catch (error) {
+      console.warn('[PushLog] Error guardando log de activacion push:', error);
+    }
   }
 
   async syncCurrentUserSubscription(): Promise<boolean> {
@@ -223,7 +312,11 @@ export class PushNotificationService {
       try {
         if (this.oneSignalInstance) {
           // Usar la referencia directa al SDK (más fiable)
-          await this.oneSignalInstance.login(usuarioId);
+          await this.withTimeout(
+            Promise.resolve(this.oneSignalInstance.login(usuarioId)),
+            this.oneSignalLoginTimeoutMs,
+            `OneSignal.login() timeout (${this.oneSignalLoginTimeoutMs / 1000}s)`,
+          );
           await this.waitForExternalId(usuarioId);
           this.updateOneSignalSubscriptionState();
           await this.saveCurrentSubscription('doOneSignalLogin');
@@ -239,7 +332,11 @@ export class PushNotificationService {
             window.OneSignalDeferred.push(async (OneSignal: any) => {
               try {
                 this.oneSignalInstance = OneSignal;
-                await OneSignal.login(usuarioId);
+                await this.withTimeout(
+                  Promise.resolve(OneSignal.login(usuarioId)),
+                  this.oneSignalLoginTimeoutMs,
+                  `OneSignal.login() timeout (${this.oneSignalLoginTimeoutMs / 1000}s)`,
+                );
                 clearTimeout(timeout);
                 console.log(`[Push] OneSignal.login() exitoso para usuario_id: ${usuarioId} (intento ${attempt}, deferred)`);
                 resolve();
@@ -278,7 +375,27 @@ export class PushNotificationService {
       return this._permissionStatus.value;
     }
 
-    const result = await Notification.requestPermission();
+    const oneSignalRequestPermission = this.oneSignalInstance?.Notifications?.requestPermission;
+
+    if (oneSignalRequestPermission) {
+      try {
+        await this.withTimeout(
+          Promise.resolve(oneSignalRequestPermission.call(this.oneSignalInstance.Notifications)),
+          this.permissionPromptTimeoutMs,
+          `OneSignal.Notifications.requestPermission() timeout (${this.permissionPromptTimeoutMs / 1000}s)`,
+        );
+        this.checkPermissionStatus();
+        return await this.waitForPermissionDecision();
+      } catch (error) {
+        console.warn('[Push] OneSignal no completo requestPermission, usando prompt nativo:', error);
+      }
+    }
+
+    const result = await this.withTimeout(
+      Notification.requestPermission(),
+      this.permissionPromptTimeoutMs,
+      `Notification.requestPermission() timeout (${this.permissionPromptTimeoutMs / 1000}s)`,
+    );
 
     if (typeof result === 'string') {
       this._permissionStatus.next(result as NotificationPermission);
@@ -454,6 +571,52 @@ export class PushNotificationService {
     return false;
   }
 
+  private async optInPushSubscription(contexto: string): Promise<boolean> {
+    const pushSubscription = this.oneSignalInstance?.User?.PushSubscription;
+
+    if (!pushSubscription?.optIn) {
+      this.updateOneSignalSubscriptionState();
+      console.warn(`[Push] ${contexto}: OneSignal.User.PushSubscription.optIn no esta disponible`);
+      return this.hasRegisteredOneSignalSubscription();
+    }
+
+    try {
+      await this.withTimeout(
+        Promise.resolve(pushSubscription.optIn()),
+        this.oneSignalOptInTimeoutMs,
+        `OneSignal.PushSubscription.optIn() timeout (${this.oneSignalOptInTimeoutMs / 1000}s)`,
+      );
+    } catch (error) {
+      console.warn(`[Push] ${contexto}: OneSignal optIn no completo a tiempo`, error);
+      void this.logPushActivation(
+        'optin_timeout',
+        'warn',
+        'OneSignal optIn no completo a tiempo',
+        { contexto, error: this.serializeError(error) },
+      );
+    }
+
+    this.checkPermissionStatus();
+    this.updateOneSignalSubscriptionState();
+
+    if (this.hasRegisteredOneSignalSubscription()) {
+      await this.saveCurrentSubscription(`${contexto}-optIn`);
+      return true;
+    }
+
+    const registered = await this.waitForRegisteredSubscription(12000);
+    if (!registered) {
+      this.logOneSignalState(`${contexto}: sin subscription registrada tras optIn`);
+      void this.logPushActivation(
+        'subscription_missing',
+        'warn',
+        'No aparecio subscription_id ni token tras optIn',
+        { contexto },
+      );
+    }
+    return registered;
+  }
+
   private async ensurePushSubscriptionActive(): Promise<boolean> {
     if (!this.grantedSubscriptionPromise) {
       this.grantedSubscriptionPromise = this.ensurePushSubscriptionActiveOnce().finally(() => {
@@ -480,14 +643,11 @@ export class PushNotificationService {
 
     try {
       await this.loginUser();
-      const pushSubscription = this.oneSignalInstance.User?.PushSubscription;
-      if (pushSubscription?.optIn) {
-        await pushSubscription.optIn();
-      }
+      const optedIn = await this.optInPushSubscription('ensurePushSubscriptionActive');
       await this.loginUser();
       this.updateOneSignalSubscriptionState();
       await this.saveCurrentSubscription('ensurePushSubscriptionActive');
-      const registered = await this.waitForRegisteredSubscription();
+      const registered = optedIn || await this.waitForRegisteredSubscription();
       await this.relinkCurrentSubscription('ensurePushSubscriptionActive');
       return registered || this.isEffectivelyEnabled();
     } catch (error) {
@@ -524,16 +684,19 @@ export class PushNotificationService {
 
     try {
       const permission = await this.requestBrowserPermissionFromUserGesture();
-      if (permission !== 'granted') return false;
+      if (permission !== 'granted') {
+        void this.logPushActivation(
+          'permission_not_granted',
+          permission === 'denied' ? 'error' : 'warn',
+          'El permiso de notificaciones no quedo concedido',
+          { permission },
+        );
+        return false;
+      }
 
       await this.ensureInitialized();
       await this.loginUser();
-
-      const pushSubscription = this.oneSignalInstance?.User?.PushSubscription;
-
-      if (pushSubscription?.optIn) {
-        await pushSubscription.optIn();
-      }
+      await this.optInPushSubscription('requestPermission');
 
       this.checkPermissionStatus();
       if (this._permissionStatus.value !== 'granted') return false;
@@ -544,6 +707,12 @@ export class PushNotificationService {
       return enabled;
     } catch (error) {
       console.error('[Push] Error solicitando permiso:', error);
+      void this.logPushActivation(
+        'permission_flow_error',
+        'error',
+        'Error solicitando permiso o creando subscription',
+        { error: this.serializeError(error) },
+      );
       this.checkPermissionStatus();
       this.updateOneSignalSubscriptionState();
       return false;
@@ -612,23 +781,33 @@ export class PushNotificationService {
 
     this.saveSubscriptionPromise = (async () => {
       try {
-        const { error } = await supabase().functions.invoke('register-push-subscription', {
-          headers: {
-            'x-rnace-token': authToken,
-          },
-          body: {
-            usuario_id: usuarioId,
-            subscription_id: state.id,
-            token: state.token,
-            onesignal_id: state.onesignalId,
-            external_id: externalId,
-            opted_in: optedIn,
-            user_agent: navigator.userAgent,
-          },
-        });
+        const { error } = await this.withTimeout(
+          supabase().functions.invoke('register-push-subscription', {
+            headers: {
+              'x-rnace-token': authToken,
+            },
+            body: {
+              usuario_id: usuarioId,
+              subscription_id: state.id,
+              token: state.token,
+              onesignal_id: state.onesignalId,
+              external_id: externalId,
+              opted_in: optedIn,
+              user_agent: navigator.userAgent,
+            },
+          }),
+          this.registerSubscriptionTimeoutMs,
+          `register-push-subscription timeout (${this.registerSubscriptionTimeoutMs / 1000}s)`,
+        );
 
         if (error) {
           console.warn(`[Push] ${contexto}: no se pudo registrar la subscription en Supabase`, error);
+          void this.logPushActivation(
+            'register_subscription_error',
+            'error',
+            'No se pudo registrar la subscription en Supabase',
+            { contexto, error: error.message },
+          );
           return false;
         }
 
@@ -642,6 +821,12 @@ export class PushNotificationService {
         return true;
       } catch (error) {
         console.warn(`[Push] ${contexto}: error guardando subscription`, error);
+        void this.logPushActivation(
+          'register_subscription_exception',
+          'error',
+          'Error guardando subscription',
+          { contexto, error: this.serializeError(error) },
+        );
         return false;
       } finally {
         this.saveSubscriptionPromise = null;
@@ -849,18 +1034,51 @@ export class PushNotificationService {
     if (!isPlatformBrowser(this.platformId)) return false;
 
     localStorage.removeItem('rnace_push_optout');
+    this.checkPermissionStatus();
+    void this.logPushActivation(
+      'activation_started',
+      'info',
+      'Usuario inicia activacion de notificaciones',
+    );
 
-    // If permission already granted, just login again
-    if (this._permissionStatus.value === 'granted') {
-      await this.ensureInitialized();
-      await this.loginUser();
-      const enabled = await this.ensurePushSubscriptionActive();
-      await this.saveCurrentSubscription('optInNotifications');
-      this.scheduleSubscriptionRelinkChecks('optInNotifications');
+    try {
+      // If permission already granted, just login again
+      if (this._permissionStatus.value === 'granted') {
+        await this.ensureInitialized();
+        await this.loginUser();
+        const enabled = await this.ensurePushSubscriptionActive();
+        await this.saveCurrentSubscription('optInNotifications');
+        this.scheduleSubscriptionRelinkChecks('optInNotifications');
+        void this.logPushActivation(
+          enabled ? 'activation_success' : 'activation_failed',
+          enabled ? 'info' : 'warn',
+          enabled
+            ? 'Notificaciones activadas correctamente'
+            : 'No se pudo completar la activacion con permiso ya concedido',
+          { permission_already_granted: true },
+        );
+        return enabled;
+      }
+
+      // Otherwise, request permission
+      const enabled = await this.requestPermission();
+      void this.logPushActivation(
+        enabled ? 'activation_success' : 'activation_failed',
+        enabled ? 'info' : 'warn',
+        enabled
+          ? 'Notificaciones activadas correctamente'
+          : 'No se pudo completar la activacion tras pedir permiso',
+        { permission_already_granted: false },
+      );
       return enabled;
+    } catch (error) {
+      void this.logPushActivation(
+        'activation_exception',
+        'error',
+        'Excepcion activando notificaciones',
+        { error: this.serializeError(error) },
+      );
+      throw error;
     }
-
-    // Otherwise, request permission
-    return await this.requestPermission();
   }
 }

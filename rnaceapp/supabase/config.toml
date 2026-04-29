@@ -398,6 +398,12 @@ verify_jwt = true
 import_map = "./functions/register-push-subscription/deno.json"
 entrypoint = "./functions/register-push-subscription/index.ts"
 
+[functions.push-activation-log]
+enabled = true
+verify_jwt = true
+import_map = "./functions/push-activation-log/deno.json"
+entrypoint = "./functions/push-activation-log/index.ts"
+
 [functions.login]
 enabled = true
 verify_jwt = true
