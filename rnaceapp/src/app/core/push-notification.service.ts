@@ -580,21 +580,26 @@ export class PushNotificationService {
       return this.hasRegisteredOneSignalSubscription();
     }
 
-    const optInPromise = Promise.resolve(pushSubscription.optIn());
+    const optInTimeoutMessage =
+      `OneSignal.PushSubscription.optIn() timeout (${this.oneSignalOptInTimeoutMs / 1000}s)`;
+    const optInPromise = Promise.resolve().then(() => pushSubscription.optIn());
     try {
       await this.withTimeout(
         optInPromise,
         this.oneSignalOptInTimeoutMs,
-        `OneSignal.PushSubscription.optIn() timeout (${this.oneSignalOptInTimeoutMs / 1000}s)`,
+        optInTimeoutMessage,
       );
     } catch (error) {
+      const serializedError = this.serializeError(error);
       console.warn(`[Push] ${contexto}: OneSignal optIn no completo a tiempo`, error);
-      this.watchLateOptInCompletion(optInPromise, contexto);
+      if (serializedError === optInTimeoutMessage) {
+        this.watchLateOptInCompletion(optInPromise, contexto);
+      }
       void this.logPushActivation(
         'optin_timeout',
         'warn',
         'OneSignal optIn no completo a tiempo',
-        { contexto, error: this.serializeError(error) },
+        { contexto, error: serializedError },
       );
     }
 
