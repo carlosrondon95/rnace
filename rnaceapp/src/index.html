@@ -42,9 +42,13 @@
         try {
           await OneSignal.init({
             appId: "40e80da3-452e-4482-81df-6b7bf447a9a1",
-            serviceWorkerPath: "/OneSignalSDKWorker.js",
+            safari_web_id: "web.onesignal.auto.2a0b8f88-f61f-4cbf-954f-aff96911a546",
+            serviceWorkerPath: "OneSignalSDKWorker.js",
             serviceWorkerParam: { scope: "/" },
             autoResubscribe: true,
+            notifyButton: {
+              enable: false,
+            },
             promptOptions: {
               slidedown: {
                 prompts: [
