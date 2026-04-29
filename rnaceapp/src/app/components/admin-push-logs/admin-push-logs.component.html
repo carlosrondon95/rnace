@@ -9,9 +9,23 @@
       <p>Activación de notificaciones por usuario y dispositivo</p>
     </div>
 
-    <button type="button" class="icon-button" (click)="cargarLogs()" [disabled]="cargando()" aria-label="Actualizar">
-      <span class="material-symbols-rounded">refresh</span>
-    </button>
+    <div class="header-actions">
+      <button
+        type="button"
+        class="action-button"
+        (click)="exportarJson()"
+        [disabled]="cargando() || logsFiltrados().length === 0"
+        aria-label="Exportar JSON"
+        title="Exportar JSON"
+      >
+        <span class="material-symbols-rounded">download</span>
+        <span>JSON</span>
+      </button>
+
+      <button type="button" class="icon-button" (click)="cargarLogs()" [disabled]="cargando()" aria-label="Actualizar" title="Actualizar">
+        <span class="material-symbols-rounded">refresh</span>
+      </button>
+    </div>
   </header>
 
   <div class="filters">

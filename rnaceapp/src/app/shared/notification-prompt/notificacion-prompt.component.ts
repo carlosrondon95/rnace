@@ -90,7 +90,7 @@ import { Subscription } from 'rxjs';
         </div>
         <div class="prompt-content">
           <h4>Notificaciones bloqueadas</h4>
-          <p>Actívalas desde los ajustes del navegador para recibir avisos push.</p>
+          <p>Activalas en RNACE y tambien en el navegador que abre la app.</p>
         </div>
         <div class="prompt-actions">
           <button class="btn-primary" (click)="showHelpModal.set(true)">
@@ -107,10 +107,11 @@ import { Subscription } from 'rxjs';
           <h3>Cómo activar notificaciones</h3>
           <p>Las notificaciones están bloqueadas. Para activarlas:</p>
           <ol>
-            <li>Abre la configuración de tu navegador</li>
-            <li>Busca "Permisos" o "Notificaciones"</li>
-            <li>Encuentra RNACE y cambia a "Permitir"</li>
-            <li>Recarga la página</li>
+            <li>Abre Ajustes del dispositivo y entra en Notificaciones</li>
+            <li>Busca el navegador que abre RNACE (Chrome, Edge, Safari o Samsung Internet)</li>
+            <li>Activa sus notificaciones y sus canales si aparecen</li>
+            <li>En permisos del sitio RNACE, cambia Notificaciones a Permitir</li>
+            <li>Vuelve a RNACE y pulsa Activar otra vez</li>
           </ol>
           <button class="btn-primary btn-full" (click)="showHelpModal.set(false)">
             Entendido
@@ -484,15 +485,12 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
         this.showSuccess.set(true);
         setTimeout(() => this.showSuccess.set(false), 5000);
       } else {
-        const message = this.permissionDenied()
-          ? 'Permiso bloqueado en el navegador'
-          : 'No se pudo completar la activación. Recarga la app e inténtalo otra vez.';
-        this.activationError.set(message);
+        this.activationError.set(this.pushService.getActivationFailureMessage());
         setTimeout(() => this.activationError.set(null), 7000);
       }
     } catch (error) {
       console.error('[Push] Error activando notificaciones desde el prompt:', error);
-      this.activationError.set('No se pudo completar la activación. Recarga la app e inténtalo otra vez.');
+      this.activationError.set(this.pushService.getActivationFailureMessage());
       setTimeout(() => this.activationError.set(null), 7000);
     } finally {
       this.requesting.set(false);

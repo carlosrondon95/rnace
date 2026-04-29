@@ -86,6 +86,41 @@ export class AdminPushLogsComponent implements OnInit {
     }
   }
 
+  exportarJson(): void {
+    const logs = this.logsFiltrados();
+
+    if (logs.length === 0) {
+      this.error.set('No hay logs para exportar con el filtro actual.');
+      return;
+    }
+
+    this.error.set(null);
+
+    const exportedAt = new Date();
+    const payload = {
+      exported_at: exportedAt.toISOString(),
+      filter: this.filtro(),
+      count: logs.length,
+      logs,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+
+    anchor.href = url;
+    anchor.download = `rnace-push-logs-${this.filtro()}-${this.formatFileDate(exportedAt)}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  private formatFileDate(date: Date): string {
+    return date.toISOString().replace(/[:.]/g, '-');
+  }
+
   private async getFunctionErrorMessage(error: unknown): Promise<string> {
     const context = (error as { context?: Response })?.context;
 
