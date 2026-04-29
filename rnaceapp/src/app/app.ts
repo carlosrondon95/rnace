@@ -29,9 +29,20 @@ import { filter } from 'rxjs/operators';
     }
 
     .app-prompt-shell {
-      width: min(100%, 720px);
+      position: fixed;
+      top: calc(var(--safe-area-top) + var(--navbar-height) + var(--space-sm));
+      left: 0;
+      right: 0;
+      z-index: 350;
+      width: 100%;
+      max-width: 720px;
       margin: 0 auto;
       padding: 0 var(--space-md);
+      pointer-events: none;
+    }
+
+    .app-prompt-shell app-notification-prompt {
+      pointer-events: auto;
     }
   `]
 })
