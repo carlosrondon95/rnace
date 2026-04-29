@@ -9,6 +9,10 @@
 [[plugins]]
   package = "@netlify/angular-runtime"
 
+[[edge_functions]]
+  function = "canonical-domain"
+  path = "/*"
+
 # ====================================================================
 # Redirecciones de dominio canonical
 # ====================================================================
