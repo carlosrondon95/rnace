@@ -14,6 +14,12 @@
 # ====================================================================
 
 [[redirects]]
+  from = "https://centrornace.netlify.app"
+  to = "https://centrornace.com"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "https://centrornace.netlify.app/"
   to = "https://centrornace.com/"
   status = 301
@@ -22,6 +28,12 @@
 [[redirects]]
   from = "https://centrornace.netlify.app/*"
   to = "https://centrornace.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://www.centrornace.com"
+  to = "https://centrornace.com"
   status = 301
   force = true
 
