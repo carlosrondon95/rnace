@@ -10,6 +10,22 @@
   package = "@netlify/angular-runtime"
 
 # ====================================================================
+# Redirecciones de dominio canonical
+# ====================================================================
+
+[[redirects]]
+  from = "https://centrornace.netlify.app/*"
+  to = "https://centrornace.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://www.centrornace.com/*"
+  to = "https://centrornace.com/:splat"
+  status = 301
+  force = true
+
+# ====================================================================
 # Headers para Service Worker y PWA
 # ====================================================================
 
