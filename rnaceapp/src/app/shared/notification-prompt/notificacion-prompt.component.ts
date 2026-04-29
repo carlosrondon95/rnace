@@ -468,8 +468,7 @@ export class NotificationPromptComponent implements OnInit, OnDestroy {
     this.requesting.set(true);
     try {
       const success = await this.pushService.optInNotifications();
-      const permissionGranted = this.pushService.getPermissionStatus() === 'granted';
-      if (success || permissionGranted) {
+      if (success) {
         this.showNotificationPrompt.set(false);
         this.showSuccess.set(true);
         setTimeout(() => this.showSuccess.set(false), 5000);
