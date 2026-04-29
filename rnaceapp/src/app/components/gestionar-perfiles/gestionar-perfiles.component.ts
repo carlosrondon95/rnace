@@ -412,23 +412,47 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
-    // NEW: Fetch reservation counts
-    const { data: reservasData } = await client
-      .from('reservas')
-      .select(`
-        usuario_id,
-        estado,
-        sesiones!inner (
-          fecha,
-          hora
-        )
-      `)
-      .eq('estado', 'activa');
-
     const countsMap = new Map<string, { realizadas: number, futuras: number }>();
     const ahora = new Date();
+    const inicioMes = format(startOfMonth(ahora), 'yyyy-MM-dd');
+    const finMes = format(endOfMonth(ahora), 'yyyy-MM-dd');
     const mesActual = ahora.getMonth();
     const anioActual = ahora.getFullYear();
+    const reservasData: any[] = [];
+    const pageSize = 1000;
+    let offset = 0;
+
+    while (true) {
+      const { data: reservasPage, error: reservasError } = await client
+        .from('reservas')
+        .select(`
+          id,
+          usuario_id,
+          estado,
+          sesiones!inner (
+            fecha,
+            hora
+          )
+        `)
+        .eq('estado', 'activa')
+        .gte('sesiones.fecha', inicioMes)
+        .lte('sesiones.fecha', finMes)
+        .order('id', { ascending: true })
+        .range(offset, offset + pageSize - 1);
+
+      if (reservasError) {
+        console.error('Error cargando conteo de reservas:', reservasError);
+        break;
+      }
+
+      reservasData.push(...(reservasPage || []));
+
+      if (!reservasPage || reservasPage.length < pageSize) {
+        break;
+      }
+
+      offset += pageSize;
+    }
 
     if (reservasData) {
       for (const r of (reservasData as any[])) {
