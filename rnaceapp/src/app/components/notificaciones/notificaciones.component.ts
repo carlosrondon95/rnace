@@ -115,6 +115,7 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
   pushEnabled = signal(false);
   pushPermission = signal<NotificationPermission>('default');
   togglingPush = signal(false);
+  showDeniedHelpModal = signal(false);
 
   // Computed
   userId = computed(() => this.auth.userId());
@@ -222,8 +223,26 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
     this.pushEnabled.set(enabled);
   }
 
+  onTogglePushClick(event: Event) {
+    // Prevent the default checkbox toggle — we control state via [checked]
+    event.preventDefault();
+
+    if (this.togglingPush()) {
+      return;
+    }
+
+    // If permission is denied, show help modal instead of trying to activate
+    if (this.pushPermission() === 'denied') {
+      this.showDeniedHelpModal.set(true);
+      return;
+    }
+
+    void this.togglePush();
+  }
+
   async togglePush() {
     this.togglingPush.set(true);
+    this.error.set(null);
     try {
       if (this.pushEnabled()) {
         // Disable notifications
@@ -233,11 +252,17 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
         // Enable notifications
         const success = await this.pushService.optInNotifications();
         this.pushEnabled.set(success);
-        if (!success && this.pushPermission() === 'denied') {
-          this.error.set('Las notificaciones están bloqueadas en tu navegador');
-          setTimeout(() => this.error.set(null), 4000);
+        if (!success) {
+          const message = this.pushService.getActivationFailureMessage();
+          this.error.set(message);
+          setTimeout(() => this.error.set(null), 6000);
         }
       }
+    } catch (err) {
+      console.error('[Notificaciones] Error toggling push:', err);
+      const message = this.pushService.getActivationFailureMessage();
+      this.error.set(message);
+      setTimeout(() => this.error.set(null), 6000);
     } finally {
       this.togglingPush.set(false);
     }
@@ -505,6 +530,5 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
   trackByTitulo(_index: number, grupo: { titulo: string }): string {
     return grupo.titulo;
   }
-
 
 }

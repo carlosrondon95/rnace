@@ -36,20 +36,22 @@
           </p>
         </div>
       </div>
-      <label class="toggle-switch" [class.toggle-switch--disabled]="pushPermission() === 'denied' || togglingPush()">
-        <input type="checkbox" [checked]="pushEnabled()" (change)="togglePush()"
-          [disabled]="pushPermission() === 'denied' || togglingPush()">
+      <label class="toggle-switch" [class.toggle-switch--disabled]="togglingPush()"
+        (click)="onTogglePushClick($event)">
+        <input type="checkbox" [checked]="pushEnabled()"
+          [disabled]="togglingPush()">
         <span class="slider"></span>
       </label>
     </div>
     @if (pushPermission() === 'denied') {
-    <p class="setting-hint">
+    <p class="setting-hint setting-hint--clickable" (click)="showDeniedHelpModal.set(true)">
       <span class="material-symbols-rounded">info</span>
-      Para activar, permite las notificaciones en la configuración de tu navegador
+      Pulsa aquí para ver cómo desbloquear las notificaciones
     </p>
     }
   </section>
   }
+
 
   <!-- Acciones admin (separadas del header para móvil) -->
   <div class="acciones-row">
@@ -235,6 +237,53 @@
         </button>
       </div>
       }
+    </div>
+  </div>
+  }
+
+  @if (showDeniedHelpModal()) {
+  <div class="modal-overlay" (click)="showDeniedHelpModal.set(false)">
+    <div class="modal-detail" (click)="$event.stopPropagation()">
+      <button class="btn-close-modal" (click)="showDeniedHelpModal.set(false)">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+
+      <div class="modal-header-icon tipo-cancelacion">
+        <span class="material-symbols-rounded">notifications_off</span>
+      </div>
+
+      <div class="modal-body">
+        <h2 class="modal-title">Notificaciones bloqueadas</h2>
+        <p class="modal-message">
+          Las notificaciones están bloqueadas en tu navegador. Solo tú puedes desbloquearlas desde los ajustes del dispositivo.
+        </p>
+
+        <div class="sesion-detalle-highlight">
+          <div class="detalle-item">
+            <span class="material-symbols-rounded">settings</span>
+            <span>Abre <strong>Ajustes</strong> del dispositivo → <strong>Notificaciones</strong></span>
+          </div>
+          <div class="detalle-item">
+            <span class="material-symbols-rounded">language</span>
+            <span>Busca el navegador que abre RNACE (Chrome, Edge, Safari...)</span>
+          </div>
+          <div class="detalle-item">
+            <span class="material-symbols-rounded">toggle_on</span>
+            <span>Activa sus notificaciones y revisa los permisos del sitio</span>
+          </div>
+          <div class="detalle-item">
+            <span class="material-symbols-rounded">refresh</span>
+            <span>Vuelve a RNACE y pulsa el toggle de nuevo</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-action btn-success" (click)="showDeniedHelpModal.set(false)">
+          Entendido
+          <span class="material-symbols-rounded">check</span>
+        </button>
+      </div>
     </div>
   </div>
   }
