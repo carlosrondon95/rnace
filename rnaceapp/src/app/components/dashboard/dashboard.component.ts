@@ -16,8 +16,26 @@ interface ProximaClase {
   modalidad: 'focus' | 'reducido';
   dia_nombre: string;
   es_recuperacion: boolean;
+  es_desde_horario_fijo: boolean;
   capacidad: number;
   reservas_count: number;
+}
+
+interface HorarioFijoDashboard {
+  horarios_disponibles:
+  | {
+    dia_semana: number;
+    hora: string;
+    modalidad: 'focus' | 'reducido';
+    activo: boolean;
+  }
+  | {
+    dia_semana: number;
+    hora: string;
+    modalidad: 'focus' | 'reducido';
+    activo: boolean;
+  }[]
+  | null;
 }
 
 interface Recuperacion {
@@ -267,6 +285,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     try {
       const hoyDate = new Date().toISOString().split('T')[0];
+      const horariosFijos = await this.cargarClavesHorariosFijos(uid);
 
       const { data, error } = await supabase()
         .from('reservas')
@@ -275,6 +294,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           id,
           sesion_id,
           es_recuperacion,
+          es_desde_horario_fijo,
           sesiones!inner (
             fecha,
             hora,
@@ -319,11 +339,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
             modalidad: sesion.modalidad as 'focus' | 'reducido',
             dia_nombre: fechaObj.toLocaleDateString('es-ES', { weekday: 'long' }),
             es_recuperacion: r.es_recuperacion || false,
+            es_desde_horario_fijo: r.es_desde_horario_fijo || false,
             capacidad: sesion.capacidad || 0,
             reservas_count: reservasActivas,
           };
         })
         .filter((clase) => {
+          if (clase.es_desde_horario_fijo && horariosFijos.size > 0) {
+            const diaSemana = this.obtenerDiaSemanaISO(clase.fecha_raw);
+            const clave = this.crearClaveHorario(diaSemana, clase.hora_raw, clase.modalidad);
+            if (!horariosFijos.has(clave)) return false;
+          }
+
           // Filtrar clases que ya terminaron (1 hora después del inicio)
           const inicioClase = new Date(clase.fecha_raw + 'T' + clase.hora_raw);
           const finClase = new Date(inicioClase.getTime() + 60 * 60 * 1000); // +1 hora
@@ -341,6 +368,51 @@ export class DashboardComponent implements OnInit, OnDestroy {
     } catch (err) {
       console.error('Error:', err);
     }
+  }
+
+  private async cargarClavesHorariosFijos(usuarioId: string): Promise<Set<string>> {
+    const { data, error } = await supabase()
+      .from('horario_fijo_usuario')
+      .select(
+        `
+        horarios_disponibles!inner (
+          dia_semana,
+          hora,
+          modalidad,
+          activo
+        )
+      `,
+      )
+      .eq('usuario_id', usuarioId)
+      .eq('activo', true)
+      .eq('horarios_disponibles.activo', true);
+
+    if (error) {
+      console.warn('No se pudieron cargar horarios fijos para validar el dashboard:', error);
+      return new Set();
+    }
+
+    return new Set(
+      ((data || []) as HorarioFijoDashboard[])
+        .map((registro) => {
+          const horario = Array.isArray(registro.horarios_disponibles)
+            ? registro.horarios_disponibles[0]
+            : registro.horarios_disponibles;
+
+          if (!horario) return null;
+          return this.crearClaveHorario(horario.dia_semana, horario.hora, horario.modalidad);
+        })
+        .filter((clave): clave is string => Boolean(clave)),
+    );
+  }
+
+  private crearClaveHorario(diaSemana: number, hora: string, modalidad: string): string {
+    return `${diaSemana}|${hora.substring(0, 5)}|${modalidad}`;
+  }
+
+  private obtenerDiaSemanaISO(fecha: string): number {
+    const dia = new Date(`${fecha}T12:00:00`).getDay();
+    return dia === 0 ? 7 : dia;
   }
 
   async cargarResumenClases() {

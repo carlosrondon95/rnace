@@ -9,6 +9,7 @@ import { supabase } from '../../core/supabase.client';
 import { CustomSelectComponent, SelectOption } from '../../shared/ui/custom-select/custom-select.component';
 import { AuditService } from '../../core/audit.service';
 import { enviarHuecoDisponibleUsuario, enviarPushUsuario } from '../../core/push-delivery';
+import { formatearResultadoReservas, regenerarReservasFuturas } from '../../core/reservas-sync';
 
 interface DiaCalendario {
   fecha: string;
@@ -1661,10 +1662,11 @@ export class CalendarioComponent implements OnInit {
 
       const { data: existente } = await client
         .from('agenda_mes')
-        .select('anio, mes')
+        .select('anio, mes, abierto')
         .eq('anio', anio)
         .eq('mes', mes)
         .maybeSingle();
+      const mesAbiertoAntes = Boolean(existente?.abierto);
 
       if (existente) {
         const { error: updateError } = await client
@@ -1699,15 +1701,22 @@ export class CalendarioComponent implements OnInit {
       });
 
       if (genError) {
-        console.warn('No se pudieron generar sesiones automáticamente:', genError);
+        console.error('No se pudieron generar sesiones automáticamente:', genError);
+        await this.restaurarAperturaMes(client, anio, mes, mesAbiertoAntes);
+        this.error.set(`No se pudo abrir el mes porque falló la generación de sesiones: ${genError.message}`);
+        return;
       }
 
-      const { data: regenData, error: regenError } = await client.rpc('regenerar_reservas_futuras');
-
-      if (regenError) {
-        console.warn('No se pudieron generar reservas automáticamente:', regenError);
-      } else if (regenData) {
+      let mensajeSyncReservas = '';
+      try {
+        const regenData = await regenerarReservasFuturas(client);
+        mensajeSyncReservas = formatearResultadoReservas(regenData);
         console.log('Reservas regeneradas:', regenData);
+      } catch (regenError: any) {
+        console.error('No se pudieron generar reservas automáticamente:', regenError);
+        await this.restaurarAperturaMes(client, anio, mes, mesAbiertoAntes);
+        this.error.set(`No se pudo abrir el mes por un error técnico al sincronizar reservas fijas: ${regenError.message || 'error desconocido'}`);
+        return;
       }
 
       let recuperacionesGeneradas = 0;
@@ -1776,9 +1785,13 @@ export class CalendarioComponent implements OnInit {
         if (recuperacionesGeneradas > 0) {
           mensaje += ` Se generaron ${recuperacionesGeneradas} recuperación${recuperacionesGeneradas > 1 ? 'es' : ''}.`;
         }
+        if (mensajeSyncReservas) {
+          mensaje += ` ${mensajeSyncReservas}`;
+        }
         this.mensajeExito.set(mensaje);
       } else {
-        this.mensajeExito.set('Mes abierto correctamente. Los usuarios ya pueden reservar.');
+        const detalleSync = mensajeSyncReservas ? ` ${mensajeSyncReservas}` : '';
+        this.mensajeExito.set(`Mes abierto correctamente. Los usuarios ya pueden reservar.${detalleSync}`);
       }
       this.modoEdicion.set(false);
       this.festivosSeleccionados.set(new Set());
@@ -1789,6 +1802,23 @@ export class CalendarioComponent implements OnInit {
       this.error.set('Error inesperado al guardar.');
     } finally {
       this.guardando.set(false);
+    }
+  }
+
+  private async restaurarAperturaMes(
+    client: ReturnType<typeof supabase>,
+    anio: number,
+    mes: number,
+    abierto: boolean,
+  ): Promise<void> {
+    const { error } = await client
+      .from('agenda_mes')
+      .update({ abierto })
+      .eq('anio', anio)
+      .eq('mes', mes);
+
+    if (error) {
+      console.warn('No se pudo restaurar el estado de apertura del mes:', error);
     }
   }
 
@@ -2948,14 +2978,9 @@ export class CalendarioComponent implements OnInit {
 
       // Finalmente, regenerar reservas futuras para todos los usuarios
       // Esto asegura que si el cambio de horario afecta a usuarios existentes, se actualicen sus reservas
-      try {
-        await supabase().rpc('regenerar_reservas_futuras');
-      } catch (rpcError) {
-        console.error('Error regenerando reservas:', rpcError);
-        // No bloqueamos el éxito, pero logueamos
-      }
+      const syncResult = await regenerarReservasFuturas(supabase());
 
-      this.mensajeExito.set('Horario guardado correctamente. Las sesiones y reservas futuras se han actualizado.');
+      this.mensajeExito.set(`Horario guardado correctamente. ${formatearResultadoReservas(syncResult)}`);
       setTimeout(() => this.mensajeExito.set(null), 3000);
 
     } catch (e: any) {

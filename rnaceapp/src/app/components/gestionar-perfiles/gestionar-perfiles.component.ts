@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
 import { AuditService } from '../../core/audit.service';
+import { asegurarReservasFuturasSincronizadas, formatearResultadoReservas, ReservaSyncResult } from '../../core/reservas-sync';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, isBefore, startOfDay, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -918,7 +919,21 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
-    this.mostrarExitoGlobal(`Usuario creado: ${nombre}`);
+    let syncResult: ReservaSyncResult | null = null;
+    if (f.rol === 'cliente') {
+      try {
+        syncResult = await this.sincronizarReservasUsuario(userId);
+      } catch (err: any) {
+        console.error('Error sincronizando reservas:', err);
+        this.errorModal.set(`Usuario creado, pero las reservas fijas no quedaron sincronizadas: ${err.message || 'error desconocido'}`);
+        this.guardando.set(false);
+        await this.cargarUsuarios();
+        return;
+      }
+    }
+
+    const detalleSync = syncResult ? ` ${formatearResultadoReservas(syncResult)}` : '';
+    this.mostrarExitoGlobal(`Usuario creado: ${nombre}.${detalleSync}`);
 
     // Limpiar formulario pero mantener modal abierto
     this.formulario.set({
@@ -936,13 +951,7 @@ export class GestionarPerfilesComponent implements OnInit {
     });
     this.passwordCopiada.set(false);
 
-    try {
-      await this.sincronizarReservasUsuario(userId);
-    } catch (err) {
-      console.error('Error sincronizando reservas:', err);
-    } finally {
-      this.guardando.set(false);
-    }
+    this.guardando.set(false);
     await this.cargarUsuarios();
   }
 
@@ -1043,38 +1052,36 @@ export class GestionarPerfilesComponent implements OnInit {
     }
 
     // Sincronizar reservas si es cliente
+    let syncResult: ReservaSyncResult | null = null;
     if (f.rol === 'cliente') {
       try {
-        await this.sincronizarReservasUsuario(userId);
-      } catch (err) {
+        syncResult = await this.sincronizarReservasUsuario(userId);
+      } catch (err: any) {
         console.error('Error sincronizando reservas:', err);
+        this.errorModal.set(`Usuario actualizado, pero las reservas fijas no quedaron sincronizadas: ${err.message || 'error desconocido'}`);
+        await this.cargarUsuarios();
+        return;
       }
     }
 
     // Mostrar feedback y cerrar modal
-    this.mostrarExitoGlobal('Usuario actualizado correctamente');
+    const detalleSync = syncResult ? ` ${formatearResultadoReservas(syncResult)}` : '';
+    this.mostrarExitoGlobal(`Usuario actualizado correctamente.${detalleSync}`);
     this.cerrarModal();
 
     await this.cargarUsuarios();
   }
 
-  private async sincronizarReservasUsuario(userId: string) {
+  private async sincronizarReservasUsuario(userId: string): Promise<ReservaSyncResult> {
     const client = supabase();
 
     // Usamos la función de base de datos que ya contiene la lógica de negocio robusta
     // para generar reservas futuras basadas en el plan de usuario y horarios.
     // esta función regenera para todos (o solo uno si se pasa ID), asegurando consistencia.
-    const { error } = await client.rpc('regenerar_reservas_futuras', { p_usuario_id: userId });
+    const resultado = await asegurarReservasFuturasSincronizadas(client, userId);
 
-    if (error) {
-      console.error('Error al regenerar reservas futuras:', error);
-      throw error;
-    } else {
-      console.log('Reservas regeneradas correctamente vía RPC.');
-    }
-
-    // Código legacy eliminado: la lógica manual anterior era incompleta y propensa a desincronización
-    // al filtrar por strings de horas y no manejar correctamente la limpieza.
+    console.log('Reservas regeneradas correctamente vía RPC:', resultado);
+    return resultado;
   }
 
 
