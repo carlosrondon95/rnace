@@ -57,6 +57,18 @@
 # Headers para Service Worker y PWA
 # ====================================================================
 
+# HTML principal: no cachear para que los cambios de configuración push
+# lleguen rápido a usuarios que tienen la PWA abierta o instalada.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
 # Service Worker: NUNCA cachear, siempre servir la última versión
 [[headers]]
   for = "/OneSignalSDKWorker.js"

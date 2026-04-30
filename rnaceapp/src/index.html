@@ -37,41 +37,55 @@
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script>
     window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalInitPromise = window.OneSignalInitPromise || new Promise(function(resolve, reject) {
-      window.OneSignalDeferred.push(async function(OneSignal) {
-        try {
-          await OneSignal.init({
-            appId: "40e80da3-452e-4482-81df-6b7bf447a9a1",
-            safari_web_id: "web.onesignal.auto.2a0b8f88-f61f-4cbf-954f-aff96911a546",
-            serviceWorkerPath: "OneSignalSDKWorker.js",
-            serviceWorkerParam: { scope: "/" },
-            autoResubscribe: true,
-            notifyButton: {
-              enable: false,
-            },
-            promptOptions: {
-              slidedown: {
-                prompts: [
-                  {
-                    type: "push",
-                    autoPrompt: false,
-                    text: {
-                      actionMessage: "Activa las notificaciones para recibir avisos de reservas y plazas libres.",
-                      acceptButton: "Permitir",
-                      cancelButton: "Ahora no"
+    window.RNACEInitOneSignal = function(force) {
+      if (window.OneSignalInitPromise && !force) {
+        return window.OneSignalInitPromise;
+      }
+
+      var initPromise = new Promise(function(resolve, reject) {
+        window.OneSignalDeferred.push(async function(OneSignal) {
+          try {
+            await OneSignal.init({
+              appId: "40e80da3-452e-4482-81df-6b7bf447a9a1",
+              safari_web_id: "web.onesignal.auto.2a0b8f88-f61f-4cbf-954f-aff96911a546",
+              serviceWorkerPath: "OneSignalSDKWorker.js",
+              serviceWorkerParam: { scope: "/" },
+              autoResubscribe: true,
+              notifyButton: {
+                enable: false,
+              },
+              promptOptions: {
+                slidedown: {
+                  prompts: [
+                    {
+                      type: "push",
+                      autoPrompt: false,
+                      text: {
+                        actionMessage: "Activa las notificaciones para recibir avisos de reservas y plazas libres.",
+                        acceptButton: "Permitir",
+                        cancelButton: "Ahora no"
+                      }
                     }
-                  }
-                ]
+                  ]
+                }
               }
+            });
+            resolve(OneSignal);
+          } catch (error) {
+            console.error("[Push] Error inicializando OneSignal", error);
+            if (window.OneSignalInitPromise === initPromise) {
+              window.OneSignalInitPromise = undefined;
             }
-          });
-          resolve(OneSignal);
-        } catch (error) {
-          console.error("[Push] Error inicializando OneSignal", error);
-          reject(error);
-        }
+            reject(error);
+          }
+        });
       });
-    });
+
+      window.OneSignalInitPromise = initPromise;
+      return initPromise;
+    };
+
+    window.RNACEInitOneSignal().catch(function() {});
   </script>
 </head>
 

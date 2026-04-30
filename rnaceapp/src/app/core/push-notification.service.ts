@@ -30,6 +30,7 @@ declare global {
   interface Window {
     OneSignalDeferred: Array<(OneSignal: any) => void>;
     OneSignalInitPromise?: Promise<any>;
+    RNACEInitOneSignal?: (force?: boolean) => Promise<any>;
   }
 }
 
@@ -45,14 +46,14 @@ export class PushNotificationService {
   private subscriptionListenerReady = false;
   private userListenerReady = false;
   private lifecycleListenerReady = false;
+  private subscriptionRepairTimers: ReturnType<typeof setTimeout>[] = [];
   private lastSavedSubscriptionSignature: string | null = null;
   private saveSubscriptionPromise: Promise<boolean> | null = null;
-  private readonly sdkReadyTimeoutMs = 15000;
+  private readonly sdkReadyTimeoutMs = 30000;
   private readonly oneSignalLoginTimeoutMs = 12000;
   private readonly oneSignalOptInTimeoutMs = 15000;
   private readonly permissionPromptTimeoutMs = 30000;
   private readonly activationFlowTimeoutMs = 45000;
-  private readonly serviceWorkerReadyTimeoutMs = 8000;
   private readonly registerSubscriptionTimeoutMs = 15000;
   private readonly logPushActivationTimeoutMs = 6000;
 
@@ -247,9 +248,8 @@ export class PushNotificationService {
   private async syncOneSignalUserAfterInit(contexto: string): Promise<void> {
     try {
       console.log(`[Push] OneSignal listo, sincronizando usuario (${contexto})...`);
-      await this.loginUser();
       await this.ensurePushSubscriptionActive();
-      this.scheduleSubscriptionRelinkChecks(contexto);
+      this.scheduleSubscriptionRepairCheck(contexto);
     } catch (error) {
       console.warn(`[Push] ${contexto}: no se pudo sincronizar usuario en segundo plano`, error);
     }
@@ -260,14 +260,21 @@ export class PushNotificationService {
    * Guarda la referencia al SDK para usarla directamente después.
    */
   private async waitForOneSignal(): Promise<void> {
-    const initPromise = window.OneSignalInitPromise;
+    const initPromise = window.RNACEInitOneSignal?.() ?? window.OneSignalInitPromise;
 
     if (initPromise) {
-      const OneSignal = await this.withTimeout(
-        initPromise,
-        this.sdkReadyTimeoutMs,
-        `OneSignal.init() no completo tras ${this.sdkReadyTimeoutMs / 1000}s`,
-      );
+      const timeoutMessage = `OneSignal.init() no completo tras ${this.sdkReadyTimeoutMs / 1000}s`;
+      let OneSignal: any;
+
+      try {
+        OneSignal = await this.withTimeout(initPromise, this.sdkReadyTimeoutMs, timeoutMessage);
+      } catch (error) {
+        if (this.serializeError(error) === timeoutMessage) {
+          window.OneSignalInitPromise = undefined;
+        }
+        throw error;
+      }
+
       console.log('[Push] OneSignal init listo');
       this.oneSignalInstance = OneSignal;
       return;
@@ -473,98 +480,51 @@ export class PushNotificationService {
       return false;
     }
 
-    await this.loginUser();
     await this.ensurePushSubscriptionActive();
-    await this.relinkCurrentSubscription('syncCurrentUserSubscription');
     this.checkPermissionStatus();
     this.updateOneSignalSubscriptionState();
     this.logOneSignalState('syncCurrentUserSubscription');
-    this.scheduleSubscriptionRelinkChecks('syncCurrentUserSubscription');
+    this.scheduleSubscriptionRepairCheck('syncCurrentUserSubscription');
     return this.isEffectivelyEnabled();
   }
 
   /**
-   * Ejecuta OneSignal.login() de forma robusta con reintentos.
-   * A diferencia de la versión anterior que usaba OneSignalDeferred.push()
-   * (fire-and-forget), esta versión usa la referencia directa al SDK
-   * y espera realmente a que el login complete.
+   * Vincula el usuario actual con OneSignal sin convertir una sincronizacion lenta
+   * del external_id en un bloqueo fatal para la activacion.
    */
   private async doOneSignalLogin(usuarioId: string): Promise<boolean> {
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY_MS = 2000;
-    let lastError: string | null = null;
-
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        if (this.oneSignalInstance) {
-          // Usar la referencia directa al SDK (más fiable)
-          await this.withTimeout(
-            Promise.resolve(this.oneSignalInstance.login(usuarioId)),
-            this.oneSignalLoginTimeoutMs,
-            `OneSignal.login() timeout (${this.oneSignalLoginTimeoutMs / 1000}s)`,
-          );
-          const linked = await this.waitForExternalId(usuarioId);
-          this.updateOneSignalSubscriptionState();
-          if (!linked) {
-            throw new Error('OneSignal.login() completo pero external_id no coincide');
-          }
-          await this.saveCurrentSubscription('doOneSignalLogin');
-          console.log(`[Push] OneSignal.login() exitoso para usuario_id: ${usuarioId} (intento ${attempt})`);
-          return true;
-        } else {
-          // Fallback: usar el patrón deferred con Promise wrapper
-          await new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              reject(new Error('OneSignal.login() timeout (10s)'));
-            }, 10000);
-
-            window.OneSignalDeferred.push(async (OneSignal: any) => {
-              try {
-                this.oneSignalInstance = OneSignal;
-                await this.withTimeout(
-                  Promise.resolve(OneSignal.login(usuarioId)),
-                  this.oneSignalLoginTimeoutMs,
-                  `OneSignal.login() timeout (${this.oneSignalLoginTimeoutMs / 1000}s)`,
-                );
-                clearTimeout(timeout);
-                console.log(`[Push] OneSignal.login() exitoso para usuario_id: ${usuarioId} (intento ${attempt}, deferred)`);
-                resolve();
-              } catch (innerErr) {
-                clearTimeout(timeout);
-                reject(innerErr);
-              }
-            });
-          });
-          const linked = await this.waitForExternalId(usuarioId);
-          this.updateOneSignalSubscriptionState();
-          if (!linked) {
-            throw new Error('OneSignal.login() deferred completo pero external_id no coincide');
-          }
-          await this.saveCurrentSubscription('doOneSignalLogin-deferred');
-          return true;
-        }
-      } catch (error) {
-        lastError = this.serializeError(error);
-        console.error(`[Push] Error en OneSignal.login() intento ${attempt}/${MAX_RETRIES}:`, error);
-        if (attempt < MAX_RETRIES) {
-          console.log(`[Push] Reintentando en ${RETRY_DELAY_MS}ms...`);
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-        }
-      }
+    if (!this.oneSignalInstance?.login) {
+      await this.ensureInitialized();
     }
-    console.error(`[Push] OneSignal.login() fallo despues de ${MAX_RETRIES} intentos para usuario_id: ${usuarioId}`);
-    this.updateOneSignalSubscriptionState();
-    void this.logPushActivation(
-      'onesignal_login_failed',
-      'warn',
-      'OneSignal.login no vinculo el external_id del usuario',
-      {
-        expected_external_id: usuarioId,
-        current_external_id: this._oneSignalSubscription.value.externalId,
-        error: lastError,
-      },
-    );
-    return false;
+
+    if (!this.oneSignalInstance?.login) return false;
+
+    try {
+      await this.withTimeout(
+        Promise.resolve(this.oneSignalInstance.login(usuarioId)),
+        this.oneSignalLoginTimeoutMs,
+        `OneSignal.login() timeout (${this.oneSignalLoginTimeoutMs / 1000}s)`,
+      );
+      await this.waitForExternalId(usuarioId);
+      this.updateOneSignalSubscriptionState();
+      await this.saveCurrentSubscription('doOneSignalLogin');
+      console.log(`[Push] OneSignal.login() completado para usuario_id: ${usuarioId}`);
+      return true;
+    } catch (error) {
+      console.warn('[Push] OneSignal.login() no completo', error);
+      this.updateOneSignalSubscriptionState();
+      void this.logPushActivation(
+        'onesignal_login_failed',
+        'warn',
+        'OneSignal.login no completo',
+        {
+          expected_external_id: usuarioId,
+          current_external_id: this._oneSignalSubscription.value.externalId,
+          error: this.serializeError(error),
+        },
+      );
+      return false;
+    }
   }
 
   private checkPermissionStatus(): void {
@@ -741,14 +701,15 @@ export class PushNotificationService {
     return this.isEffectivelyEnabled();
   }
 
-  private scheduleSubscriptionRelinkChecks(contexto: string): void {
+  private scheduleSubscriptionRepairCheck(contexto: string): void {
     if (!isPlatformBrowser(this.platformId)) return;
 
-    [2000, 8000, 20000].forEach((delayMs) => {
+    this.subscriptionRepairTimers.forEach((timer) => clearTimeout(timer));
+    this.subscriptionRepairTimers = [5000, 15000].map((delayMs) =>
       setTimeout(() => {
         void this.relinkCurrentSubscription(`${contexto}+${delayMs}ms`);
-      }, delayMs);
-    });
+      }, delayMs),
+    );
   }
 
   private logOneSignalState(contexto: string): void {
@@ -763,64 +724,6 @@ export class PushNotificationService {
       permission: this._permissionStatus.value,
       enabled: this.isEffectivelyEnabled(),
     });
-  }
-
-  private isOneSignalServiceWorker(registration: ServiceWorkerRegistration): boolean {
-    const scriptUrl =
-      registration.active?.scriptURL ||
-      registration.waiting?.scriptURL ||
-      registration.installing?.scriptURL ||
-      '';
-
-    return (
-      registration.scope === `${window.location.origin}/` &&
-      scriptUrl.includes('/OneSignalSDKWorker.js')
-    );
-  }
-
-  private async ensureOneSignalServiceWorkerReady(contexto: string): Promise<boolean> {
-    if (!('serviceWorker' in navigator)) return false;
-
-    try {
-      const readyRegistration = await this.withTimeout(
-        navigator.serviceWorker.ready,
-        this.serviceWorkerReadyTimeoutMs,
-        `Service worker no activo tras ${this.serviceWorkerReadyTimeoutMs / 1000}s`,
-      );
-
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      const oneSignalRegistration =
-        registrations.find((registration) => this.isOneSignalServiceWorker(registration)) ||
-        (this.isOneSignalServiceWorker(readyRegistration) ? readyRegistration : null);
-
-      if (oneSignalRegistration?.active) {
-        return true;
-      }
-
-      void this.logPushActivation(
-        'service_worker_not_ready',
-        'warn',
-        'El service worker de OneSignal no esta activo',
-        {
-          contexto,
-          diagnostics: await this.getBrowserPushDiagnostics(),
-        },
-      );
-      return false;
-    } catch (error) {
-      console.warn(`[Push] ${contexto}: service worker de OneSignal no listo`, error);
-      void this.logPushActivation(
-        'service_worker_not_ready',
-        'warn',
-        'El service worker de OneSignal no quedo listo a tiempo',
-        {
-          contexto,
-          error: this.serializeError(error),
-          diagnostics: await this.getBrowserPushDiagnostics(),
-        },
-      );
-      return false;
-    }
   }
 
   private async waitForRegisteredSubscription(timeoutMs = 10000): Promise<boolean> {
@@ -849,10 +752,6 @@ export class PushNotificationService {
 
   private async optInPushSubscription(contexto: string): Promise<boolean> {
     if (!await this.runActivationPrechecks(contexto)) {
-      return false;
-    }
-
-    if (!await this.ensureOneSignalServiceWorkerReady(contexto)) {
       return false;
     }
 
@@ -926,7 +825,7 @@ export class PushNotificationService {
         }
 
         await this.saveCurrentSubscription(`${contexto}-optIn-late`);
-        await this.relinkCurrentSubscription(`${contexto}-optIn-late`);
+        this.scheduleSubscriptionRepairCheck(`${contexto}-optIn-late`);
         void this.logPushActivation(
           'optin_completed_after_timeout',
           'info',
@@ -965,12 +864,12 @@ export class PushNotificationService {
 
     try {
       await this.loginUser();
-      const optedIn = await this.optInPushSubscription('ensurePushSubscriptionActive');
-      await this.loginUser();
+      const registered = await this.optInPushSubscription('ensurePushSubscriptionActive');
       this.updateOneSignalSubscriptionState();
       await this.saveCurrentSubscription('ensurePushSubscriptionActive');
-      const registered = optedIn || await this.waitForRegisteredSubscription();
-      await this.relinkCurrentSubscription('ensurePushSubscriptionActive');
+      if (registered) {
+        this.scheduleSubscriptionRepairCheck('ensurePushSubscriptionActive');
+      }
       return registered || this.isEffectivelyEnabled();
     } catch (error) {
       console.warn('[Push] No se pudo reactivar la suscripcion de OneSignal:', error);
@@ -998,16 +897,6 @@ export class PushNotificationService {
 
     localStorage.removeItem('rnace_push_optout');
 
-    // Verificar iOS Standalone
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && (navigator as any).standalone === true);
-    
-    if (isIOS && !isStandalone) {
-      console.warn('[Push] iOS requiere que la PWA esté instalada (Añadir a pantalla de inicio) para pedir permisos.');
-      alert('Para activar las notificaciones en iPhone, primero debes pulsar "Compartir" y "Añadir a la pantalla de inicio".');
-      return false;
-    }
-
     try {
       const permission = await this.requestBrowserPermissionFromUserGesture();
       if (permission !== 'granted') {
@@ -1024,15 +913,13 @@ export class PushNotificationService {
       if (!await this.runActivationPrechecks('requestPermission-after-init')) {
         return false;
       }
-      await this.loginUser();
-      await this.optInPushSubscription('requestPermission');
 
       this.checkPermissionStatus();
       if (this._permissionStatus.value !== 'granted') return false;
 
       const enabled = await this.ensurePushSubscriptionActive();
       await this.saveCurrentSubscription('requestPermission');
-      this.scheduleSubscriptionRelinkChecks('requestPermission');
+      this.scheduleSubscriptionRepairCheck('requestPermission');
       return enabled;
     } catch (error) {
       console.error('[Push] Error solicitando permiso:', error);
@@ -1235,10 +1122,9 @@ export class PushNotificationService {
         this.updateOneSignalSubscriptionState();
 
         if (permission && !this.isOptedOut()) {
-          await this.loginUser();
           await this.ensurePushSubscriptionActive();
           await this.saveCurrentSubscription('permissionChange');
-          this.scheduleSubscriptionRelinkChecks('permissionChange');
+          this.scheduleSubscriptionRepairCheck('permissionChange');
         }
       });
       this.permissionListenerReady = true;
@@ -1276,10 +1162,11 @@ export class PushNotificationService {
         this.checkPermissionStatus();
 
         if (this.getUserId() && current?.optedIn === true && !this.isOptedOut()) {
-          await this.loginUser();
+          if (!this.isLinkedToCurrentUser()) {
+            await this.loginUser();
+          }
           await this.saveCurrentSubscription('PushSubscription.change');
-          await this.relinkCurrentSubscription('PushSubscription.change');
-          this.scheduleSubscriptionRelinkChecks('PushSubscription.change');
+          this.scheduleSubscriptionRepairCheck('PushSubscription.change');
         }
       });
       this.subscriptionListenerReady = true;
@@ -1291,7 +1178,8 @@ export class PushNotificationService {
 
     const syncVisibleSession = () => {
       if (document.visibilityState === 'visible' && this.getUserId() && !this.isOptedOut()) {
-        void this.relinkCurrentSubscription('app-visible');
+        this.checkPermissionStatus();
+        this.updateOneSignalSubscriptionState();
         void this.saveCurrentSubscription('app-visible');
       }
     };
@@ -1419,10 +1307,6 @@ export class PushNotificationService {
     );
   }
 
-  /**
-   * Opt out of push notifications (user preference)
-   * This does a OneSignal logout but keeps browser permission
-   */
   async optOutNotifications(): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) return;
 
@@ -1438,7 +1322,6 @@ export class PushNotificationService {
       console.warn('[Push] No se pudo hacer optOut en OneSignal:', error);
     } finally {
       localStorage.setItem('rnace_push_optout', 'true');
-      await this.removeToken();
       this.updateOneSignalSubscriptionState();
     }
   }
@@ -1504,10 +1387,9 @@ export class PushNotificationService {
         if (!await this.runActivationPrechecks('optInNotifications-after-init')) {
           return false;
         }
-        await this.loginUser();
         const enabled = await this.ensurePushSubscriptionActive();
         await this.saveCurrentSubscription('optInNotifications');
-        this.scheduleSubscriptionRelinkChecks('optInNotifications');
+        this.scheduleSubscriptionRepairCheck('optInNotifications');
         void this.logPushActivation(
           enabled ? 'activation_success' : 'activation_failed',
           enabled ? 'info' : 'warn',
