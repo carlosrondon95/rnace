@@ -1037,7 +1037,7 @@ export class CalendarioComponent implements OnInit {
           const ahora = new Date();
           const diferenciaMs = fechaHoraReserva.getTime() - ahora.getTime();
           const unaHoraMs = 60 * 60 * 1000;
-  
+
           if (diferenciaMs < unaHoraMs) {
             this.error.set('No se puede cambiar una clase que empieza en menos de 1 hora.');
             return;
@@ -1739,8 +1739,8 @@ export class CalendarioComponent implements OnInit {
             const fechaFormateada = sesion?.fecha ? sesion.fecha.split('-').reverse().join('/') : '';
             const horaFormateada = sesion?.hora?.substring(0, 5) || '';
 
-            const tituloNotif = generarRecuperaciones 
-              ? '🏖️ Clase cancelada por festivo' 
+            const tituloNotif = generarRecuperaciones
+              ? '🏖️ Clase cancelada por festivo'
               : '🏖️ Clase cancelada por vacaciones';
             const mensajeNotif = `Tu clase del ${fechaFormateada} a las ${horaFormateada} ha sido cancelada por ${generarRecuperaciones ? 'festivo' : 'vacaciones'}.${generarRecuperaciones ? ' Se ha generado una recuperación.' : ''}`;
 
@@ -1753,15 +1753,15 @@ export class CalendarioComponent implements OnInit {
 
             if (!error && data && data.length > 0 && data[0].ok) {
               if (generarRecuperaciones) recuperacionesGeneradas++;
-              
+
               // Notificación push
               try {
                 await enviarPushUsuario(
                   {
                     usuario_id: reserva.usuario_id,
                     tipo: 'cancelacion',
-                    data: { 
-                      titulo: tituloNotif, 
+                    data: {
+                      titulo: tituloNotif,
                       fecha: fechaFormateada,
                       hora: horaFormateada
                     }
@@ -1773,7 +1773,7 @@ export class CalendarioComponent implements OnInit {
               }
             }
           });
-          
+
           await Promise.allSettled(promises);
         }
       }
@@ -1795,7 +1795,7 @@ export class CalendarioComponent implements OnInit {
         this.mensajeExito.set(mensaje);
       } else {
         const detalleSync = mensajeSyncReservas ? ` ${mensajeSyncReservas}` : '';
-        this.mensajeExito.set(`Mes abierto correctamente. Los usuarios ya pueden reservar.${detalleSync}`);
+        this.mensajeExito.set(`Mes abierto correctamente.`);
       }
       this.modoEdicion.set(false);
       this.festivosSeleccionados.set(new Set());
@@ -1875,7 +1875,7 @@ export class CalendarioComponent implements OnInit {
         }
       }
 
-      this.mensajeExito.set('Mes cerrado. Los usuarios no pueden hacer nuevas reservas.');
+      this.mensajeExito.set('Mes cerrado.');
       await this.cargarCalendario();
     } catch (err) {
       console.error('Error:', err);
@@ -2298,7 +2298,7 @@ export class CalendarioComponent implements OnInit {
         const resultado = data[0];
         if (resultado.ok) {
           this.mensajeExito.set(resultado.mensaje);
-          
+
           // Registrar en auditoría
           const sesion = this.sesionesDiaSeleccionado().find(s => s.mi_reserva_id === reservaId);
           const dia = this.diaSeleccionado();
@@ -2336,7 +2336,7 @@ export class CalendarioComponent implements OnInit {
               }
             }
           }
-          } else {
+        } else {
           this.error.set(resultado.mensaje);
         }
       }
@@ -2499,10 +2499,10 @@ export class CalendarioComponent implements OnInit {
         .eq('sesion_id', reserva.sesion_id);
 
       if (error) throw error;
-      
+
       this.mensajeExito.set('Usuario quitado de la lista de espera.');
       setTimeout(() => this.mensajeExito.set(null), 3000);
-      
+
       await this.cargarCalendario();
       const diaSeleccionadoActual = this.diaSeleccionado();
       if (diaSeleccionadoActual) {
@@ -2590,7 +2590,7 @@ export class CalendarioComponent implements OnInit {
             {
               usuario_id: reserva.usuario_id,
               tipo: 'cancelacion',
-              data: { 
+              data: {
                 fecha: dia?.fecha ? dia.fecha.split('-').reverse().join('/') : '',
                 hora: reserva.hora
               }
