@@ -18,6 +18,12 @@ export interface ReservaSyncResult {
   mensaje?: string;
 }
 
+export interface ReservaSyncOptions {
+  reactivarCanceladas?: boolean;
+  fechaDesde?: string;
+  fechaHasta?: string;
+}
+
 export class ReservaSyncError extends Error {
   constructor(public readonly resultado: ReservaSyncResult) {
     super(formatearResultadoReservas(resultado));
@@ -28,10 +34,25 @@ export class ReservaSyncError extends Error {
 export async function regenerarReservasFuturas(
   client: SupabaseClient,
   usuarioId?: string,
+  options: ReservaSyncOptions = {},
 ): Promise<ReservaSyncResult> {
+  const params: Record<string, unknown> = {};
+  if (usuarioId) {
+    params['p_usuario_id'] = usuarioId;
+  }
+  if (options.reactivarCanceladas) {
+    params['p_reactivar_canceladas'] = true;
+  }
+  if (options.fechaDesde) {
+    params['p_fecha_desde'] = options.fechaDesde;
+  }
+  if (options.fechaHasta) {
+    params['p_fecha_hasta'] = options.fechaHasta;
+  }
+
   const { data, error } = await client.rpc(
     'regenerar_reservas_futuras',
-    usuarioId ? { p_usuario_id: usuarioId } : {},
+    params,
   );
 
   if (error) {
@@ -44,8 +65,9 @@ export async function regenerarReservasFuturas(
 export async function asegurarReservasFuturasSincronizadas(
   client: SupabaseClient,
   usuarioId?: string,
+  options: ReservaSyncOptions = {},
 ): Promise<ReservaSyncResult> {
-  const resultado = await regenerarReservasFuturas(client, usuarioId);
+  const resultado = await regenerarReservasFuturas(client, usuarioId, options);
 
   if (!resultado.ok || resultado.conflictos.length > 0) {
     throw new ReservaSyncError(resultado);

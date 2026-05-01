@@ -1078,7 +1078,9 @@ export class GestionarPerfilesComponent implements OnInit {
     // Usamos la función de base de datos que ya contiene la lógica de negocio robusta
     // para generar reservas futuras basadas en el plan de usuario y horarios.
     // esta función regenera para todos (o solo uno si se pasa ID), asegurando consistencia.
-    const resultado = await asegurarReservasFuturasSincronizadas(client, userId);
+    const resultado = await asegurarReservasFuturasSincronizadas(client, userId, {
+      reactivarCanceladas: true,
+    });
 
     console.log('Reservas regeneradas correctamente vía RPC:', resultado);
     return resultado;

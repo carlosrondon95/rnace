@@ -1709,7 +1709,11 @@ export class CalendarioComponent implements OnInit {
 
       let mensajeSyncReservas = '';
       try {
-        const regenData = await regenerarReservasFuturas(client);
+        const regenData = await regenerarReservasFuturas(client, undefined, {
+          reactivarCanceladas: !mesAbiertoAntes,
+          fechaDesde: primerDia,
+          fechaHasta: ultimoDia,
+        });
         mensajeSyncReservas = formatearResultadoReservas(regenData);
         console.log('Reservas regeneradas:', regenData);
       } catch (regenError: any) {
