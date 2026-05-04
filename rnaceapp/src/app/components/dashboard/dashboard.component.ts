@@ -345,12 +345,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
           };
         })
         .filter((clase) => {
-          if (clase.es_desde_horario_fijo && horariosFijos.size > 0) {
-            const diaSemana = this.obtenerDiaSemanaISO(clase.fecha_raw);
-            const clave = this.crearClaveHorario(diaSemana, clase.hora_raw, clase.modalidad);
-            if (!horariosFijos.has(clave)) return false;
-          }
-
           // Filtrar clases que ya terminaron (1 hora después del inicio)
           const inicioClase = new Date(clase.fecha_raw + 'T' + clase.hora_raw);
           const finClase = new Date(inicioClase.getTime() + 60 * 60 * 1000); // +1 hora
