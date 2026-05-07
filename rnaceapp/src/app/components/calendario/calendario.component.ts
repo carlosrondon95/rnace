@@ -893,13 +893,7 @@ export class CalendarioComponent implements OnInit {
     if (!uid) return;
 
     // Verificar si el usuario ya tiene una reserva activa en esta sesión
-    const { data: reservaExistente } = await supabase()
-      .from('reservas')
-      .select('id')
-      .eq('sesion_id', sesion.id)
-      .eq('usuario_id', uid)
-      .eq('estado', 'activa')
-      .maybeSingle();
+    const reservaExistente = await this.obtenerReservaActivaUsuario(sesion.id, uid);
 
     if (reservaExistente) {
       this.mensajeExito.set('Ya tienes plaza reservada en esta clase.');
@@ -1008,6 +1002,8 @@ export class CalendarioComponent implements OnInit {
   }
 
   async confirmarReclamarPlaza() {
+    if (this.reclamandoPlaza()) return;
+
     const sesion = this.sesionReclamar();
     const opcion = this.opcionReclamarSeleccionada();
     const uid = this.userId();
@@ -1022,8 +1018,16 @@ export class CalendarioComponent implements OnInit {
 
     try {
       let plazaReclamada = false;
+      const reservaExistente = await this.obtenerReservaActivaUsuario(sesion.id, uid);
 
-      if (opcion === 'cambiar') {
+      if (reservaExistente) {
+        plazaReclamada = true;
+        this.mensajeExito.set('Ya tienes plaza reservada en esta clase.');
+        setTimeout(() => this.mensajeExito.set(null), 4000);
+        this.cerrarModalReclamarPlaza();
+        await this.cargarCalendario();
+      } else if (opcion === 'cambiar') {
+
         const reservaId = this.reservaSeleccionadaParaCambio();
         if (!reservaId) {
           this.error.set('Selecciona una reserva para cambiar');
@@ -1135,6 +1139,23 @@ export class CalendarioComponent implements OnInit {
     if (error) {
       console.warn('No se pudo quitar de lista de espera tras reclamar plaza:', error);
     }
+  }
+
+  private async obtenerReservaActivaUsuario(sesionId: number, usuarioId: string): Promise<{ id: number } | null> {
+    const { data, error } = await supabase()
+      .from('reservas')
+      .select('id')
+      .eq('sesion_id', sesionId)
+      .eq('usuario_id', usuarioId)
+      .eq('estado', 'activa')
+      .maybeSingle();
+
+    if (error) {
+      console.warn('No se pudo comprobar si el usuario ya tenia reserva activa:', error);
+      return null;
+    }
+
+    return data;
   }
 
   async cargarCalendario() {
