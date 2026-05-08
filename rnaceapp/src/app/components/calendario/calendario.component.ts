@@ -1167,6 +1167,14 @@ export class CalendarioComponent implements OnInit {
     return data;
   }
 
+  private esSesionFutura(fecha?: string | null, hora?: string | null): boolean {
+    if (!fecha || !hora) return false;
+
+    const horaNormalizada = hora.length === 5 ? `${hora}:00` : hora;
+    const fechaHora = new Date(`${fecha}T${horaNormalizada}`);
+    return Number.isFinite(fechaHora.getTime()) && fechaHora > new Date();
+  }
+
   async cargarCalendario() {
     this.cargando.set(true);
     this.error.set(null);
@@ -1754,6 +1762,7 @@ export class CalendarioComponent implements OnInit {
       }
 
       let recuperacionesGeneradas = 0;
+      let recuperacionesOmitidasPorPasadas = 0;
 
       // 2. AHORA cancelar las reservas que caigan en los festivos marcados (utilizando el RPC seguro)
       if (numFestivos > 0) {
@@ -1768,21 +1777,27 @@ export class CalendarioComponent implements OnInit {
             const sesion = Array.isArray(reserva.sesiones) ? reserva.sesiones[0] : reserva.sesiones;
             const fechaFormateada = sesion?.fecha ? sesion.fecha.split('-').reverse().join('/') : '';
             const horaFormateada = sesion?.hora?.substring(0, 5) || '';
+            const generarRecuperacionReserva =
+              generarRecuperaciones && this.esSesionFutura(sesion?.fecha, sesion?.hora);
+
+            if (generarRecuperaciones && !generarRecuperacionReserva) {
+              recuperacionesOmitidasPorPasadas++;
+            }
 
             const tituloNotif = generarRecuperaciones
               ? '🏖️ Clase cancelada por festivo'
               : '🏖️ Clase cancelada por vacaciones';
-            const mensajeNotif = `Tu clase del ${fechaFormateada} a las ${horaFormateada} ha sido cancelada por ${generarRecuperaciones ? 'festivo' : 'vacaciones'}.${generarRecuperaciones ? ' Se ha generado una recuperación.' : ''}`;
+            const mensajeNotif = `Tu clase del ${fechaFormateada} a las ${horaFormateada} ha sido cancelada por ${generarRecuperaciones ? 'festivo' : 'vacaciones'}.${generarRecuperacionReserva ? ' Se ha generado una recuperación.' : ''}`;
 
             const { data, error } = await client.rpc('cancelar_reserva_admin', {
               p_reserva_id: reserva.id,
-              p_generar_recuperacion: generarRecuperaciones,
+              p_generar_recuperacion: generarRecuperacionReserva,
               p_titulo_notif: tituloNotif,
               p_mensaje_notif: mensajeNotif
             });
 
             if (!error && data && data.length > 0 && data[0].ok) {
-              if (generarRecuperaciones) recuperacionesGeneradas++;
+              if (generarRecuperacionReserva) recuperacionesGeneradas++;
 
               // Notificación push
               try {
@@ -1818,6 +1833,9 @@ export class CalendarioComponent implements OnInit {
         let mensaje = `Configuración guardada: ${numFestivos} día${numFestivos > 1 ? 's' : ''} ${tipoCierre}.`;
         if (recuperacionesGeneradas > 0) {
           mensaje += ` Se generaron ${recuperacionesGeneradas} recuperación${recuperacionesGeneradas > 1 ? 'es' : ''}.`;
+        }
+        if (recuperacionesOmitidasPorPasadas > 0) {
+          mensaje += ` ${recuperacionesOmitidasPorPasadas} no generaron recuperación porque la clase ya había empezado.`;
         }
         if (mensajeSyncReservas) {
           mensaje += ` ${mensajeSyncReservas}`;
@@ -2561,9 +2579,13 @@ export class CalendarioComponent implements OnInit {
     this.error.set(null);
 
     try {
+      const dia = this.diaSeleccionado();
+      const generarRecuperacionEfectiva =
+        generarRecuperacion && this.esSesionFutura(dia?.fecha, reserva.hora);
+
       const { data, error } = await supabase().rpc('cancelar_reserva_admin', {
         p_reserva_id: reserva.id,
-        p_generar_recuperacion: generarRecuperacion
+        p_generar_recuperacion: generarRecuperacionEfectiva
       });
 
       if (error) {
@@ -2577,13 +2599,12 @@ export class CalendarioComponent implements OnInit {
         setTimeout(() => this.mensajeExito.set(null), 3000);
 
         // Registrar en auditoría
-        const dia = this.diaSeleccionado();
         this.audit.registrarCambio(
           'admin_cancel_reserva',
           reserva.usuario_id,
           reserva.usuario_nombre,
-          `Reserva cancelada por admin: ${reserva.hora} ${reserva.modalidad} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})${generarRecuperacion ? ' — con recuperación' : ' — sin recuperación'}`,
-          { reserva_id: reserva.id, sesion_id: reserva.sesion_id, hora: reserva.hora, modalidad: reserva.modalidad, fecha: dia?.fecha, con_recuperacion: generarRecuperacion }
+          `Reserva cancelada por admin: ${reserva.hora} ${reserva.modalidad} (${dia?.fecha ? dia.fecha.split('-').reverse().join('/') : ''})${generarRecuperacionEfectiva ? ' — con recuperación' : ' — sin recuperación'}`,
+          { reserva_id: reserva.id, sesion_id: reserva.sesion_id, hora: reserva.hora, modalidad: reserva.modalidad, fecha: dia?.fecha, con_recuperacion: generarRecuperacionEfectiva }
         );
 
         this.cerrarModalCancelarAdmin();
