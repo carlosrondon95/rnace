@@ -212,7 +212,14 @@ export class CalendarioComponent implements OnInit {
   mostrarModalReclamarPlaza = signal(false);
   sesionReclamar = signal<{ id: number; fecha: string; hora: string; modalidad: string } | null>(null);
   misReservasParaCambio = signal<{ id: number; sesion_id: number; fecha: string; hora: string; modalidad: string }[]>([]);
-  recuperacionesDisponibles = signal<{ id: number; modalidad: string; mes_origen: number; anio_origen: number }[]>([]);
+  recuperacionesDisponibles = signal<{
+    id: number;
+    modalidad: string;
+    mes_origen: number;
+    anio_origen: number;
+    mes_limite: number;
+    anio_limite: number;
+  }[]>([]);
   reclamandoPlaza = signal(false);
   opcionReclamarSeleccionada = signal<'cambiar' | 'recuperacion' | null>(null);
   reservaSeleccionadaParaCambio = signal<number | null>(null);
@@ -951,15 +958,17 @@ export class CalendarioComponent implements OnInit {
       const mesSesion = fechaSesionTarget.getMonth() + 1;
       const anioSesion = fechaSesionTarget.getFullYear();
 
-      const { data: recuperaciones } = await supabase()
-        .from('recuperaciones')
-        .select('id, modalidad, mes_origen, anio_origen, mes_limite, anio_limite')
-        .eq('usuario_id', uid)
-        .eq('estado', 'disponible')
-        .or(`modalidad.eq.${sesion.modalidad},modalidad.eq.hibrido`);
+      const { data: recuperaciones, error: recuperacionesError } = await supabase()
+        .rpc('obtener_recuperaciones_usuario', { p_usuario_id: uid });
+
+      if (recuperacionesError) {
+        console.warn('Error cargando recuperaciones para reclamar plaza:', recuperacionesError);
+      }
 
       // Filtrar recuperaciones válidas para el MES DE LA SESIÓN TARGET
       const recupValidas = (recuperaciones || []).filter((rec: any) => {
+        if (rec.modalidad !== sesion.modalidad && rec.modalidad !== 'hibrido') return false;
+
         // 1. No debe ser futura respecto al mes de la sesión
         if (anioSesion < rec.anio_origen) return false;
         if (anioSesion === rec.anio_origen && mesSesion < rec.mes_origen) return false;
