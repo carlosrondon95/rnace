@@ -1,11 +1,36 @@
 import { serve } from 'std/http/server';
 import { createClient } from '@supabase/supabase-js';
+import { verify } from 'djwt';
 import { corsHeaders } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ONESIGNAL_APP_ID = Deno.env.get('ONESIGNAL_APP_ID')!;
 const ONESIGNAL_REST_API_KEY = Deno.env.get('ONESIGNAL_REST_API_KEY')!;
+const JWT_SECRET = Deno.env.get('JWT_SECRET')!;
+
+// Verifica el x-rnace-token y devuelve el rol del invocador, o null si el
+// token es inválido/no existe. NUNCA lanza: el caller decide qué hacer con
+// un null según el tipo de notificación.
+async function getInvokerRol(req: Request): Promise<string | null> {
+  const rnaceToken = req.headers.get('x-rnace-token');
+  if (!rnaceToken) return null;
+
+  try {
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(JWT_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify'],
+    );
+    const payload = await verify(rnaceToken, key) as Record<string, unknown>;
+    const appMetadata = payload.app_metadata as { rol?: string } | undefined;
+    return appMetadata?.rol ?? null;
+  } catch {
+    return null;
+  }
+}
 
 type NotificationTipo =
   | 'cancelacion'
@@ -349,6 +374,19 @@ serve(async (req: Request) => {
         status: 400,
         headers: { ...cors, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Solo los tipos admin_* requieren JWT de admin. El resto (cancelacion,
+    // plaza_asignada, hueco_disponible) siguen abiertos para no romper el
+    // flujo cliente -> sistema -> notificacion a otros usuarios.
+    if (payload.tipo.startsWith('admin')) {
+      const rol = await getInvokerRol(req);
+      if (rol !== 'admin') {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Solo los administradores pueden enviar avisos del centro' }),
+          { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } },
+        );
+      }
     }
 
     const tipo = normalizeTipo(payload.tipo);

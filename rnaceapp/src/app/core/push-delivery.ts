@@ -115,8 +115,15 @@ export async function enviarPushUsuario(
     data: dataPayload,
   };
 
+  // Adjuntar el token RNACE cuando exista (necesario para enviar avisos
+  // admin_*; el backend ignora el header para el resto de tipos).
+  const rnaceToken = typeof localStorage !== 'undefined'
+    ? localStorage.getItem('rnace_token')
+    : null;
+
   const { data, error } = await supabase().functions.invoke('send-push', {
     body: functionBody,
+    headers: rnaceToken ? { 'x-rnace-token': rnaceToken } : {},
   });
 
   if (error) {
