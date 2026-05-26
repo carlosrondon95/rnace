@@ -1,5 +1,6 @@
 import { serve } from 'std/http/server';
 import { createClient } from '@supabase/supabase-js';
+import { corsHeaders } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -91,12 +92,6 @@ function normalizeTipo(tipo: NotificationTipo): CanonicalNotificationTipo {
   if (tipo === 'admin') return 'admin_info';
   return tipo === 'reserva_cancelada' ? 'cancelacion' : tipo;
 }
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
 
 async function sendOneSignalNotification(
   userId: string,
@@ -316,14 +311,16 @@ async function getFallbackSubscriptionIds(
 }
 
 serve(async (req: Request) => {
+  const cors = corsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: cors });
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ success: false, error: 'Metodo no permitido' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...cors, 'Content-Type': 'application/json' },
     });
   }
 
@@ -334,7 +331,7 @@ serve(async (req: Request) => {
     } catch {
       return new Response(JSON.stringify({ success: false, error: 'JSON invalido' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
@@ -343,14 +340,14 @@ serve(async (req: Request) => {
     if (!usuarioId) {
       return new Response(JSON.stringify({ success: false, error: 'usuario_id es requerido' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
     if (!payload.tipo) {
       return new Response(JSON.stringify({ success: false, error: 'tipo es requerido' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
@@ -366,7 +363,7 @@ serve(async (req: Request) => {
     if (userError || !usuario) {
       return new Response(JSON.stringify({ success: false, message: 'Usuario no encontrado' }), {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
@@ -378,7 +375,7 @@ serve(async (req: Request) => {
           message: 'Usuario inactivo. Notificacion omitida.',
           skipped: true,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { headers: { ...cors, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -409,7 +406,7 @@ serve(async (req: Request) => {
         target: result.target,
         error: result.error,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { headers: { ...cors, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
     console.error('Error:', error);
@@ -418,7 +415,7 @@ serve(async (req: Request) => {
         success: false,
         error: error instanceof Error ? error.message : String(error),
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 500, headers: { ...cors, 'Content-Type': 'application/json' } },
     );
   }
 });

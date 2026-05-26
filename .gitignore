@@ -3,9 +3,12 @@ rnaceapp/src/environments/environment.ts
 rnaceapp/src/environments/environment.prod.ts
 rnaceapp/src/environments/environment.development.ts
 
-# Firebase service workers (contienen config de Firebase)
-rnaceapp/src/firebase-messaging-sw.js
-rnaceapp/public/firebase-messaging-sw.js
+# Scripts locales de pruebas (no commitear nunca con tokens)
+rnaceapp/test_push.js
+rnaceapp/test_*.js
+
+# Estado local de Supabase CLI (metadata cacheada, no debe commitearse)
+supabase/.temp/
 
 # Dependencies
 node_modules/

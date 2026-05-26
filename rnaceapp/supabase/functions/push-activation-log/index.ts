@@ -1,6 +1,7 @@
 import { serve } from 'std/http/server.ts';
 import { createClient } from '@supabase/supabase-js';
 import { verify } from 'djwt';
+import { corsHeaders } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -51,32 +52,25 @@ interface PushSubscriptionSummary {
   last_seen_at: string | null;
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-rnace-token',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-};
-
-function jsonResponse(body: Record<string, unknown>, status = 200): Response {
+function jsonResponse(cors: Record<string, string>, body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   });
 }
 
-function authError(message: string, status = 401): Response {
-  return jsonResponse({ success: false, error: message }, status);
+function authError(cors: Record<string, string>, message: string, status = 401): Response {
+  return jsonResponse(cors, { success: false, error: message }, status);
 }
 
-async function verifyUserToken(req: Request): Promise<string> {
+async function verifyUserToken(req: Request, cors: Record<string, string>): Promise<string> {
   const rnaceToken = req.headers.get('x-rnace-token') || '';
   const authHeader = req.headers.get('Authorization') || req.headers.get('authorization') || '';
   const [, bearerToken] = authHeader.match(/^Bearer\s+(.+)$/i) || [];
   const token = rnaceToken || bearerToken;
 
   if (!token) {
-    throw authError('Token requerido');
+    throw authError(cors, 'Token requerido');
   }
 
   const key = await crypto.subtle.importKey(
@@ -91,11 +85,11 @@ async function verifyUserToken(req: Request): Promise<string> {
   try {
     payload = await verify(token, key);
   } catch {
-    throw authError('Token invalido');
+    throw authError(cors, 'Token invalido');
   }
 
   if (typeof payload.sub !== 'string' || !payload.sub) {
-    throw authError('Token invalido');
+    throw authError(cors, 'Token invalido');
   }
 
   return payload.sub;
@@ -290,16 +284,18 @@ async function getSubscriptionSummaries(
 }
 
 serve(async (req: Request) => {
+  const cors = corsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: cors });
   }
 
   if (req.method !== 'GET' && req.method !== 'POST') {
-    return jsonResponse({ success: false, error: 'Metodo no permitido' }, 405);
+    return jsonResponse(cors, { success: false, error: 'Metodo no permitido' }, 405);
   }
 
   try {
-    const userId = await verifyUserToken(req);
+    const userId = await verifyUserToken(req, cors);
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: usuario, error: userError } = await supabase
@@ -311,16 +307,16 @@ serve(async (req: Request) => {
     const usuarioActual = usuario as Usuario | null;
 
     if (userError || !usuarioActual) {
-      return jsonResponse({ success: false, error: 'Usuario no encontrado' }, 404);
+      return jsonResponse(cors, { success: false, error: 'Usuario no encontrado' }, 404);
     }
 
     if (!usuarioActual.activo) {
-      return jsonResponse({ success: false, error: 'Usuario inactivo' }, 403);
+      return jsonResponse(cors, { success: false, error: 'Usuario inactivo' }, 403);
     }
 
     if (req.method === 'GET') {
       if (usuarioActual.rol !== 'admin') {
-        return jsonResponse({ success: false, error: 'Solo admin' }, 403);
+        return jsonResponse(cors, { success: false, error: 'Solo admin' }, 403);
       }
 
       const url = new URL(req.url);
@@ -350,7 +346,7 @@ serve(async (req: Request) => {
 
       if (error) {
         console.error('[PushLog] Error listando logs:', error);
-        return jsonResponse({ success: false, error: error.message }, 500);
+        return jsonResponse(cors, { success: false, error: error.message }, 500);
       }
 
       const logs = (data || []) as (Record<string, unknown> & PushActivationLogRow)[];
@@ -365,7 +361,7 @@ serve(async (req: Request) => {
           : null,
       }));
 
-      return jsonResponse({ success: true, logs: logsWithSubscriptions });
+      return jsonResponse(cors, { success: true, logs: logsWithSubscriptions });
     }
 
     const payload = (await req.json()) as PushActivationLogRequest;
@@ -373,7 +369,7 @@ serve(async (req: Request) => {
     const level = payload.level === 'warn' || payload.level === 'error' ? payload.level : 'info';
 
     if (!event) {
-      return jsonResponse({ success: false, error: 'event es requerido' }, 400);
+      return jsonResponse(cors, { success: false, error: 'event es requerido' }, 400);
     }
 
     const { error } = await supabase.from('push_activation_logs').insert({
@@ -388,15 +384,16 @@ serve(async (req: Request) => {
 
     if (error) {
       console.error('[PushLog] Error guardando log:', error);
-      return jsonResponse({ success: false, error: error.message }, 500);
+      return jsonResponse(cors, { success: false, error: error.message }, 500);
     }
 
-    return jsonResponse({ success: true });
+    return jsonResponse(cors, { success: true });
   } catch (error) {
     if (error instanceof Response) return error;
 
     console.error('[PushLog] Error:', error);
     return jsonResponse(
+      cors,
       { success: false, error: error instanceof Error ? error.message : String(error) },
       500,
     );

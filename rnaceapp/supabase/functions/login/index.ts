@@ -3,19 +3,17 @@ import { serve } from 'std/http/server.ts';
 import { createClient } from '@supabase/supabase-js';
 import * as bcrypt from 'bcrypt';
 import { create, getNumericDate } from 'djwt';
+import { corsHeaders } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const JWT_SECRET = Deno.env.get('JWT_SECRET')!; // Changed to avoid CLI restriction
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 serve(async (req: Request) => {
+  const cors = corsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: cors });
   }
 
   try {
@@ -40,7 +38,7 @@ serve(async (req: Request) => {
     if (error || !usuario) {
       return new Response(
         JSON.stringify({ success: false, error: 'Usuario o contraseña incorrectos' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        { headers: { ...cors, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
 
@@ -50,7 +48,7 @@ serve(async (req: Request) => {
     if (!passwordValida) {
       return new Response(
         JSON.stringify({ success: false, error: 'Usuario o contraseña incorrectos' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        { headers: { ...cors, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
 
@@ -95,7 +93,7 @@ serve(async (req: Request) => {
           telefono: usuario.telefono
         }
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...cors, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: unknown) {
@@ -103,7 +101,7 @@ serve(async (req: Request) => {
     const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({ success: false, error: message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      { headers: { ...cors, 'Content-Type': 'application/json' }, status: 400 }
     );
   }
 });

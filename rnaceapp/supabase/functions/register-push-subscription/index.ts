@@ -1,6 +1,7 @@
 import { serve } from 'std/http/server.ts';
 import { createClient } from '@supabase/supabase-js';
 import { verify } from 'djwt';
+import { corsHeaders } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -19,35 +20,25 @@ interface RegisterPushSubscriptionRequest {
   user_agent?: string | null;
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-rnace-token',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-function jsonResponse(body: Record<string, unknown>, status = 200): Response {
+function jsonResponse(cors: Record<string, string>, body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   });
 }
 
-function authError(message: string, status = 401): Response {
-  return new Response(JSON.stringify({ success: false, error: message }), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+function authError(cors: Record<string, string>, message: string, status = 401): Response {
+  return jsonResponse(cors, { success: false, error: message }, status);
 }
 
-async function verifyUserToken(req: Request): Promise<string> {
+async function verifyUserToken(req: Request, cors: Record<string, string>): Promise<string> {
   const rnaceToken = req.headers.get('x-rnace-token') || '';
   const authHeader = req.headers.get('Authorization') || req.headers.get('authorization') || '';
   const [, bearerToken] = authHeader.match(/^Bearer\s+(.+)$/i) || [];
   const token = rnaceToken || bearerToken;
 
   if (!token) {
-    throw authError('Token requerido');
+    throw authError(cors, 'Token requerido');
   }
 
   const key = await crypto.subtle.importKey(
@@ -62,11 +53,11 @@ async function verifyUserToken(req: Request): Promise<string> {
   try {
     payload = await verify(token, key);
   } catch {
-    throw authError('Token invalido');
+    throw authError(cors, 'Token invalido');
   }
 
   if (typeof payload.sub !== 'string' || !payload.sub) {
-    throw authError('Token invalido');
+    throw authError(cors, 'Token invalido');
   }
 
   return payload.sub;
@@ -136,24 +127,26 @@ async function linkSubscriptionToExternalId(
 }
 
 serve(async (req: Request) => {
+  const cors = corsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: cors });
   }
 
   if (req.method !== 'POST') {
-    return jsonResponse({ success: false, error: 'Metodo no permitido' }, 405);
+    return jsonResponse(cors, { success: false, error: 'Metodo no permitido' }, 405);
   }
 
   try {
-    const tokenUserId = await verifyUserToken(req);
+    const tokenUserId = await verifyUserToken(req, cors);
     const payload = (await req.json()) as RegisterPushSubscriptionRequest;
 
     if (!payload.usuario_id || payload.usuario_id !== tokenUserId) {
-      return jsonResponse({ success: false, error: 'usuario_id no coincide con el token' }, 403);
+      return jsonResponse(cors, { success: false, error: 'usuario_id no coincide con el token' }, 403);
     }
 
     if (!payload.subscription_id) {
-      return jsonResponse({ success: false, error: 'subscription_id es requerido' }, 400);
+      return jsonResponse(cors, { success: false, error: 'subscription_id es requerido' }, 400);
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -165,11 +158,11 @@ serve(async (req: Request) => {
       .single();
 
     if (userError || !usuario) {
-      return jsonResponse({ success: false, error: 'Usuario no encontrado' }, 404);
+      return jsonResponse(cors, { success: false, error: 'Usuario no encontrado' }, 404);
     }
 
     if (!usuario.activo) {
-      return jsonResponse({ success: true, skipped: true, message: 'Usuario inactivo' });
+      return jsonResponse(cors, { success: true, skipped: true, message: 'Usuario inactivo' });
     }
 
     const now = new Date().toISOString();
@@ -192,14 +185,14 @@ serve(async (req: Request) => {
 
     if (upsertError) {
       console.error('[Push] Error guardando subscription:', upsertError);
-      return jsonResponse({ success: false, error: upsertError.message }, 500);
+      return jsonResponse(cors, { success: false, error: upsertError.message }, 500);
     }
 
     const linkResult = optedIn
       ? await linkSubscriptionToExternalId(payload.subscription_id, externalId)
       : { linked: false, skipped: true };
 
-    return jsonResponse({
+    return jsonResponse(cors, {
       success: true,
       onesignal_linked: linkResult.linked,
       link_skipped: linkResult.skipped ?? false,
@@ -209,6 +202,7 @@ serve(async (req: Request) => {
 
     console.error('[Push] Error registrando subscription:', error);
     return jsonResponse(
+      cors,
       { success: false, error: error instanceof Error ? error.message : String(error) },
       500,
     );

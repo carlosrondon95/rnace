@@ -4,7 +4,7 @@
   publish = "dist/rnaceapp/browser"
 
 [build.environment]
-  NODE_ENV = "development"
+  NODE_ENV = "production"
 
 [[plugins]]
   package = "@netlify/angular-runtime"
@@ -90,3 +90,29 @@
   [headers.values]
     Content-Type = "application/manifest+json"
     Cache-Control = "no-cache"
+
+# ====================================================================
+# Headers de seguridad globales (aplican a toda la app)
+# ====================================================================
+# La CSP se aplica en modo Report-Only: NO bloquea nada, solo escribe
+# avisos en la consola del navegador cuando una regla se violaría. Es la
+# forma segura de probar la política sin riesgo de cortar OneSignal/Supabase.
+# Cuando confirmemos que no hay falsos positivos durante varios días, se
+# cambiará a Content-Security-Policy (modo enforcement) eliminando "-Report-Only".
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Bloquea que el sitio se meta en un iframe ajeno (anti-clickjacking).
+    X-Frame-Options = "DENY"
+    # Impide que el navegador "adivine" tipos MIME distintos al declarado.
+    X-Content-Type-Options = "nosniff"
+    # Fuerza HTTPS en navegadores que lo recuerden (HSTS).
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    # Reduce qué información de origen se envía a dominios externos.
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Bloquea APIs del navegador que la app no necesita. La API de
+    # notificaciones push NO se controla con Permissions-Policy, así que
+    # no se ve afectada por estas reglas.
+    Permissions-Policy = "geolocation=(), camera=(), microphone=(), payment=(), usb=(), magnetometer=(), gyroscope=()"
+    # CSP en modo Report-Only: solo monitoriza, NO bloquea.
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.onesignal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://bpzdpsmwtsmwrlyxzcsk.supabase.co https://*.onesignal.com wss:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"

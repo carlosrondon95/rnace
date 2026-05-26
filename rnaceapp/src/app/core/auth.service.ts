@@ -45,15 +45,55 @@ export class AuthService {
 
     try {
       const guardado = localStorage.getItem('rnace_usuario');
-      if (guardado) {
-        const usuario = JSON.parse(guardado) as Usuario;
-        this.usuarioActual.set(usuario);
-        void this.sincronizarPushSiHayUsuario();
+      const token = localStorage.getItem('rnace_token');
+
+      // Si falta el token o el usuario, no hay sesión válida que restaurar.
+      if (!guardado || !token) {
+        this.limpiarSesionLocal();
+        return;
       }
+
+      // Comprobar caducidad del JWT antes de marcar al usuario como logueado.
+      // No validamos la firma aquí (eso lo hace el backend); solo el campo
+      // `exp` para no arrastrar sesiones caducadas que fallarían en cada
+      // request al servidor.
+      if (this.tokenCaducado(token)) {
+        this.limpiarSesionLocal();
+        return;
+      }
+
+      const usuario = JSON.parse(guardado) as Usuario;
+      this.usuarioActual.set(usuario);
+      void this.sincronizarPushSiHayUsuario();
     } catch (error) {
       console.error('Error cargando usuario guardado:', error);
-      localStorage.removeItem('rnace_usuario');
+      this.limpiarSesionLocal();
     }
+  }
+
+  private tokenCaducado(token: string): boolean {
+    try {
+      const [, payloadB64] = token.split('.');
+      if (!payloadB64) return true;
+
+      // Base64URL → Base64 estándar para atob().
+      const base64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
+      const padding = base64.length % 4 === 0 ? '' : '='.repeat(4 - (base64.length % 4));
+      const payload = JSON.parse(atob(base64 + padding)) as { exp?: number };
+
+      if (typeof payload.exp !== 'number') return true;
+      // exp viene en segundos UNIX; añadimos 30s de margen para evitar
+      // expulsar al usuario justo en el borde de la caducidad.
+      return payload.exp * 1000 <= Date.now() + 30_000;
+    } catch {
+      return true;
+    }
+  }
+
+  private limpiarSesionLocal() {
+    if (!isPlatformBrowser(this.platformId)) return;
+    localStorage.removeItem('rnace_usuario');
+    localStorage.removeItem('rnace_token');
   }
 
   private guardarUsuario(usuario: Usuario) {
@@ -152,6 +192,10 @@ export class AuthService {
 
       const telefonoLimpio = datos.telefono.replace(/[^0-9]/g, '');
 
+      const rnaceToken = isPlatformBrowser(this.platformId)
+        ? localStorage.getItem('rnace_token')
+        : null;
+
       // Invocar función segura en el servidor
       const { data, error } = await supabase().functions.invoke('create-user', {
         body: {
@@ -159,7 +203,8 @@ export class AuthService {
           password: datos.password,
           nombre: datos.nombre,
           rol: datos.rol || 'cliente'
-        }
+        },
+        headers: rnaceToken ? { 'x-rnace-token': rnaceToken } : {},
       });
 
       if (error) {
@@ -170,7 +215,9 @@ export class AuthService {
         try {
           const body = await error.context.json();
           msg = body.error || msg;
-        } catch { }
+        } catch {
+          // Si no se puede parsear el body, dejamos el mensaje por defecto
+        }
         return { success: false, error: msg };
       }
 
@@ -243,11 +290,16 @@ export class AuthService {
         return { success: false, error: 'Solo los administradores pueden cambiar contraseñas' };
       }
 
+      const rnaceToken = isPlatformBrowser(this.platformId)
+        ? localStorage.getItem('rnace_token')
+        : null;
+
       const { data, error } = await supabase().functions.invoke('change-password', {
         body: {
           userId: telefonoOId,
           newPassword: nuevaPassword,
-        }
+        },
+        headers: rnaceToken ? { 'x-rnace-token': rnaceToken } : {},
       });
 
       if (error) {
@@ -256,7 +308,9 @@ export class AuthService {
         try {
           const body = await error.context.json();
           msg = body.error || msg;
-        } catch { }
+        } catch {
+          // Si no se puede parsear el body, dejamos el mensaje por defecto
+        }
         return { success: false, error: msg };
       }
 

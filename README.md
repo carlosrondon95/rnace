@@ -14,9 +14,9 @@ users, and notifications for a high-performance sports center.
 
 - **Installable**: Works like a native app on iOS and Android when added to the
   home screen.
-- **Push Notifications**: Integrated system with Firebase Cloud Messaging (FCM)
-  to receive real-time alerts (reservations, cancellations, announcements) even
-  when the app is closed.
+- **Push Notifications**: Integrated system with OneSignal Web Push to receive
+  real-time alerts (reservations, cancellations, announcements) even when the
+  app is closed.
 - **Offline Support**: Intelligent resource caching for instant loading.
 
 ### 📅 Reservation Management
@@ -42,7 +42,7 @@ users, and notifications for a high-performance sports center.
 - **Frontend**: Angular 20 (Standalone Components, Signals).
 - **Backend**: Supabase (PostgreSQL, Auth, Edge Functions).
 - **Notifications**: Uses Supabase Edge Functions (`send-push`) connected to
-  Firebase Cloud Messaging v1 HTTP API.
+  the OneSignal REST API.
 - **Deployment**: Netlify (Automated CI/CD).
 
 ## 📸 Screenshots
