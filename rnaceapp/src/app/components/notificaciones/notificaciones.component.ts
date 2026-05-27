@@ -7,6 +7,7 @@ import { supabase } from '../../core/supabase.client';
 import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
 import { PushNotificationService } from '../../core/push-notification.service';
 import { Subscription } from 'rxjs';
+import { inicioMesActual } from '../../shared/utils/fecha-actual.util';
 
 interface Notificacion {
   id: number;
@@ -280,6 +281,7 @@ export class NotificacionesComponent implements OnInit, OnDestroy {
         .from('notificaciones')
         .select('*')
         .eq('usuario_id', uid)
+        .gte('creado_en', inicioMesActual())
         .order('creado_en', { ascending: false })
         .limit(50);
 

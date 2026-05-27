@@ -3,7 +3,8 @@
 
 const ALLOWED_ORIGINS = [
   'https://centrornace.com',
-  // Añadir aquí 'http://localhost:4200' para desarrollo local si se necesita.
+  'https://centrornace.netlify.app',
+  'http://localhost:4200',
 ];
 
 const FALLBACK_ORIGIN = ALLOWED_ORIGINS[0];

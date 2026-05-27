@@ -4,6 +4,7 @@ import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
+import { inicioMesActual } from '../utils/fecha-actual.util';
 
 @Component({
   standalone: true,
@@ -91,7 +92,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
         .from('notificaciones')
         .select('*', { count: 'exact', head: true })
         .eq('usuario_id', uid)
-        .eq('leida', false);
+        .eq('leida', false)
+        .gte('creado_en', inicioMesActual());
 
       this.notificacionesNoLeidas.set(count || 0);
     } catch (err) {

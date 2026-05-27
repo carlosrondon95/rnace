@@ -10,6 +10,7 @@ import { CustomSelectComponent, SelectOption } from '../../shared/ui/custom-sele
 import { AuditService } from '../../core/audit.service';
 import { enviarHuecoDisponibleUsuario, enviarPushUsuario } from '../../core/push-delivery';
 import { formatearResultadoReservas, regenerarReservasFuturas } from '../../core/reservas-sync';
+import { esMesAnterior } from '../../shared/utils/fecha-actual.util';
 
 interface DiaCalendario {
   fecha: string;
@@ -1184,6 +1185,13 @@ export class CalendarioComponent implements OnInit {
       const anio = this.anioActual();
       const mes = this.mesActual();
       const client = supabase();
+
+      if (esMesAnterior(anio, mes)) {
+        this.mesAgenda.set({ anio, mes, abierto: false });
+        const dias = this.construirDiasCalendario(anio, mes, new Map(), []);
+        this.diasCalendario.set(dias);
+        return;
+      }
 
       // Cargar agenda del mes
       try {

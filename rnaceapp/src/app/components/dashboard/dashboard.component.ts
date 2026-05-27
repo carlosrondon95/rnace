@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
 import { NotificationPromptComponent } from '../../shared/notification-prompt/notificacion-prompt.component';
+import { inicioMesActual } from '../../shared/utils/fecha-actual.util';
 
 interface ProximaClase {
   id: number;
@@ -249,7 +250,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         .from('notificaciones')
         .select('*', { count: 'exact', head: true })
         .eq('usuario_id', uid)
-        .eq('leida', false);
+        .eq('leida', false)
+        .gte('creado_en', inicioMesActual());
 
       if (!error && count !== null) {
         this.notificacionesNoLeidas.set(count);

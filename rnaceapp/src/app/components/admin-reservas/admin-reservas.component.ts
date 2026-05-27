@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { supabase } from '../../core/supabase.client';
 import { AuditService } from '../../core/audit.service';
 import { enviarHuecoDisponibleUsuario, enviarPushUsuario } from '../../core/push-delivery';
+import { esMesAnterior } from '../../shared/utils/fecha-actual.util';
 
 type VistaActual = 'grupos' | 'usuarios' | 'reservas';
 type TipoGrupo = 'focus' | 'reducido' | 'hibrido' | 'especial';
@@ -163,19 +164,23 @@ export class AdminReservasComponent implements OnInit {
         }
       }
 
-      // Contar reservas del mes por tipo de grupo
-      const { data: reservasData } = await supabase()
-        .from('reservas')
-        .select(
-          `
-          id,
-          usuario_id,
-          sesiones!inner(fecha)
-        `,
-        )
-        .eq('estado', 'activa')
-        .gte('sesiones.fecha', inicioMes)
-        .lte('sesiones.fecha', finMes + 'T23:59:59');
+      // Contar reservas del mes por tipo de grupo (solo si el mes no es anterior al actual)
+      let reservasData: { id: number; usuario_id: string }[] | null = null;
+      if (!esMesAnterior(anio, mes)) {
+        const { data } = await supabase()
+          .from('reservas')
+          .select(
+            `
+            id,
+            usuario_id,
+            sesiones!inner(fecha)
+          `,
+          )
+          .eq('estado', 'activa')
+          .gte('sesiones.fecha', inicioMes)
+          .lte('sesiones.fecha', finMes + 'T23:59:59');
+        reservasData = data;
+      }
 
       // Mapear usuarios a sus grupos
       const usuarioGrupo = new Map<string, string>();
@@ -264,6 +269,12 @@ export class AdminReservasComponent implements OnInit {
 
     try {
       const { anio, mes } = this.mesActual();
+
+      if (esMesAnterior(anio, mes)) {
+        this.reservasUsuario.set([]);
+        return;
+      }
+
       const inicioMes = `${anio}-${mes.toString().padStart(2, '0')}-01`;
       const finMes = new Date(anio, mes, 0).toISOString().split('T')[0];
 
