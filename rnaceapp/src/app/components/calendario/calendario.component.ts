@@ -1828,6 +1828,21 @@ export class CalendarioComponent implements OnInit {
           });
 
           await Promise.allSettled(promises);
+
+          // Marcar las cancelaciones por festivo/vacaciones como cancelada_por_sync=true.
+          // Why: cancelar_reserva_admin deja cancelada_por_sync=false, lo que hace
+          // indistinguible una cancelación por festivo de una manual puntual. Al marcar
+          // estas como "por sync", si el admin reedita el mes y quita un festivo,
+          // regenerar_reservas_futuras puede reactivarlas (la cancelación es temporal).
+          const idsCanceladasPorFestivo = reservasAfectadas.map(r => r.id);
+          const { error: marcarSyncError } = await client
+            .from('reservas')
+            .update({ cancelada_por_sync: true })
+            .in('id', idsCanceladasPorFestivo)
+            .eq('estado', 'cancelada');
+          if (marcarSyncError) {
+            console.warn('No se pudo marcar cancelada_por_sync en cancelaciones por festivo:', marcarSyncError);
+          }
         }
       }
 
