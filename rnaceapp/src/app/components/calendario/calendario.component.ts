@@ -44,6 +44,26 @@ interface MesAgenda {
   abierto: boolean;
 }
 
+// Fila de vista_sesiones_disponibilidad usada en la vista de admin.
+interface VistaSesionRow {
+  sesion_id: number;
+  hora: string;
+  capacidad: number;
+  plazas_ocupadas: number;
+  cancelada: boolean;
+}
+
+// Grupo (sesión) de un día/hora/modalidad en la vista de admin.
+// Incluye sesiones sin reservas y sesiones cerradas, para poder cerrar/reabrir.
+interface GrupoSesion {
+  sesion_id: number | null;
+  hora: string;
+  capacidad: number;
+  plazas_ocupadas: number;
+  cancelada: boolean;
+  reservas: ReservaCalendario[];
+}
+
 interface ReservaDB {
   id: number;
   sesion_id: number;
@@ -199,6 +219,13 @@ export class CalendarioComponent implements OnInit {
   mostrarModalCancelarAdmin = signal(false);
   reservaACancelarAdmin = signal<ReservaCalendario | null>(null);
   cancelandoAdmin = signal(false);
+
+  // === CERRAR / REABRIR GRUPO (ADMIN) ===
+  // Sesiones del día para la modalidad seleccionada (incluye vacías y cerradas).
+  sesionesDiaModalidad = signal<{ sesion_id: number; hora: string; capacidad: number; plazas_ocupadas: number; cancelada: boolean }[]>([]);
+  mostrarModalCerrarGrupo = signal(false);
+  grupoACerrar = signal<GrupoSesion | null>(null);
+  cerrandoGrupo = signal(false);
 
   // === AGREGAR USUARIO A SESIÓN (ADMIN) ===
   mostrarModalAgregarUsuario = signal(false);
@@ -551,6 +578,36 @@ export class CalendarioComponent implements OnInit {
     }));
   });
 
+  // Vista admin paso 2: combina las sesiones del día/modalidad (incluidas las
+  // vacías y las cerradas) con sus reservas, para poder cerrar/reabrir cada grupo.
+  gruposSesionPorHora = computed<GrupoSesion[]>(() => {
+    const reservasPorHora = new Map<string, ReservaCalendario[]>();
+    this.reservasAgrupadasPorHora().forEach(g => reservasPorHora.set(g.hora, g.reservas));
+
+    const sesiones = this.sesionesDiaModalidad();
+
+    // Fallback: si aún no se cargaron las sesiones, agrupar solo por reservas.
+    if (sesiones.length === 0) {
+      return this.reservasAgrupadasPorHora().map(g => ({
+        sesion_id: g.reservas[0]?.sesion_id ?? null,
+        hora: g.hora,
+        capacidad: 0,
+        plazas_ocupadas: g.reservas.filter(r => r.estado !== 'en_espera').length,
+        cancelada: false,
+        reservas: g.reservas,
+      }));
+    }
+
+    return sesiones.map(s => ({
+      sesion_id: s.sesion_id,
+      hora: s.hora,
+      capacidad: s.capacidad,
+      plazas_ocupadas: s.plazas_ocupadas,
+      cancelada: s.cancelada,
+      reservas: reservasPorHora.get(s.hora) ?? [],
+    }));
+  });
+
   // Computed
   nombreMes = computed(() => {
     const fecha = new Date(this.anioActual(), this.mesActual() - 1, 1);
@@ -598,9 +655,12 @@ export class CalendarioComponent implements OnInit {
     // Block past days for everyone
     if (dia.esPasado) return;
     if (this.esAdmin()) {
-      if (dia.reservas.length > 0) {
+      // Abrir el detalle también en días sin reservas (laborables, del mes y no
+      // festivos) para poder cerrar grupos vacíos.
+      if (dia.reservas.length > 0 || (dia.esDelMes && dia.esLaborable && !dia.esFestivo)) {
         this.pasoModalDetalle.set('tipo');
         this.tipoGrupoSeleccionado.set(null);
+        this.sesionesDiaModalidad.set([]);
         this.diaSeleccionado.set(dia);
       }
       return;
@@ -611,9 +671,35 @@ export class CalendarioComponent implements OnInit {
     }
   }
 
-  seleccionarTipoGrupo(tipo: 'focus' | 'reducido') {
+  async seleccionarTipoGrupo(tipo: 'focus' | 'reducido') {
     this.tipoGrupoSeleccionado.set(tipo);
     this.pasoModalDetalle.set('lista');
+    const dia = this.diaSeleccionado();
+    if (dia) await this.cargarSesionesDiaModalidadAdmin(dia.fecha, tipo);
+  }
+
+  // Carga todas las sesiones del día para una modalidad (incluidas vacías y
+  // cerradas) desde la vista de disponibilidad. Solo uso admin.
+  private async cargarSesionesDiaModalidadAdmin(fecha: string, modalidad: 'focus' | 'reducido') {
+    try {
+      const { data, error } = await supabase()
+        .from('vista_sesiones_disponibilidad')
+        .select('sesion_id, hora, capacidad, plazas_ocupadas, cancelada')
+        .eq('fecha', fecha)
+        .eq('modalidad', modalidad)
+        .order('hora');
+      if (error) throw error;
+      this.sesionesDiaModalidad.set(((data || []) as VistaSesionRow[]).map((s) => ({
+        sesion_id: s.sesion_id,
+        hora: s.hora.slice(0, 5),
+        capacidad: s.capacidad,
+        plazas_ocupadas: s.plazas_ocupadas,
+        cancelada: !!s.cancelada,
+      })));
+    } catch (e) {
+      console.warn('Error cargando sesiones del día (admin):', e);
+      this.sesionesDiaModalidad.set([]);
+    }
   }
 
   volverASeleccionTipo() {
@@ -2592,6 +2678,171 @@ export class CalendarioComponent implements OnInit {
   cerrarModalCancelarAdmin() {
     this.mostrarModalCancelarAdmin.set(false);
     this.reservaACancelarAdmin.set(null);
+  }
+
+  // === CERRAR / REABRIR GRUPO (ADMIN) ===
+
+  abrirModalCerrarGrupo(grupo: GrupoSesion) {
+    if (grupo.sesion_id == null) return;
+    this.grupoACerrar.set(grupo);
+    this.mostrarModalCerrarGrupo.set(true);
+  }
+
+  cerrarModalCerrarGrupo() {
+    this.mostrarModalCerrarGrupo.set(false);
+    this.grupoACerrar.set(null);
+  }
+
+  /**
+   * Cierra un grupo puntual: cancela las reservas activas (reutilizando
+   * cancelar_reserva_admin, con/sin recuperación según futura) y marca la
+   * sesión como cancelada para que deje de ser reservable en toda la app.
+   */
+  async cerrarGrupo(generarRecuperacion: boolean) {
+    const grupo = this.grupoACerrar();
+    const dia = this.diaSeleccionado();
+    if (!grupo || grupo.sesion_id == null || !dia) return;
+
+    this.cerrandoGrupo.set(true);
+    this.error.set(null);
+
+    const sesionId = grupo.sesion_id;
+    const modalidad = this.tipoGrupoSeleccionado();
+    const fechaFmt = dia.fecha.split('-').reverse().join('/');
+    const esFutura = this.esSesionFutura(dia.fecha, grupo.hora);
+
+    try {
+      const client = supabase();
+
+      // 1. Reservas activas de la sesión
+      const { data: reservasActivas, error: errReservas } = await client
+        .from('reservas')
+        .select('id, usuario_id')
+        .eq('sesion_id', sesionId)
+        .eq('estado', 'activa');
+      if (errReservas) throw errReservas;
+
+      let canceladas = 0;
+      let recuperacionesGeneradas = 0;
+
+      for (const r of (reservasActivas || [])) {
+        const generarRecuperacionReserva = generarRecuperacion && esFutura;
+        const tituloNotif = '🚫 Grupo cancelado';
+        const mensajeNotif = `Tu clase del ${fechaFmt} a las ${grupo.hora} ha sido cancelada por el centro.${generarRecuperacionReserva ? ' Se ha generado una recuperación.' : ''}`;
+
+        const { data, error } = await client.rpc('cancelar_reserva_admin', {
+          p_reserva_id: r.id,
+          p_generar_recuperacion: generarRecuperacionReserva,
+          p_titulo_notif: tituloNotif,
+          p_mensaje_notif: mensajeNotif,
+        });
+
+        if (!error && data && data.length > 0 && data[0].ok) {
+          canceladas++;
+          if (generarRecuperacionReserva) recuperacionesGeneradas++;
+          try {
+            await enviarPushUsuario(
+              {
+                usuario_id: r.usuario_id,
+                tipo: 'cancelacion',
+                data: { titulo: tituloNotif, fecha: fechaFmt, hora: grupo.hora },
+              },
+              `cancelacion cierre grupo ${r.usuario_id}`,
+            );
+          } catch (e) {
+            console.warn('[Push] Error enviando push cierre grupo:', e);
+          }
+        }
+      }
+
+      // 2. Marcar la sesión como cancelada (oculta el grupo de las reservas)
+      const { error: errSesion } = await client.rpc('set_sesion_cancelada', {
+        p_sesion_id: sesionId,
+        p_cancelada: true,
+        p_motivo: 'Grupo cerrado por el admin',
+      });
+      if (errSesion) throw errSesion;
+
+      // 3. Auditoría
+      this.audit.registrarCambio(
+        'admin_cerrar_grupo',
+        '',
+        '',
+        `Grupo cerrado por admin: ${grupo.hora} ${modalidad} (${fechaFmt}) — ${canceladas} reserva(s) cancelada(s)${recuperacionesGeneradas > 0 ? `, ${recuperacionesGeneradas} recuperación(es)` : ''}`,
+        { sesion_id: sesionId, hora: grupo.hora, modalidad, fecha: dia.fecha, reservas_canceladas: canceladas, con_recuperacion: generarRecuperacion && esFutura },
+      );
+
+      let msg = `Grupo de las ${grupo.hora} cerrado.`;
+      if (canceladas > 0) msg += ` Se cancelaron ${canceladas} reserva${canceladas > 1 ? 's' : ''}.`;
+      if (recuperacionesGeneradas > 0) msg += ` ${recuperacionesGeneradas} recuperación${recuperacionesGeneradas > 1 ? 'es' : ''}.`;
+      this.mensajeExito.set(msg);
+      setTimeout(() => this.mensajeExito.set(null), 4000);
+
+      this.cerrarModalCerrarGrupo();
+      await this.refrescarTrasCambioGrupo();
+    } catch (err) {
+      console.error('Error cerrando grupo:', err);
+      this.error.set('Error al cerrar el grupo: ' + ((err as Error)?.message || 'desconocido'));
+    } finally {
+      this.cerrandoGrupo.set(false);
+    }
+  }
+
+  /**
+   * Reabre un grupo cerrado (cancelada = false). No restaura reservas canceladas.
+   */
+  async reabrirGrupo(grupo: GrupoSesion) {
+    const dia = this.diaSeleccionado();
+    if (!grupo || grupo.sesion_id == null || !dia) return;
+
+    if (!await this.confirmation.confirm({
+      titulo: 'Reabrir grupo',
+      mensaje: `¿Reabrir el grupo de las ${grupo.hora}? Volverá a estar disponible para reservar. Las reservas que se cancelaron no se restauran.`,
+      tipo: 'info',
+      textoConfirmar: 'Reabrir',
+    })) return;
+
+    this.cerrandoGrupo.set(true);
+    this.error.set(null);
+
+    try {
+      const { error } = await supabase().rpc('set_sesion_cancelada', {
+        p_sesion_id: grupo.sesion_id,
+        p_cancelada: false,
+        p_motivo: null,
+      });
+      if (error) throw error;
+
+      this.audit.registrarCambio(
+        'admin_reabrir_grupo',
+        '',
+        '',
+        `Grupo reabierto por admin: ${grupo.hora} ${this.tipoGrupoSeleccionado()} (${dia.fecha.split('-').reverse().join('/')})`,
+        { sesion_id: grupo.sesion_id, hora: grupo.hora, fecha: dia.fecha },
+      );
+
+      this.mensajeExito.set(`Grupo de las ${grupo.hora} reabierto.`);
+      setTimeout(() => this.mensajeExito.set(null), 3000);
+
+      await this.refrescarTrasCambioGrupo();
+    } catch (err) {
+      console.error('Error reabriendo grupo:', err);
+      this.error.set('Error al reabrir el grupo: ' + ((err as Error)?.message || 'desconocido'));
+    } finally {
+      this.cerrandoGrupo.set(false);
+    }
+  }
+
+  // Recarga el calendario y refresca el día y las sesiones del modal abierto.
+  private async refrescarTrasCambioGrupo() {
+    await this.cargarCalendario();
+    const diaSel = this.diaSeleccionado();
+    const tipo = this.tipoGrupoSeleccionado();
+    if (diaSel) {
+      const diaActualizado = this.diasCalendario().find(d => d.fecha === diaSel.fecha);
+      if (diaActualizado) this.diaSeleccionado.set(diaActualizado);
+      if (tipo) await this.cargarSesionesDiaModalidadAdmin(diaSel.fecha, tipo);
+    }
   }
 
   async cancelarReservaAdmin(generarRecuperacion: boolean) {

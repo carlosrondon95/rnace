@@ -9,6 +9,8 @@ export type TipoCambio =
   | 'cliente_cancel_reserva'
   | 'cliente_usa_recuperacion'
   | 'admin_mueve_reserva'
+  | 'admin_cerrar_grupo'
+  | 'admin_reabrir_grupo'
   | 'cliente_cambio_turno';
 
 @Injectable({ providedIn: 'root' })

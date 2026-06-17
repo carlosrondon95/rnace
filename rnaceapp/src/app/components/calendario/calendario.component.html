@@ -398,15 +398,39 @@
             </div>
           </div>
 
-          @if (reservasAgrupadasPorHora().length > 0) {
+          @if (gruposSesionPorHora().length > 0) {
           <div class="lista-reservas-detalle animate-fade-in">
-            @for (grupo of reservasAgrupadasPorHora(); track grupo.hora) {
-            <div class="hora-group">
+            @for (grupo of gruposSesionPorHora(); track grupo.hora) {
+            <div class="hora-group" [class.hora-cerrada]="grupo.cancelada">
               <div class="hora-header">
-                <span class="material-symbols-rounded">schedule</span>
-                {{ grupo.hora }}
+                <div class="hora-header-info">
+                  <span class="material-symbols-rounded">{{ grupo.cancelada ? 'lock' : 'schedule' }}</span>
+                  {{ grupo.hora }}
+                  @if (grupo.capacidad > 0) {
+                  <span class="hora-ocupacion">{{ grupo.plazas_ocupadas }}/{{ grupo.capacidad }}</span>
+                  }
+                  @if (grupo.cancelada) {
+                  <span class="badge-cerrado">Cerrado</span>
+                  }
+                </div>
+                @if (grupo.sesion_id != null) {
+                  @if (grupo.cancelada) {
+                  <button class="btn-reabrir-grupo" [disabled]="cerrandoGrupo()"
+                    (click)="reabrirGrupo(grupo)">
+                    <span class="material-symbols-rounded">lock_open</span>
+                    Reabrir
+                  </button>
+                  } @else {
+                  <button class="btn-cerrar-grupo" [disabled]="cerrandoGrupo()"
+                    (click)="abrirModalCerrarGrupo(grupo)">
+                    <span class="material-symbols-rounded">lock</span>
+                    Cerrar grupo
+                  </button>
+                  }
+                }
               </div>
 
+              @if (grupo.reservas.length > 0) {
               <div class="reservas-hora-list">
                 @for (reserva of grupo.reservas; track reserva.id) {
                 <div class="reserva-detalle-card" [class.reserva-focus]="reserva.modalidad === 'focus'"
@@ -442,13 +466,16 @@
                 </div>
                 }
               </div>
+              } @else {
+              <div class="hora-sin-reservas">Sin reservas.</div>
+              }
             </div>
             }
           </div>
           } @else {
           <div class="empty-state-modal">
             <span class="material-symbols-rounded">event_busy</span>
-            <p>No hay reservas de grupo {{ tipoGrupoSeleccionado() }} para este día.</p>
+            <p>No hay grupos de {{ tipoGrupoSeleccionado() }} para este día.</p>
           </div>
           }
           }
@@ -779,6 +806,78 @@
 
       <div class="modal-footer">
         <button class="btn-cancelar" (click)="cerrarModalCancelarAdmin()" [disabled]="cancelandoAdmin()">
+          Volver
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Modal Cerrar Grupo (sesión puntual) -->
+  @if (mostrarModalCerrarGrupo()) {
+  <div class="modal-overlay modal-danger" (click)="cerrarModalCerrarGrupo()">
+    <div class="modal-confirmacion modal-cancelar-admin" (click)="$event.stopPropagation()">
+      <header class="modal-header header-danger">
+        <span class="material-symbols-rounded icon-warn">lock</span>
+        <h3>Cerrar grupo</h3>
+        <button class="btn-cerrar" (click)="cerrarModalCerrarGrupo()" aria-label="Cerrar">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <div class="info-reserva-cancelar">
+          <p class="reserva-detalles">
+            <span class="material-symbols-rounded">schedule</span>
+            {{ grupoACerrar()?.hora }} - {{ tipoGrupoSeleccionado() | titlecase }}
+            ({{ diaSeleccionado()?.fecha }})
+          </p>
+          @if ((grupoACerrar()?.reservas?.length || 0) > 0) {
+          <p class="reserva-detalles">
+            <span class="material-symbols-rounded">group</span>
+            Se cancelarán {{ grupoACerrar()?.reservas?.length }} reserva(s).
+          </p>
+          } @else {
+          <p class="reserva-detalles">
+            <span class="material-symbols-rounded">info</span>
+            Este grupo no tiene reservas. Solo se cerrará para que nadie pueda reservar.
+          </p>
+          }
+        </div>
+
+        <div class="opciones-cancelacion">
+          <p class="opciones-titulo">¿Cómo deseas cerrar el grupo?</p>
+
+          <button class="btn-opcion btn-opcion--recuperacion" [disabled]="cerrandoGrupo()"
+            (click)="cerrarGrupo(true)">
+            @if (cerrandoGrupo()) {
+            <span class="spinner-small"></span>
+            } @else {
+            <span class="material-symbols-rounded">refresh</span>
+            }
+            <div class="opcion-texto">
+              <strong>Cerrar con recuperación</strong>
+              <span>Los apuntados reciben un crédito de recuperación</span>
+            </div>
+          </button>
+
+          <button class="btn-opcion btn-opcion--permanente" [disabled]="cerrandoGrupo()"
+            (click)="cerrarGrupo(false)">
+            @if (cerrandoGrupo()) {
+            <span class="spinner-small"></span>
+            } @else {
+            <span class="material-symbols-rounded">lock</span>
+            }
+            <div class="opcion-texto">
+              <strong>Cerrar sin recuperación</strong>
+              <span>No se genera recuperación</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancelar" (click)="cerrarModalCerrarGrupo()" [disabled]="cerrandoGrupo()">
           Volver
         </button>
       </div>

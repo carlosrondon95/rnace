@@ -435,6 +435,7 @@
 .hora-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: var(--space-sm);
     font-size: var(--font-size-md);
     font-weight: 600;
@@ -447,6 +448,92 @@
     .material-symbols-rounded {
         color: var(--color-text-muted);
         font-size: 1rem;
+    }
+}
+
+.hora-header-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.hora-ocupacion {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.badge-cerrado {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #b91c1c;
+    background: #fee2e2;
+    padding: 0.1rem 0.4rem;
+    border-radius: 6px;
+}
+
+.hora-cerrada {
+    opacity: 0.7;
+
+    .hora-header {
+        color: #b91c1c;
+
+        .material-symbols-rounded {
+            color: #b91c1c;
+        }
+    }
+}
+
+.hora-sin-reservas {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    padding: var(--space-2xs) 0;
+}
+
+.btn-cerrar-grupo,
+.btn-reabrir-grupo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.3rem 0.6rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    .material-symbols-rounded {
+        font-size: 0.95rem;
+        color: inherit;
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+}
+
+.btn-cerrar-grupo {
+    background: #fee2e2;
+    color: #b91c1c;
+
+    &:hover:not(:disabled) {
+        background: #fecaca;
+        transform: translateY(-1px);
+    }
+}
+
+.btn-reabrir-grupo {
+    background: #dcfce7;
+    color: #15803d;
+
+    &:hover:not(:disabled) {
+        background: #bbf7d0;
+        transform: translateY(-1px);
     }
 }
 
