@@ -7,6 +7,7 @@ import { AuthService } from '../../core/auth.service';
 import { supabase } from '../../core/supabase.client';
 import { AuditService } from '../../core/audit.service';
 import { asegurarReservasFuturasSincronizadas, formatearResultadoReservas, ReservaSyncResult } from '../../core/reservas-sync';
+import { enviarHuecoDisponibleUsuario } from '../../core/push-delivery';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, isBefore, startOfDay, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -959,6 +960,8 @@ export class GestionarPerfilesComponent implements OnInit {
     const userId = this.usuarioEditandoId();
     if (!userId) return;
 
+    const activoAnterior = this.usuarios().find(u => u.id === userId)?.activo ?? true;
+
     const client = supabase();
 
     const { error: userError } = await client
@@ -1051,9 +1054,26 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
-    // Sincronizar reservas si es cliente
-    let syncResult: ReservaSyncResult | null = null;
-    if (f.rol === 'cliente') {
+    // Gestionar el cambio de estado activo/inactivo y la sincronización de reservas.
+    const desactivando = activoAnterior === true && f.activo === false;
+    const reactivando = activoAnterior === false && f.activo === true;
+
+    let detalleReservas = '';
+    if (desactivando) {
+      // Al desactivar: liberar plazas futuras, sacar de listas de espera y avisar
+      // a quien las espere. La reactivación restaura el horario fijo vía el sync.
+      try {
+        detalleReservas = await this.desactivarUsuario(userId, nombre);
+      } catch (err: any) {
+        console.error('Error desactivando usuario:', err);
+        this.errorModal.set(`Usuario actualizado, pero no se pudieron liberar sus reservas: ${err.message || 'error desconocido'}`);
+        await this.cargarUsuarios();
+        return;
+      }
+    } else if (f.rol === 'cliente') {
+      // Edición normal o reactivación: el sync (con reactivarCanceladas) restaura
+      // el horario fijo del usuario ahora que vuelve a estar activo.
+      let syncResult: ReservaSyncResult | null = null;
       try {
         syncResult = await this.sincronizarReservasUsuario(userId);
       } catch (err: any) {
@@ -1062,14 +1082,70 @@ export class GestionarPerfilesComponent implements OnInit {
         await this.cargarUsuarios();
         return;
       }
+      detalleReservas = syncResult ? ` ${formatearResultadoReservas(syncResult)}` : '';
+    }
+
+    if (reactivando) {
+      this.audit.registrarCambio(
+        'admin_reactivar_usuario',
+        userId,
+        nombre,
+        'Usuario reactivado: se restaura su horario fijo.',
+      );
     }
 
     // Mostrar feedback y cerrar modal
-    const detalleSync = syncResult ? ` ${formatearResultadoReservas(syncResult)}` : '';
-    this.mostrarExitoGlobal(`Usuario actualizado correctamente.${detalleSync}`);
+    this.mostrarExitoGlobal(`Usuario actualizado correctamente.${detalleReservas}`);
     this.cerrarModal();
 
     await this.cargarUsuarios();
+  }
+
+  // Desactiva un usuario en BD (libera plazas + listas de espera) y avisa por push
+  // a quien estuviera en lista de espera de los huecos liberados. Devuelve un texto
+  // de detalle para el mensaje de éxito.
+  private async desactivarUsuario(userId: string, nombre: string): Promise<string> {
+    const client = supabase();
+    const { data, error } = await client.rpc('desactivar_usuario', { p_usuario_id: userId });
+    if (error) throw error;
+
+    const fila = Array.isArray(data) ? data[0] : data;
+    const liberadas: number = fila?.reservas_liberadas ?? 0;
+    const huecos: Array<{ sesion_id: number; fecha: string; hora: string; modalidad: string; usuarios: string[] }> =
+      Array.isArray(fila?.huecos) ? fila.huecos : [];
+
+    this.audit.registrarCambio(
+      'admin_desactivar_usuario',
+      userId,
+      nombre,
+      `Usuario desactivado: ${liberadas} reservas futuras liberadas.`,
+      { reservas_liberadas: liberadas, huecos: huecos.length },
+    );
+
+    // Avisar (push + notificación interna) a las listas de espera de cada hueco.
+    for (const hueco of huecos) {
+      const fechaFmt = hueco.fecha ? hueco.fecha.split('-').reverse().join('/') : '';
+      for (const notifUid of hueco.usuarios || []) {
+        try {
+          await enviarHuecoDisponibleUsuario(
+            {
+              usuario_id: notifUid,
+              data: {
+                modalidad: hueco.modalidad || '',
+                fecha: fechaFmt,
+                hora: hueco.hora || '',
+                url: `/calendario?sesion=${hueco.sesion_id}`,
+              },
+            },
+            `hueco_disponible desactivar ${notifUid}`,
+          );
+        } catch (pushErr) {
+          console.warn('[Push] Error enviando push hueco_disponible (desactivar):', pushErr);
+        }
+      }
+    }
+
+    return ` Se han liberado ${liberadas} reservas futuras.`;
   }
 
   private async sincronizarReservasUsuario(userId: string): Promise<ReservaSyncResult> {

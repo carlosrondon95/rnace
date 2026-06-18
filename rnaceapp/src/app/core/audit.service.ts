@@ -11,7 +11,9 @@ export type TipoCambio =
   | 'admin_mueve_reserva'
   | 'admin_cerrar_grupo'
   | 'admin_reabrir_grupo'
-  | 'cliente_cambio_turno';
+  | 'cliente_cambio_turno'
+  | 'admin_desactivar_usuario'
+  | 'admin_reactivar_usuario';
 
 @Injectable({ providedIn: 'root' })
 export class AuditService {
