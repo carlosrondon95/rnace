@@ -1061,7 +1061,7 @@ export class GestionarPerfilesComponent implements OnInit {
     let detalleReservas = '';
     if (desactivando) {
       // Al desactivar: liberar plazas futuras, sacar de listas de espera y avisar
-      // a quien las espere. La reactivación restaura el horario fijo vía el sync.
+      // a quien las espere.
       try {
         detalleReservas = await this.desactivarUsuario(userId, nombre);
       } catch (err: any) {
@@ -1070,9 +1070,19 @@ export class GestionarPerfilesComponent implements OnInit {
         await this.cargarUsuarios();
         return;
       }
+    } else if (reactivando) {
+      // Al reactivar: empezar desde cero — restaurar solo el horario base y anular
+      // todas las recuperaciones. No se resucitan las reservas puntuales previas.
+      try {
+        detalleReservas = await this.reactivarUsuario(userId, nombre);
+      } catch (err: any) {
+        console.error('Error reactivando usuario:', err);
+        this.errorModal.set(`Usuario actualizado, pero no se pudo restaurar su horario base: ${err.message || 'error desconocido'}`);
+        await this.cargarUsuarios();
+        return;
+      }
     } else if (f.rol === 'cliente') {
-      // Edición normal o reactivación: el sync (con reactivarCanceladas) restaura
-      // el horario fijo del usuario ahora que vuelve a estar activo.
+      // Edición normal: sincronizar las reservas fijas del usuario activo.
       let syncResult: ReservaSyncResult | null = null;
       try {
         syncResult = await this.sincronizarReservasUsuario(userId);
@@ -1083,15 +1093,6 @@ export class GestionarPerfilesComponent implements OnInit {
         return;
       }
       detalleReservas = syncResult ? ` ${formatearResultadoReservas(syncResult)}` : '';
-    }
-
-    if (reactivando) {
-      this.audit.registrarCambio(
-        'admin_reactivar_usuario',
-        userId,
-        nombre,
-        'Usuario reactivado: se restaura su horario fijo.',
-      );
     }
 
     // Mostrar feedback y cerrar modal
@@ -1146,6 +1147,29 @@ export class GestionarPerfilesComponent implements OnInit {
     }
 
     return ` Se han liberado ${liberadas} reservas futuras.`;
+  }
+
+  // Reactiva un usuario en BD partiendo de cero: restaura SOLO su horario base y
+  // anula todas sus recuperaciones. No resucita las reservas puntuales previas.
+  // Devuelve un texto de detalle para el mensaje de éxito.
+  private async reactivarUsuario(userId: string, nombre: string): Promise<string> {
+    const client = supabase();
+    const { data, error } = await client.rpc('reactivar_usuario', { p_usuario_id: userId });
+    if (error) throw error;
+
+    const fila = Array.isArray(data) ? data[0] : data;
+    const activadas: number = fila?.reservas_activadas ?? 0;
+    const recupsAnuladas: number = fila?.recuperaciones_anuladas ?? 0;
+
+    this.audit.registrarCambio(
+      'admin_reactivar_usuario',
+      userId,
+      nombre,
+      `Usuario reactivado desde cero: ${activadas} reservas del horario base, ${recupsAnuladas} recuperaciones anuladas.`,
+      { reservas_activadas: activadas, recuperaciones_anuladas: recupsAnuladas },
+    );
+
+    return ` Se ha restaurado el horario base (${activadas} reservas) y anulado ${recupsAnuladas} recuperaciones.`;
   }
 
   private async sincronizarReservasUsuario(userId: string): Promise<ReservaSyncResult> {
