@@ -407,6 +407,21 @@
           </div>
           }
 
+          @if (modoEdicion()) {
+          <div class="form-check" style="margin-top: 16px;">
+            <input type="checkbox" id="check-proximo-mes" class="check-input"
+              [checked]="aplicarHorarioDesdeProximoMes()"
+              (change)="aplicarHorarioDesdeProximoMes.set($any($event.target).checked)" />
+            <label for="check-proximo-mes" class="check-label">
+              Aplicar a partir del próximo mes
+            </label>
+          </div>
+          <p class="horarios-help">
+            Si está marcado, el nuevo horario se reflejará desde el día 1 del mes que viene;
+            lo que queda del mes en curso no se modifica.
+          </p>
+          }
+
         </div>
       </div>
       }

@@ -8,6 +8,7 @@ import { supabase } from '../../core/supabase.client';
 import { AuditService } from '../../core/audit.service';
 import { asegurarReservasFuturasSincronizadas, formatearResultadoReservas, ReservaSyncResult } from '../../core/reservas-sync';
 import { enviarHuecoDisponibleUsuario } from '../../core/push-delivery';
+import { inicioProximoMes } from '../../shared/utils/fecha-actual.util';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, getDay, isBefore, startOfDay, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -166,6 +167,10 @@ export class GestionarPerfilesComponent implements OnInit {
   sesionesMes = signal<SesionCalendario[]>([]);
   reservasSeleccionadas = signal<Set<number>>(new Set()); // Set of session IDs
   cargandoSesiones = signal(false);
+
+  // Al editar: si está activo, los cambios de horario se aplican solo desde el
+  // primer día del mes siguiente, dejando intacto el mes en curso.
+  aplicarHorarioDesdeProximoMes = signal(false);
 
   // Computed days for calendar
   diasCalendario = computed(() => {
@@ -577,6 +582,7 @@ export class GestionarPerfilesComponent implements OnInit {
     this.vistaAsignacion.set('semana');
     this.fechaCalendario.set(new Date());
     this.reservasSeleccionadas.set(new Set());
+    this.aplicarHorarioDesdeProximoMes.set(false);
 
     this.mostrarModal.set(true);
   }
@@ -1085,14 +1091,24 @@ export class GestionarPerfilesComponent implements OnInit {
       // Edición normal: sincronizar las reservas fijas del usuario activo.
       let syncResult: ReservaSyncResult | null = null;
       try {
-        syncResult = await this.sincronizarReservasUsuario(userId);
+        syncResult = await this.sincronizarReservasUsuario(userId, {
+          desdeProximoMes: this.aplicarHorarioDesdeProximoMes(),
+        });
       } catch (err: any) {
         console.error('Error sincronizando reservas:', err);
         this.errorModal.set(`Usuario actualizado, pero las reservas fijas no quedaron sincronizadas: ${err.message || 'error desconocido'}`);
         await this.cargarUsuarios();
         return;
       }
-      detalleReservas = syncResult ? ` ${formatearResultadoReservas(syncResult)}` : '';
+      if (this.aplicarHorarioDesdeProximoMes()) {
+        // Al aplicar desde el próximo mes la sync no toca el mes en curso (y si ese
+        // mes aún no está abierto, no crea nada todavía). Mostramos un mensaje claro
+        // en lugar del "0 reservas" del RPC, que parecería que no se guardó nada.
+        detalleReservas =
+          ' El nuevo horario queda guardado y se reflejará al abrir el próximo mes; el mes en curso no se modifica.';
+      } else {
+        detalleReservas = syncResult ? ` ${formatearResultadoReservas(syncResult)}` : '';
+      }
     }
 
     // Mostrar feedback y cerrar modal
@@ -1172,14 +1188,20 @@ export class GestionarPerfilesComponent implements OnInit {
     return ` Se ha restaurado el horario base (${activadas} reservas) y anulado ${recupsAnuladas} recuperaciones.`;
   }
 
-  private async sincronizarReservasUsuario(userId: string): Promise<ReservaSyncResult> {
+  private async sincronizarReservasUsuario(
+    userId: string,
+    opciones: { desdeProximoMes?: boolean } = {},
+  ): Promise<ReservaSyncResult> {
     const client = supabase();
 
     // Usamos la función de base de datos que ya contiene la lógica de negocio robusta
     // para generar reservas futuras basadas en el plan de usuario y horarios.
     // esta función regenera para todos (o solo uno si se pasa ID), asegurando consistencia.
+    // Si desdeProximoMes está activo, acotamos la regeneración al primer día del mes
+    // siguiente para no tocar las reservas del mes en curso.
     const resultado = await asegurarReservasFuturasSincronizadas(client, userId, {
       reactivarCanceladas: true,
+      ...(opciones.desdeProximoMes ? { fechaDesde: inicioProximoMes() } : {}),
     });
 
     console.log('Reservas regeneradas correctamente vía RPC:', resultado);
