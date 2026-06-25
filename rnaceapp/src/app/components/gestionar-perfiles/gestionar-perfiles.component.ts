@@ -547,6 +547,7 @@ export class GestionarPerfilesComponent implements OnInit {
     this.vistaAsignacion.set('semana');
     this.fechaCalendario.set(new Date());
     this.reservasSeleccionadas.set(new Set());
+    this.aplicarHorarioDesdeProximoMes.set(false);
     this.cargarSesionesMes(); // Load just in case user switches
 
     this.mostrarModal.set(true);
@@ -929,7 +930,9 @@ export class GestionarPerfilesComponent implements OnInit {
     let syncResult: ReservaSyncResult | null = null;
     if (f.rol === 'cliente') {
       try {
-        syncResult = await this.sincronizarReservasUsuario(userId);
+        syncResult = await this.sincronizarReservasUsuario(userId, {
+          desdeProximoMes: this.aplicarHorarioDesdeProximoMes(),
+        });
       } catch (err: any) {
         console.error('Error sincronizando reservas:', err);
         this.errorModal.set(`Usuario creado, pero las reservas fijas no quedaron sincronizadas: ${err.message || 'error desconocido'}`);
@@ -939,7 +942,15 @@ export class GestionarPerfilesComponent implements OnInit {
       }
     }
 
-    const detalleSync = syncResult ? ` ${formatearResultadoReservas(syncResult)}` : '';
+    let detalleSync = '';
+    if (f.rol === 'cliente' && this.aplicarHorarioDesdeProximoMes()) {
+      // Con "desde el próximo mes" la sync no crea reservas en el mes en curso (y si
+      // ese mes aún no está abierto, no crea nada todavía). Mensaje claro en vez del "0 reservas".
+      detalleSync =
+        ' El horario queda guardado y se reflejará al abrir el próximo mes; el mes en curso no se modifica.';
+    } else {
+      detalleSync = syncResult ? ` ${formatearResultadoReservas(syncResult)}` : '';
+    }
     this.mostrarExitoGlobal(`Usuario creado: ${nombre}.${detalleSync}`);
 
     // Limpiar formulario pero mantener modal abierto
