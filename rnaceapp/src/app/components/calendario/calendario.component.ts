@@ -148,6 +148,39 @@ interface HorarioDisponible {
   activo: boolean;
 }
 
+// Respuesta del RPC eliminar_horario (db/eliminar_horario.sql). Con
+// p_dry_run = true devuelve el impacto sin escribir nada; sin él, lo ejecutado.
+interface AlumnoHorarioFijo {
+  horario_fijo_id: number;
+  usuario_id: string;
+  nombre: string;
+  activo: boolean;
+}
+
+interface ReservaAfectadaHorario {
+  reserva_id: number;
+  usuario_id: string;
+  nombre: string;
+  sesion_id: number;
+  fecha: string;
+  hora: string;
+  es_recuperacion: boolean;
+  es_futura: boolean; // solo estas pueden generar recuperación
+}
+
+interface EliminarHorarioResultado {
+  ok: boolean;
+  horario: HorarioDisponible | null;
+  usuarios_fijos: AlumnoHorarioFijo[];
+  reservas_afectadas: ReservaAfectadaHorario[];
+  sesiones_canceladas: number;
+  reservas_canceladas: number;
+  recuperaciones_generadas: number;
+  creditos_devueltos: number;
+  horarios_fijos_borrados: number;
+  mensaje: string;
+}
+
 // ...
 
 @Component({
@@ -3422,12 +3455,90 @@ export class CalendarioComponent implements OnInit {
     return `${year}-${month}-${day}`;
   }
 
+  // Borra un horario de la plantilla semanal. Todo el trabajo sucio (cancelar
+  // sesiones y reservas futuras, vaciar listas de espera, quitar el turno del
+  // horario base de los alumnos y borrar la fila) lo hace el RPC
+  // eliminar_horario en UNA transacción: antes eran 5 peticiones sueltas y la
+  // última fallaba siempre por la FK de horario_fijo_usuario, dejando datos a
+  // medias. Aquí solo orquestamos: impacto → confirmaciones → recuperaciones →
+  // borrado.
   async eliminarHorario(horario: HorarioDisponible) {
+    if (!this.esAdmin()) return;
+
+    const client = supabase();
+    const diaLabel = this.diasSemanaLabels[horario.dia_semana - 1] ?? '';
+    this.error.set(null);
+
+    // 1. Impacto real, calculado por el mismo RPC que hará el borrado: lo que se
+    //    avisa y lo que se ejecuta salen de la misma consulta.
+    let impacto: EliminarHorarioResultado | undefined;
+    try {
+      const { data, error } = await client.rpc('eliminar_horario', {
+        p_horario_id: horario.id,
+        p_dry_run: true,
+      });
+
+      if (error) throw error;
+      impacto = (data || [])[0] as EliminarHorarioResultado | undefined;
+
+      if (!impacto?.ok) {
+        this.error.set(impacto?.mensaje || 'No se pudo comprobar el horario.');
+        await this.cargarHorarios();
+        return;
+      }
+    } catch (err: any) {
+      console.error('Error comprobando el impacto del horario:', err);
+      this.error.set('Error al comprobar el horario: ' + (err?.message || 'error desconocido'));
+      return;
+    }
+
+    const alumnos = Array.isArray(impacto.usuarios_fijos) ? impacto.usuarios_fijos : [];
+    const reservas = Array.isArray(impacto.reservas_afectadas) ? impacto.reservas_afectadas : [];
+    const numSesiones = impacto.sesiones_canceladas || 0;
+
+    // 2. La pregunta de las recuperaciones va ANTES del diálogo destructivo, para
+    //    que el último paso sea el de confirmar y cerrar/ESC siempre signifique
+    //    abortar, nunca "bórralo sin recuperaciones".
+    const recuperables = reservas.filter(r => r.es_futura).length;
+    let generarRecuperaciones = false;
+    if (reservas.length > 0) {
+      generarRecuperaciones = await this.confirmation.confirm({
+        titulo: 'Recuperaciones',
+        mensaje: `Este turno tiene ${reservas.length} reserva${reservas.length > 1 ? 's' : ''} sin cancelar. ¿Generar una recuperación por cada clase que pierden los alumnos?${recuperables < reservas.length ? ` Solo ${recuperables} la generarían: el resto son clases que ya han empezado.` : ''}`,
+        tipo: 'info',
+        textoConfirmar: 'Sí, generar',
+        textoCancelar: 'No generar',
+      });
+    }
+
+    // 3. Confirmación final con las cifras concretas del impacto.
+    const partes: string[] = [
+      `Vas a eliminar el turno de las ${horario.hora} (${horario.modalidad}) del ${diaLabel}.`,
+    ];
+
+    if (alumnos.length > 0) {
+      partes.push(
+        `Dejará de ser horario fijo de ${alumnos.length} alumno${alumnos.length > 1 ? 's' : ''}: ${alumnos.map(a => a.nombre).join(', ')}.`,
+      );
+    }
+    if (numSesiones > 0) {
+      partes.push(`Se cancelarán ${numSesiones} sesión${numSesiones > 1 ? 'es' : ''} futura${numSesiones > 1 ? 's' : ''}.`);
+    }
+    if (reservas.length > 0) {
+      partes.push(
+        `Se cancelarán ${reservas.length} reserva${reservas.length > 1 ? 's' : ''} ${generarRecuperaciones ? `y se generarán ${recuperables} recuperación${recuperables === 1 ? '' : 'es'}` : 'SIN generar recuperación'}.`,
+      );
+    }
+    if (alumnos.length === 0 && numSesiones === 0 && reservas.length === 0) {
+      partes.push('No afecta a ningún alumno ni a ninguna sesión futura.');
+    }
+    partes.push('El histórico de clases pasadas se conserva. La acción no se puede deshacer.');
+
     if (!await this.confirmation.confirm({
       titulo: 'Eliminar horario',
-      mensaje: `¿Eliminar el turno de las ${horario.hora} (${horario.modalidad}) del ${this.diasSemanaLabels[horario.dia_semana - 1]}? Se cancelarán todas las sesiones futuras y reservas asociadas sin generar recuperaciones.`,
-      tipo: 'warning',
-      textoConfirmar: 'Eliminar'
+      mensaje: partes.join(' '),
+      tipo: 'danger',
+      textoConfirmar: 'Eliminar',
     })) {
       return;
     }
@@ -3435,99 +3546,46 @@ export class CalendarioComponent implements OnInit {
     this.guardandoHorario.set(true);
 
     try {
-      const client = supabase();
-      const hoy = new Date().toISOString().split('T')[0];
-
-      // 1. Buscar sesiones futuras que coincidan con este horario (día de semana, hora, modalidad)
-      const { data: sesionesFuturas, error: sesionesError } = await client
-        .from('sesiones')
-        .select('id')
-        .eq('hora', horario.hora)
-        .eq('modalidad', horario.modalidad)
-        .eq('cancelada', false)
-        .gte('fecha', hoy);
-
-      if (sesionesError) {
-        console.error('Error buscando sesiones:', sesionesError);
-      }
-
-      // Filtrar solo las sesiones que corresponden al mismo día de la semana
-      const sesionesDelDia = (sesionesFuturas || []).filter(s => {
-        // Necesitamos obtener la fecha de cada sesión para verificar el día de la semana
-        // Como solo tenemos el id, haremos una segunda consulta o usamos los datos del calendario
-        return true; // Por ahora incluimos todas y filtramos abajo
+      // 4. El borrado atómico: sesiones, reservas, recuperaciones, lista de
+      //    espera, horarios fijos y el turno, todo en una transacción.
+      const { data, error } = await client.rpc('eliminar_horario', {
+        p_horario_id: horario.id,
+        p_generar_recuperaciones: generarRecuperaciones,
       });
-
-      if (sesionesFuturas && sesionesFuturas.length > 0) {
-        // Obtener datos completos de las sesiones para filtrar por día de semana
-        const { data: sesionesCompletas } = await client
-          .from('sesiones')
-          .select('id, fecha')
-          .in('id', sesionesFuturas.map(s => s.id));
-
-        const sesionesAEliminar = (sesionesCompletas || []).filter(s => {
-          const fecha = new Date(s.fecha + 'T12:00:00');
-          let diaSemana = fecha.getDay();
-          // Convertir: Dom(0)->7, Lun(1)->1, etc. para comparar con horario.dia_semana (1-5)
-          diaSemana = diaSemana === 0 ? 7 : diaSemana;
-          return diaSemana === horario.dia_semana;
-        });
-
-        if (sesionesAEliminar.length > 0) {
-          const sesionIds = sesionesAEliminar.map(s => s.id);
-
-          // 2. Cancelar todas las reservas de esas sesiones SIN generar recuperaciones
-          const { error: reservasError } = await client
-            .from('reservas')
-            .update({
-              estado: 'cancelada',
-              cancelada_en: new Date().toISOString(),
-              cancelada_correctamente: true
-            })
-            .in('sesion_id', sesionIds)
-            .eq('estado', 'activa');
-
-          if (reservasError) {
-            console.warn('Error cancelando reservas:', reservasError);
-          }
-
-          // 3. Marcar las sesiones como canceladas
-          const { error: cancelarSesionesError } = await client
-            .from('sesiones')
-            .update({ cancelada: true })
-            .in('id', sesionIds);
-
-          if (cancelarSesionesError) {
-            console.warn('Error cancelando sesiones:', cancelarSesionesError);
-          }
-
-          // 4. Eliminar de lista de espera de esas sesiones
-          const { error: esperaError } = await client
-            .from('lista_espera')
-            .delete()
-            .in('sesion_id', sesionIds);
-
-          if (esperaError) {
-            console.warn('Error eliminando lista de espera:', esperaError);
-          }
-        }
-      }
-
-      // 5. Eliminar el horario definitivamente (hard delete)
-      const { error } = await client
-        .from('horarios_disponibles')
-        .delete()
-        .eq('id', horario.id);
 
       if (error) throw error;
 
-      this.mensajeExito.set('Horario eliminado correctamente');
-      setTimeout(() => this.mensajeExito.set(null), 3000);
+      const resultado = (data || [])[0] as EliminarHorarioResultado | undefined;
+      if (!resultado?.ok) {
+        throw new Error(resultado?.mensaje || 'El horario no se pudo eliminar.');
+      }
+
+      // 5. Auditoría: guardamos a quién afectaba para poder rehacerlo a mano.
+      this.audit.registrarCambio(
+        'admin_eliminar_horario',
+        '',
+        '',
+        `Horario eliminado por admin: ${horario.hora} ${horario.modalidad} (${diaLabel}) — ${resultado.horarios_fijos_borrados} alumno(s) sin turno fijo, ${resultado.sesiones_canceladas} sesión(es) y ${resultado.reservas_canceladas} reserva(s) canceladas${generarRecuperaciones ? `, ${resultado.recuperaciones_generadas} con recuperación` : ' sin recuperación'}${resultado.creditos_devueltos > 0 ? `, ${resultado.creditos_devueltos} crédito(s) devuelto(s)` : ''}`,
+        {
+          horario: impacto.horario,
+          alumnos,
+          reservas: reservas,
+          sesiones_canceladas: resultado.sesiones_canceladas,
+          reservas_canceladas: resultado.reservas_canceladas,
+          con_recuperacion: generarRecuperaciones,
+          recuperaciones_generadas: resultado.recuperaciones_generadas,
+          creditos_devueltos: resultado.creditos_devueltos,
+        },
+      );
+
+      this.mensajeExito.set(resultado.mensaje);
+      setTimeout(() => this.mensajeExito.set(null), 5000);
+
       await this.cargarHorarios();
       await this.cargarCalendario(); // Recargar calendario para reflejar cambios
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error eliminando horario:', err);
-      this.error.set('Error al eliminar el horario');
+      this.error.set('Error al eliminar el horario: ' + (err?.message || 'error desconocido'));
     } finally {
       this.guardandoHorario.set(false);
     }

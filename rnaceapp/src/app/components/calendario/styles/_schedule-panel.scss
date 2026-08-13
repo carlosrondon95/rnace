@@ -231,16 +231,20 @@
         font-size: 1rem;
     }
 
-    &:hover {
-        background: var(--color-bg-hover);
-        border-color: var(--color-border-hover);
-        color: var(--color-text-primary);
-    }
+    // Solo en dispositivos con puntero real: en táctil el :hover se queda
+    // pegado tras el toque y el último botón pulsado parece "activo".
+    @media (hover: hover) {
+        &:hover {
+            background: var(--color-bg-hover);
+            border-color: var(--color-border-hover);
+            color: var(--color-text-primary);
+        }
 
-    &.btn-turno-delete:hover {
-        background: var(--color-danger-soft);
-        border-color: var(--color-danger-border);
-        color: var(--color-danger);
+        &.btn-turno-delete:hover {
+            background: var(--color-danger-soft);
+            border-color: var(--color-danger-border);
+            color: var(--color-danger);
+        }
     }
 
     &:disabled {

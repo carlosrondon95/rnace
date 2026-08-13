@@ -13,7 +13,8 @@ export type TipoCambio =
   | 'admin_reabrir_grupo'
   | 'cliente_cambio_turno'
   | 'admin_desactivar_usuario'
-  | 'admin_reactivar_usuario';
+  | 'admin_reactivar_usuario'
+  | 'admin_eliminar_horario';
 
 @Injectable({ providedIn: 'root' })
 export class AuditService {
