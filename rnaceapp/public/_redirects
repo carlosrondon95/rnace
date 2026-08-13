@@ -10,3 +10,13 @@ https://www.centrornace.com/  https://centrornace.com/  301!
 http://www.centrornace.com/  https://centrornace.com/  301!
 https://www.centrornace.com/*  https://centrornace.com/:splat  301!
 http://www.centrornace.com/*  https://centrornace.com/:splat  301!
+
+# Proxy de primera parte para el SDK de OneSignal. Es un plan B: solo se pide
+# esta ruta cuando cdn.onesignal.com da error de red en el dispositivo del
+# usuario (bloqueador de anuncios, DNS privado, VPN con filtrado, antivirus,
+# red corporativa). Sirve exactamente el mismo fichero pero a traves de
+# centrornace.com, que no esta en las listas de bloqueo por dominio.
+#
+# Tiene que estar en este fichero y no en netlify.toml: las reglas de
+# _redirects se procesan primero, y el catch-all de la SPA se comeria la ruta.
+/onesignal-sdk/*  https://cdn.onesignal.com/sdks/web/v16/:splat  200

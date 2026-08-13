@@ -24,7 +24,27 @@ type PushActivationBlocker =
   | 'unsupported_browser'
   | 'insecure_origin'
   | 'ios_not_standalone'
-  | 'onesignal_not_supported';
+  | 'onesignal_not_supported'
+  | 'onesignal_sdk_unreachable'
+  | 'onesignal_incompatible_browser';
+
+/**
+ * Resultado de la carga del SDK, publicado por el cargador de index.html.
+ *
+ * Hace falta porque un fallo al cargar el SDK es indistinguible desde aquí de
+ * "todavía no ha llegado": en los dos casos `OneSignalDeferred` sigue sin
+ * vaciarse. Sin este estado el único síntoma era un timeout genérico y se
+ * acababa pidiendo al usuario que reinstalase la app, que es justo lo que no
+ * arregla nada cuando el dispositivo tiene bloqueado onesignal.com.
+ */
+interface OneSignalLoaderStatus {
+  browserCompatible: boolean | null;
+  source: 'cdn' | 'proxy' | null;
+  sdkLoaded: boolean;
+  failure: 'incompatible_browser' | 'sdk_unreachable' | 'sdk_bundle_blocked' | null;
+  error: string | null;
+  attempts: Record<string, unknown>[];
+}
 
 // Declaración global del SDK de OneSignal (cargado desde index.html)
 declare global {
@@ -32,6 +52,8 @@ declare global {
     OneSignalDeferred: Array<(OneSignal: any) => void>;
     OneSignalInitPromise?: Promise<any>;
     RNACEInitOneSignal?: (force?: boolean) => Promise<any>;
+    RNACEOneSignalLoaderPromise?: Promise<void>;
+    RNACEOneSignalStatus?: OneSignalLoaderStatus;
   }
 }
 
@@ -189,9 +211,33 @@ export class PushNotificationService {
     );
   }
 
+  private getLoaderStatus(): OneSignalLoaderStatus | null {
+    if (!isPlatformBrowser(this.platformId)) return null;
+    return window.RNACEOneSignalStatus ?? null;
+  }
+
+  /**
+   * Traduce un fallo de carga del SDK a un blocker de activación.
+   *
+   * Solo devuelve algo cuando el cargador ya ha dado el fallo por definitivo,
+   * así que no puede bloquear a un usuario cuyo SDK simplemente va lento.
+   */
+  private getSdkLoaderBlocker(): PushActivationBlocker | null {
+    const failure = this.getLoaderStatus()?.failure;
+    if (!failure) return null;
+
+    return failure === 'incompatible_browser'
+      ? 'onesignal_incompatible_browser'
+      : 'onesignal_sdk_unreachable';
+  }
+
   private getActivationBlocker(): PushActivationBlocker | null {
     if (!this.isSecureOrigin()) return 'insecure_origin';
     if (this.isIOSDevice() && !this.isStandaloneDisplayMode()) return 'ios_not_standalone';
+
+    const loaderBlocker = this.getSdkLoaderBlocker();
+    if (loaderBlocker) return loaderBlocker;
+
     if (!this.isSupported()) return 'unsupported_browser';
 
     try {
@@ -221,6 +267,10 @@ export class PushNotificationService {
         return 'Las notificaciones push solo funcionan con HTTPS. Abre RNACE desde https://centrornace.com.';
       case 'ios_not_standalone':
         return 'En iPhone, abre RNACE desde el icono de la pantalla de inicio. Safari/Chrome no pueden activar push desde una pestana normal.';
+      case 'onesignal_sdk_unreachable':
+        return 'Algo en este movil esta bloqueando el servicio de notificaciones (onesignal.com). Suele ser un bloqueador de anuncios, un DNS privado, una VPN o un antivirus. Desactivalo, o prueba con los datos moviles en vez del wifi, y vuelve a pulsar Activar.';
+      case 'onesignal_incompatible_browser':
+        return `${browserName} no puede crear suscripciones push en este dispositivo. Abre RNACE en Chrome (Android) o en Safari desde el icono de la pantalla de inicio (iPhone) y vuelve a intentarlo.`;
       case 'onesignal_not_supported':
         return `OneSignal indica que ${browserName} no puede crear una suscripcion push en este dispositivo. Prueba con Chrome, Edge, Safari compatible o revisa los ajustes del navegador.`;
       case 'unsupported_browser':
@@ -266,6 +316,13 @@ export class PushNotificationService {
    * Guarda la referencia al SDK para usarla directamente después.
    */
   private async waitForOneSignal(): Promise<void> {
+    // Si el cargador de index.html ya dio el SDK por imposible, esperar los 30s
+    // del timeout no aporta nada: el bundle no va a llegar en este dispositivo.
+    const loaderFailure = this.getLoaderStatus()?.failure;
+    if (loaderFailure) {
+      throw new Error(`El SDK de OneSignal no se pudo cargar (${loaderFailure})`);
+    }
+
     const initPromise = window.RNACEInitOneSignal?.() ?? window.OneSignalInitPromise;
 
     if (initPromise) {
@@ -395,10 +452,71 @@ export class PushNotificationService {
     }
   }
 
+  /**
+   * Comprueba si los hosts de OneSignal responden desde este dispositivo.
+   *
+   * Se usa `no-cors`, así que la respuesta es opaca y no se puede leer el
+   * status: da igual, lo único que interesa es distinguir "responde algo" de
+   * "la peticion muere", que es lo que ocurre con un bloqueador o un DNS
+   * privado filtrando el dominio. Se consultan los dos hosts por separado
+   * porque el CDN se puede sortear con nuestro proxy y la API no.
+   */
+  private async probeOneSignalHosts(): Promise<Record<string, string>> {
+    const probe = async (url: string): Promise<string> => {
+      try {
+        await this.withTimeout(
+          fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store' }),
+          3000,
+          'timeout',
+        );
+        return 'reachable';
+      } catch (error) {
+        return `unreachable: ${this.serializeError(error)}`;
+      }
+    };
+
+    const [cdn, api] = await Promise.all([
+      probe('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js'),
+      probe('https://api.onesignal.com/apps'),
+    ]);
+
+    return { cdn_onesignal_com: cdn, api_onesignal_com: api };
+  }
+
+  /**
+   * Registra un fallo de activación con el diagnóstico completo adjunto.
+   *
+   * Se llama sin `await` a propósito: recopilar el diagnóstico implica sondear
+   * la red, y el usuario no tiene por qué esperar a eso para ver el error.
+   */
+  private async logActivationFailureWithDiagnostics(
+    event: string,
+    message: string,
+    error: unknown,
+  ): Promise<void> {
+    const diagnostics = await this.getBrowserPushDiagnostics();
+    await this.logPushActivation(event, 'error', message, {
+      error: this.serializeError(error),
+      diagnostics,
+    });
+  }
+
   private async getBrowserPushDiagnostics(): Promise<Record<string, any>> {
     if (!isPlatformBrowser(this.platformId)) return {};
 
+    const loaderStatus = this.getLoaderStatus();
+
     const diagnostics: Record<string, any> = {
+      sdk_loader: loaderStatus
+        ? {
+            browser_compatible: loaderStatus.browserCompatible,
+            source: loaderStatus.source,
+            sdk_loaded: loaderStatus.sdkLoaded,
+            failure: loaderStatus.failure,
+            error: loaderStatus.error,
+            attempts: loaderStatus.attempts,
+          }
+        : 'sin_estado',
       origin: window.location.origin,
       secure_context: window.isSecureContext,
       notification_permission: 'Notification' in window ? Notification.permission : 'unsupported',
@@ -418,6 +536,12 @@ export class PushNotificationService {
           : null;
     } catch (error) {
       diagnostics['onesignal_push_supported_error'] = this.serializeError(error);
+    }
+
+    // Solo se sondea la red cuando algo ha ido mal. En el caso bueno no aporta
+    // nada y son dos peticiones extra.
+    if (loaderStatus?.failure || !this.oneSignalReady) {
+      diagnostics['host_reachability'] = await this.probeOneSignalHosts();
     }
 
     if (!('serviceWorker' in navigator)) {
@@ -929,11 +1053,10 @@ export class PushNotificationService {
       return enabled;
     } catch (error) {
       console.error('[Push] Error solicitando permiso:', error);
-      void this.logPushActivation(
+      void this.logActivationFailureWithDiagnostics(
         'permission_flow_error',
-        'error',
         'Error solicitando permiso o creando subscription',
-        { error: this.serializeError(error) },
+        error,
       );
       this.checkPermissionStatus();
       this.updateOneSignalSubscriptionState();
@@ -1261,8 +1384,11 @@ export class PushNotificationService {
       return `El navegador no ha mostrado o aceptado el permiso. Revisa que ${browserName} permita pedir notificaciones y vuelve a pulsar Activar.`;
     }
 
+    // Los fallos definitivos de carga ya los ha resuelto getActivationBlocker()
+    // más arriba con un mensaje concreto. Si se llega aquí, el SDK sigue en
+    // camino: lo unico sensato es esperar, no reinstalar la app.
     if (!this.oneSignalReady) {
-      return 'OneSignal no ha terminado de cargar. Cierra la app por completo y abrela de nuevo.';
+      return 'El servicio de notificaciones todavia esta cargando. Espera unos segundos y vuelve a pulsar Activar.';
     }
 
     if (!state.id && !state.token) {
@@ -1428,11 +1554,12 @@ export class PushNotificationService {
       );
       return enabled;
     } catch (error) {
-      void this.logPushActivation(
+      // Deliberadamente sin await: el mensaje tiene que llegar al usuario ya, y
+      // el diagnostico incluye una sonda de red que puede tardar unos segundos.
+      void this.logActivationFailureWithDiagnostics(
         'activation_exception',
-        'error',
         'Excepcion activando notificaciones',
-        { error: this.serializeError(error) },
+        error,
       );
       throw error;
     }

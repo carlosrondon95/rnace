@@ -33,59 +33,244 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
 
-  <!-- OneSignal SDK -->
-  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <!-- OneSignal SDK
+       El script publico de OneSignal (page.js) es solo un cargador de 600 bytes:
+       comprueba la compatibilidad del navegador y, si la pasa, inyecta el bundle
+       real (page.es6.js) desde su CDN. Si cualquiera de esas dos cosas falla, el
+       cargador NO avisa: se queda callado y OneSignalDeferred nunca se vacia, asi
+       que `OneSignal.init()` se queda colgado para siempre. Eso es lo que veian
+       algunos clientes como "OneSignal no ha terminado de cargar" tras 30s.
+
+       Aqui se envuelve esa carga para que cada fallo sea explicito e inmediato:
+       - se replica la misma puerta de compatibilidad que usa OneSignal, para
+         detectar en el acto un navegador que nunca va a poder suscribirse;
+       - se vigila la carga con un watchdog, en vez de esperar indefinidamente;
+       - si el CDN no responde (bloqueadores, DNS privado, VPN, antivirus), se
+         reintenta a traves de /onesignal-sdk/*, que es un proxy de primera parte
+         definido en public/_redirects y por tanto no esta en las listas de bloqueo.
+       El resultado queda en window.RNACEOneSignalStatus para que la app pueda
+       explicarle al usuario que le pasa exactamente. -->
   <script>
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.RNACEInitOneSignal = function(force) {
-      if (window.OneSignalInitPromise && !force) {
-        return window.OneSignalInitPromise;
+    (function () {
+      var CDN_BASE = "https://cdn.onesignal.com/sdks/web/v16";
+      var PROXY_BASE = "/onesignal-sdk";
+      var LOADER_FILE = "OneSignalSDK.page.js";
+      // Solo se usa si el proxy tampoco puede darnos el nombre real del bundle.
+      var FALLBACK_BUNDLE = "OneSignalSDK.page.es6.js";
+      var SDK_WATCHDOG_MS = 10000;
+
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+
+      var status = {
+        browserCompatible: null,
+        source: null,
+        sdkLoaded: false,
+        failure: null,
+        error: null,
+        attempts: []
+      };
+      window.RNACEOneSignalStatus = status;
+
+      // Misma comprobacion que hace el cargador oficial de OneSignal. Si esto es
+      // false, su cargador se limita a un console.info("Incompatible browser.")
+      // y no descarga nada mas, asi que no tiene sentido esperar.
+      function isBrowserCompatible() {
+        try {
+          var hasPushOptions =
+            typeof PushSubscriptionOptions !== "undefined" &&
+            PushSubscriptionOptions.prototype.hasOwnProperty("applicationServerKey");
+          var hasSafariPush =
+            typeof window.safari !== "undefined" &&
+            typeof window.safari.pushNotification !== "undefined";
+          return Boolean(hasPushOptions || hasSafariPush);
+        } catch (error) {
+          return false;
+        }
       }
 
-      var initPromise = new Promise(function(resolve, reject) {
-        window.OneSignalDeferred.push(async function(OneSignal) {
-          try {
-            await OneSignal.init({
-              appId: "40e80da3-452e-4482-81df-6b7bf447a9a1",
-              safari_web_id: "web.onesignal.auto.2a0b8f88-f61f-4cbf-954f-aff96911a546",
-              serviceWorkerPath: "OneSignalSDKWorker.js",
-              serviceWorkerParam: { scope: "/" },
-              autoResubscribe: true,
-              notifyButton: {
-                enable: false,
+      function loadScript(src) {
+        return new Promise(function (resolve, reject) {
+          var script = document.createElement("script");
+          script.src = src;
+          script.defer = true;
+          script.onload = function () { resolve(); };
+          script.onerror = function () { reject(new Error("No se pudo cargar " + src)); };
+          document.head.appendChild(script);
+        });
+      }
+
+      // El SDK esta realmente listo cuando el bundle define window.OneSignal.
+      // Que el cargador responda 200 no garantiza nada: puede haber decidido
+      // no inyectar el bundle.
+      function waitForSdkGlobal(timeoutMs) {
+        return new Promise(function (resolve, reject) {
+          var startedAt = Date.now();
+          (function poll() {
+            if (window.OneSignal) {
+              resolve();
+              return;
+            }
+            if (Date.now() - startedAt >= timeoutMs) {
+              reject(new Error("El bundle de OneSignal no se cargo tras " + timeoutMs / 1000 + "s"));
+              return;
+            }
+            setTimeout(poll, 150);
+          })();
+        });
+      }
+
+      // El cargador oficial trae la URL del bundle con su version dentro
+      // (?v=160609). Se lee de ahi en vez de fijarla a mano para no quedarnos
+      // anclados a una version que OneSignal puede retirar.
+      function loadBundleThroughProxy() {
+        // Si el bundle del CDN llego tarde pero llego, no se inyecta otro.
+        if (window.OneSignal) return Promise.resolve();
+
+        return fetch(PROXY_BASE + "/" + LOADER_FILE, { cache: "no-store" })
+          .then(function (response) {
+            if (!response.ok) throw new Error("Proxy respondio " + response.status);
+            return response.text();
+          })
+          .then(function (loaderSource) {
+            if (window.OneSignal) return;
+            var match = loaderSource.match(/OneSignalSDK\.page\.es6\.js(\?v=[0-9]+)?/);
+            return loadScript(PROXY_BASE + "/" + (match ? match[0] : FALLBACK_BUNDLE));
+          });
+      }
+
+      var loaderPromise = (function () {
+        status.browserCompatible = isBrowserCompatible();
+
+        if (!status.browserCompatible) {
+          status.failure = "incompatible_browser";
+          status.error = "El navegador no expone PushSubscriptionOptions.applicationServerKey";
+          console.warn("[Push] " + status.error);
+          return Promise.reject(new Error("onesignal_incompatible_browser"));
+        }
+
+        function ready(source) {
+          status.source = source;
+          status.sdkLoaded = true;
+        }
+
+        function fail(reason, error) {
+          status.failure = reason;
+          status.error = String((error && error.message) || error);
+          console.error("[Push] No se pudo cargar el SDK de OneSignal", reason, status.attempts);
+          throw new Error("onesignal_" + reason);
+        }
+
+        return loadScript(CDN_BASE + "/" + LOADER_FILE).then(
+          function () {
+            // El cargador del CDN se ejecuto, asi que el bundle viene de camino.
+            // Aqui NO se reintenta por el proxy: inyectar un segundo bundle
+            // podria ejecutar el SDK dos veces si el primero llega tarde.
+            status.attempts.push({ source: "cdn", script: "ok" });
+            return waitForSdkGlobal(SDK_WATCHDOG_MS).then(
+              function () { ready("cdn"); },
+              function (error) {
+                status.attempts.push({ source: "cdn", bundle: "missing" });
+                return fail("sdk_bundle_blocked", error);
               },
-              promptOptions: {
-                slidedown: {
-                  prompts: [
-                    {
-                      type: "push",
-                      autoPrompt: false,
-                      text: {
-                        actionMessage: "Activa las notificaciones para recibir avisos de reservas y plazas libres.",
-                        acceptButton: "Permitir",
-                        cancelButton: "Ahora no"
-                      }
+            );
+          },
+          function (cdnError) {
+            // Error de red en el propio cargador: no se ha inyectado nada, asi
+            // que reintentar por el proxy no puede duplicar el bundle.
+            status.attempts.push({
+              source: "cdn",
+              script: "error",
+              error: String((cdnError && cdnError.message) || cdnError),
+            });
+            console.warn("[Push] El CDN de OneSignal no responde, probando proxy propio", cdnError);
+
+            return loadBundleThroughProxy()
+              .then(function () { return waitForSdkGlobal(SDK_WATCHDOG_MS); })
+              .then(
+                function () {
+                  status.attempts.push({ source: "proxy", script: "ok" });
+                  ready("proxy");
+                },
+                function (proxyError) {
+                  status.attempts.push({
+                    source: "proxy",
+                    script: "error",
+                    error: String((proxyError && proxyError.message) || proxyError),
+                  });
+                  return fail("sdk_unreachable", proxyError);
+                },
+              );
+          },
+        );
+      })();
+
+      window.RNACEOneSignalLoaderPromise = loaderPromise;
+      // Sin este catch el rechazo del loader se reporta como unhandled en consola.
+      loaderPromise.catch(function () {});
+
+      var initOncePromise = null;
+
+      function initOnce() {
+        if (initOncePromise) return initOncePromise;
+
+        var promise = loaderPromise.then(function () {
+          return new Promise(function (resolve, reject) {
+            window.OneSignalDeferred.push(async function (OneSignal) {
+              try {
+                await OneSignal.init({
+                  appId: "40e80da3-452e-4482-81df-6b7bf447a9a1",
+                  safari_web_id: "web.onesignal.auto.2a0b8f88-f61f-4cbf-954f-aff96911a546",
+                  serviceWorkerPath: "OneSignalSDKWorker.js",
+                  serviceWorkerParam: { scope: "/" },
+                  autoResubscribe: true,
+                  notifyButton: {
+                    enable: false,
+                  },
+                  promptOptions: {
+                    slidedown: {
+                      prompts: [
+                        {
+                          type: "push",
+                          autoPrompt: false,
+                          text: {
+                            actionMessage: "Activa las notificaciones para recibir avisos de reservas y plazas libres.",
+                            acceptButton: "Permitir",
+                            cancelButton: "Ahora no"
+                          }
+                        }
+                      ]
                     }
-                  ]
-                }
+                  }
+                });
+                resolve(OneSignal);
+              } catch (error) {
+                console.error("[Push] Error inicializando OneSignal", error);
+                reject(error);
               }
             });
-            resolve(OneSignal);
-          } catch (error) {
-            console.error("[Push] Error inicializando OneSignal", error);
-            if (window.OneSignalInitPromise === initPromise) {
-              window.OneSignalInitPromise = undefined;
-            }
-            reject(error);
-          }
+          });
         });
-      });
 
-      window.OneSignalInitPromise = initPromise;
-      return initPromise;
-    };
+        initOncePromise = promise;
 
-    window.RNACEInitOneSignal().catch(function() {});
+        // Un init() fallido si se puede reintentar; uno que ya salio bien no,
+        // porque llamar a OneSignal.init() dos veces lanza "already initialized".
+        promise.catch(function () {
+          if (initOncePromise === promise) initOncePromise = null;
+          if (window.OneSignalInitPromise === promise) window.OneSignalInitPromise = undefined;
+        });
+
+        return promise;
+      }
+
+      window.RNACEInitOneSignal = function () {
+        var promise = initOnce();
+        window.OneSignalInitPromise = promise;
+        return promise;
+      };
+
+      window.RNACEInitOneSignal().catch(function () {});
+    })();
   </script>
 </head>
 
