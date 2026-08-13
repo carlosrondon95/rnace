@@ -2,6 +2,7 @@ import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject } from 'rxjs';
 import { supabase } from './supabase.client';
+import { haySesionUtilizable, leerTokenValido, leerUsuarioIdGuardado } from './session-token';
 
 export interface PushNotification {
   tipo: string;
@@ -115,7 +116,12 @@ export class PushNotificationService {
       }
 
       // Al abrir la app, dejamos OneSignal listo y vinculado si ya hay usuario local.
-      if (isSupported && this.getUserId() && !this.isOptedOut()) {
+      //
+      // Se exige token VÁLIDO, no solo que exista `rnace_usuario`: este servicio
+      // se construye antes de que AuthService valide la sesión guardada, así que
+      // con un token caducado se llamaba a OneSignal.login() con un id obsoleto
+      // y después todas las escrituras morían con un 401 silencioso.
+      if (isSupported && haySesionUtilizable() && !this.isOptedOut()) {
         if (!this.initPromise) {
           this.initPromise = this.initializeOneSignal();
         }
@@ -938,21 +944,16 @@ export class PushNotificationService {
   // Obtener userId desde localStorage (tu sistema de auth)
   private getUserId(): string | null {
     if (!isPlatformBrowser(this.platformId)) return null;
-    try {
-      const guardado = localStorage.getItem('rnace_usuario');
-      if (guardado) {
-        const usuario = JSON.parse(guardado);
-        return usuario.id || null;
-      }
-    } catch (error) {
-      console.error('[Push] Error obteniendo userId:', error);
-    }
-    return null;
+    return leerUsuarioIdGuardado();
   }
 
+  /**
+   * Devuelve el token solo si sigue vigente. Con uno caducado no merece la pena
+   * ni intentar la llamada: el servidor responderia 401 y perderiamos el aviso.
+   */
   private getAuthToken(): string | null {
     if (!isPlatformBrowser(this.platformId)) return null;
-    return localStorage.getItem('rnace_token');
+    return leerTokenValido();
   }
 
   private async saveCurrentSubscription(
@@ -966,7 +967,21 @@ export class PushNotificationService {
     const state = this._oneSignalSubscription.value;
     const externalId = state.externalId === usuarioId ? state.externalId : usuarioId;
 
-    if (!usuarioId || !authToken || !state.id) {
+    // Antes esto era un `return false` mudo, así que una sesión caducada dejaba
+    // de registrar el dispositivo sin dejar rastro en ningún sitio: la app
+    // parecía funcionar y los avisos simplemente no llegaban. Ahora se distingue
+    // el motivo y se deja constancia en consola.
+    if (!usuarioId || !authToken) {
+      console.warn(
+        `[Push] ${contexto}: sin sesión válida, no se registra el dispositivo. ` +
+          'Se reintentará cuando se renueve la sesión.',
+      );
+      return false;
+    }
+
+    if (!state.id) {
+      // Normal durante el arranque: OneSignal todavía no ha entregado la
+      // suscripción. Los listeners de ciclo de vida lo reintentan.
       return false;
     }
 

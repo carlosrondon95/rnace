@@ -2,6 +2,14 @@
 <div class="login-page">
   <div class="login-card">
     <form (ngSubmit)="onSubmit()" class="login-form">
+      <!-- Aviso de sesión cerrada automáticamente -->
+      @if (aviso(); as msg) {
+      <div class="info-box">
+        <span class="material-symbols-rounded">info</span>
+        {{ msg }}
+      </div>
+      }
+
       <!-- Teléfono -->
       <div class="form-group">
         <label for="telefono">Teléfono</label>

@@ -2,8 +2,8 @@
 import { serve } from 'std/http/server.ts';
 import { createClient } from '@supabase/supabase-js';
 import * as bcrypt from 'bcrypt';
-import { create, getNumericDate } from 'djwt';
 import { corsHeaders } from '../_shared/cors.ts';
+import { mintAccessToken } from '../_shared/mint-token.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -52,35 +52,10 @@ serve(async (req: Request) => {
       );
     }
 
-    // 3. Mint JWT Token
-    // We create a token that looks like a Supabase Auth token
-    const payload = {
-      aud: 'authenticated',
-      exp: getNumericDate(60 * 60 * 24 * 7), // 1 week
-      sub: usuario.id,
-      email: `${telefonoLimpio}@rnace.app`, // Dummy email
-      phone: telefonoLimpio,
-      role: 'authenticated',
-      app_metadata: {
-        provider: 'phone',
-        providers: ['phone'],
-        rol: usuario.rol // Move role here for security
-      },
-      user_metadata: {
-        nombre: usuario.nombre
-      }
-    };
-
-    // Need Key in CryptoKey format for djwt
-    const key = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(JWT_SECRET),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign", "verify"],
-    );
-
-    const token = await create({ alg: "HS256", typ: "JWT" }, payload, key);
+    // 3. Emitir el JWT.
+    // La firma vive en _shared/mint-token.ts, compartida con `refresh-session`,
+    // para que un token renovado sea equivalente a uno recién emitido.
+    const token = await mintAccessToken(usuario, JWT_SECRET);
 
     return new Response(
       JSON.stringify({

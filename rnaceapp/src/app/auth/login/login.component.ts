@@ -4,6 +4,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
+import { MotivoFinSesion, SESSION_END_REASON_KEY } from '../../core/session-token';
 
 @Component({
   standalone: true,
@@ -21,6 +22,7 @@ export class LoginComponent {
   password = signal('');
   cargando = signal(false);
   error = signal<string | null>(null);
+  aviso = signal<string | null>(null);
 
   constructor() {
     // Si ya está logueado en la app, ir al dashboard
@@ -30,11 +32,33 @@ export class LoginComponent {
       // Limpieza preventiva de sesiones caducadas de Supabase
       // Esto soluciona problemas de login tras mucho tiempo inactivo
       localStorage.removeItem('sb-bpzdpsmwtsmwrlyxzcsk-auth-token');
+
+      this.mostrarMotivoDeCierre();
+    }
+  }
+
+  /**
+   * Si la sesión se cerró sola, explicar por qué. Antes se expulsaba al usuario
+   * a esta pantalla sin ninguna indicación, que es literalmente la queja que
+   * llegaba del centro ("se les cierra sin saberlo").
+   */
+  private mostrarMotivoDeCierre() {
+    const motivo = localStorage.getItem(SESSION_END_REASON_KEY) as MotivoFinSesion | null;
+    if (!motivo) return;
+
+    // Se consume una sola vez: si no, reaparecería en cada visita a /login.
+    localStorage.removeItem(SESSION_END_REASON_KEY);
+
+    if (motivo === 'desactivada') {
+      this.aviso.set('Tu cuenta está desactivada. Contacta con el centro.');
+    } else {
+      this.aviso.set('Tu sesión ha caducado. Vuelve a entrar para continuar.');
     }
   }
 
   async onSubmit() {
     this.error.set(null);
+    this.aviso.set(null);
 
     const tel = this.telefono().trim();
     const pass = this.password();

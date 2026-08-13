@@ -10,7 +10,9 @@ export const authGuard: CanActivateFn = async () => {
   if (auth.estaLogueado()) {
     const usuario = auth.usuario();
     if (usuario && !usuario.activo) {
-      await auth.logout();
+      // Cierre automático: se pasa el motivo para que /login lo explique en vez
+      // de dejar al usuario delante de un formulario sin saber qué ha pasado.
+      await auth.logout('desactivada');
       router.navigateByUrl('/login');
       return false;
     }
