@@ -1479,20 +1479,6 @@ export class CalendarioComponent implements OnInit {
                 usuario_telefono: this.auth.usuario()?.telefono || '',
               }));
             }
-
-            // Cargar tipo de grupo del usuario
-            try {
-              const { data: planData } = await client
-                .from('planes')
-                .select('tipo_grupo')
-                .eq('usuario_id', uid)
-                .maybeSingle();
-              if (planData?.tipo_grupo) {
-                this.tipoGrupoUsuario.set(planData.tipo_grupo as 'focus' | 'reducido' | 'hibrido');
-              }
-            } catch (err) {
-              console.warn('Error cargando tipo de grupo:', err);
-            }
           }
         }
       } catch (err) {

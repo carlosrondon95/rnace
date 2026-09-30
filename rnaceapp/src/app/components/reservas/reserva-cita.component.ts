@@ -41,6 +41,9 @@ interface DiaAgrupado {
   sesiones: Sesion[];
   esFestivo: boolean;
   tipoCierre?: 'festivo' | 'vacaciones' | null;
+  // Día (de hoy en adelante) que pertenece al mes anterior/siguiente al visto:
+  // sus sesiones no se cargan aquí, así que se muestra un acceso a ese mes.
+  otroMes: 'anterior' | 'siguiente' | null;
 }
 
 interface SemanaAgrupada {
@@ -86,6 +89,12 @@ export class ReservaCitaComponent implements OnInit {
     const fecha = new Date(anio, mes - 1, 1);
     const nombreMes = fecha.toLocaleDateString('es-ES', { month: 'long' });
     return `${nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1)} ${anio}`;
+  });
+
+  // new Date(anio, mes, 1) es el día 1 del mes siguiente (mes va de 1 a 12)
+  nombreMesSiguiente = computed(() => {
+    const { anio, mes } = this.mesActual();
+    return new Date(anio, mes, 1).toLocaleDateString('es-ES', { month: 'long' });
   });
 
   // Recuperaciones filtradas por modalidad actual
@@ -143,6 +152,13 @@ export class ReservaCitaComponent implements OnInit {
     const semanas: SemanaAgrupada[] = [];
     let numeroSemana = 1;
 
+    // Las semanas se pintan completas (lun-vie) pero solo se cargan las sesiones
+    // del mes visto: los días del mes contiguo no deben aparecer como "Sin sesiones".
+    const { anio, mes } = this.mesActual();
+    const mesVisto = `${anio}-${mes.toString().padStart(2, '0')}`;
+    const ahora = new Date();
+    const hoyStr = `${ahora.getFullYear()}-${(ahora.getMonth() + 1).toString().padStart(2, '0')}-${ahora.getDate().toString().padStart(2, '0')}`;
+
     const getLunes = (fecha: string): Date => {
       const d = new Date(fecha + 'T12:00:00');
       const day = d.getDay();
@@ -171,6 +187,13 @@ export class ReservaCitaComponent implements OnInit {
           tipoCierre = descFestivo?.toLowerCase().includes('vacaciones') ? 'vacaciones' : 'festivo';
         }
 
+        let otroMes: DiaAgrupado['otroMes'] = null;
+        if (fechaStr >= hoyStr) {
+          const mesDia = fechaStr.slice(0, 7);
+          if (mesDia < mesVisto) otroMes = 'anterior';
+          else if (mesDia > mesVisto) otroMes = 'siguiente';
+        }
+
         const dia: DiaAgrupado = {
           fecha: fechaStr,
           diaNombre: diaFecha.toLocaleDateString('es-ES', { weekday: 'short' }),
@@ -178,6 +201,7 @@ export class ReservaCitaComponent implements OnInit {
           sesiones: esFestivo ? [] : (sesionesPorFecha.get(fechaStr) || []),
           esFestivo,
           tipoCierre,
+          otroMes,
         };
 
         semanaActual.push(dia);
@@ -357,8 +381,8 @@ export class ReservaCitaComponent implements OnInit {
 
     const tieneReserva = new Set((reservasData || []).map(r => r.sesion_id));
 
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    // Una sesión que ya ha empezado cuenta como pasada (misma regla que usar_recuperacion)
+    const ahora = new Date();
 
     // Guardar festivos para usarlos en la vista
     this.festivosMes.set(festivosMap);
@@ -367,7 +391,7 @@ export class ReservaCitaComponent implements OnInit {
       .filter(s => !tieneReserva.has(s.sesion_id) && !festivosMap.has(s.fecha)) // Excluir donde ya tiene reserva o es festivo
       .map(s => {
         const fechaSesion = new Date(s.fecha + 'T' + s.hora);
-        const esPasada = fechaSesion < hoy;
+        const esPasada = fechaSesion < ahora;
 
         let estado: Sesion['estado'];
         if (esPasada) {
@@ -415,6 +439,12 @@ export class ReservaCitaComponent implements OnInit {
     }
     this.sesionSeleccionada.set(null);
     this.cargarDatos();
+  }
+
+  // Día de un mes contiguo mostrado en la semana: abre ese mes
+  irAOtroMes(dia: DiaAgrupado) {
+    if (dia.otroMes === 'anterior') this.mesAnterior();
+    else if (dia.otroMes === 'siguiente') this.mesSiguiente();
   }
 
   selectModalidad(mod: Modalidad) {
@@ -593,6 +623,11 @@ export class ReservaCitaComponent implements OnInit {
   formatearFecha(fecha: string): string {
     const d = new Date(fecha + 'T12:00:00');
     return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+  }
+
+  nombreMesDeFecha(fecha: string): string {
+    const d = new Date(fecha + 'T12:00:00');
+    return d.toLocaleDateString('es-ES', { month: 'long' });
   }
 
   esValidaParaMesActual(recup: Recuperacion): boolean {

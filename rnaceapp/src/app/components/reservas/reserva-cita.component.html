@@ -138,6 +138,17 @@
               </span>
               <span>{{ dia.tipoCierre === 'vacaciones' ? 'Vacaciones' : 'Festivo' }}</span>
             </div>
+            } @else if (dia.otroMes) {
+            <button type="button" class="dia-otro-mes" (click)="irAOtroMes(dia)"
+              [attr.aria-label]="'Ver las sesiones de ' + nombreMesDeFecha(dia.fecha)">
+              @if (dia.otroMes === 'anterior') {
+              <span class="material-symbols-rounded">chevron_left</span>
+              }
+              <span>Ver {{ nombreMesDeFecha(dia.fecha) }}</span>
+              @if (dia.otroMes === 'siguiente') {
+              <span class="material-symbols-rounded">chevron_right</span>
+              }
+            </button>
             } @else if (dia.sesiones.length === 0) {
             <div class="dia-vacio">
               <span>Sin sesiones</span>
@@ -164,6 +175,10 @@
     <div class="no-sesiones">
       <span class="material-symbols-rounded">event_busy</span>
       <p>No hay sesiones de {{ getNombreModalidad(modalidad()) }} disponibles este mes.</p>
+      <button type="button" class="btn-ver-mes" (click)="mesSiguiente()">
+        Ver {{ nombreMesSiguiente() }}
+        <span class="material-symbols-rounded">chevron_right</span>
+      </button>
     </div>
     }
 
