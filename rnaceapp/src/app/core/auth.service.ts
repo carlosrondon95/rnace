@@ -23,6 +23,13 @@ export interface Usuario {
   activo: boolean;
 }
 
+/** Errores con los que `refresh-session` rechaza de verdad una sesión (401). */
+const MOTIVOS_RECHAZO_SESION: readonly string[] = [
+  'Token invalido',
+  'Cuenta no encontrada',
+  'Cuenta desactivada',
+];
+
 @Injectable({
   providedIn: 'root',
 })
@@ -127,16 +134,21 @@ export class AuthService {
           headers: { 'x-rnace-token': token },
         });
 
-        if (error) {
-          const status = (error as { context?: Response }).context?.status;
+        // La sesión cambió mientras la petición estaba en vuelo (logout o entrada
+        // de otro usuario): la respuesta ya no corresponde a la sesión actual.
+        if (!this.estaLogueado() || leerToken() !== token) return;
 
-          // 401 = el servidor ha rechazado la sesión de forma explícita.
-          if (status === 401) {
-            await this.cerrarSesionPorRechazo(error);
+        if (error) {
+          // Solo es rechazo confirmado un 401 con el cuerpo propio de la función.
+          // Un 401 del gateway de Supabase (verify_jwt con la anon key rotada o
+          // con claves no JWT) no dice nada del token del alumno.
+          const motivoServidor = await this.leerMotivoRechazo(error);
+          if (motivoServidor) {
+            await this.cerrarSesionPorRechazo(motivoServidor);
             return;
           }
 
-          // Cualquier otra cosa (red, timeout, 5xx): conservamos la sesión.
+          // Cualquier otra cosa (red, timeout, 5xx, 401 ajeno): conservamos la sesión.
           console.warn('[Auth] No se pudo renovar la sesión, se conserva la actual:', error.message);
           return;
         }
@@ -183,18 +195,32 @@ export class AuthService {
     }
   }
 
-  /** Traduce el 401 de `refresh-session` en un motivo y cierra la sesión. */
-  private async cerrarSesionPorRechazo(error: unknown): Promise<void> {
-    let motivo: MotivoFinSesion = 'caducada';
+  /**
+   * Devuelve el motivo si el error es un rechazo emitido por `refresh-session`
+   * (401 con `{ success: false, error }`), o `null` en cualquier otro caso.
+   * 'Token requerido' se excluye a propósito: significa que no llegó la
+   * cabecera, no es un veredicto sobre el token.
+   */
+  private async leerMotivoRechazo(error: unknown): Promise<string | null> {
+    const respuesta = (error as { context?: Response }).context;
+    if (respuesta?.status !== 401) return null;
 
     try {
-      const body = await (error as { context: Response }).context.json();
-      if (body?.error === 'Cuenta desactivada' || body?.error === 'Cuenta no encontrada') {
-        motivo = 'desactivada';
-      }
+      const body = await respuesta.json();
+      const motivo = body?.success === false ? body.error : null;
+      return MOTIVOS_RECHAZO_SESION.includes(motivo) ? motivo : null;
     } catch {
-      // Cuerpo ilegible: lo tratamos como caducidad, que es el caso habitual.
+      // Cuerpo ilegible: no es la respuesta de la función (su 401 siempre es JSON).
+      return null;
     }
+  }
+
+  /** Cierra la sesión por un rechazo confirmado de `refresh-session`. */
+  private async cerrarSesionPorRechazo(motivoServidor: string): Promise<void> {
+    const motivo: MotivoFinSesion =
+      motivoServidor === 'Cuenta desactivada' || motivoServidor === 'Cuenta no encontrada'
+        ? 'desactivada'
+        : 'caducada';
 
     console.warn('[Auth] Sesión rechazada por el servidor:', motivo);
     await this.logout(motivo);

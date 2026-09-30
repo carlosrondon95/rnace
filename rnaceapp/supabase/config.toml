@@ -406,7 +406,10 @@ entrypoint = "./functions/push-activation-log/index.ts"
 
 [functions.refresh-session]
 enabled = true
-verify_jwt = true
+# false a propósito: la función autentica con su propio token (x-rnace-token).
+# El gateway solo comprobaría la anon key, que es pública, y un 401 suyo (p. ej.
+# tras rotar claves) no debe tomarse como un rechazo de la sesión del alumno.
+verify_jwt = false
 import_map = "./functions/refresh-session/deno.json"
 entrypoint = "./functions/refresh-session/index.ts"
 
