@@ -132,7 +132,15 @@ export class ReservaCitaComponent implements OnInit {
       s => s.modalidad === mod && s.estado !== 'pasada'
     );
 
-    if (sesionesFiltradas.length === 0 && festivos.size === 0) return [];
+    const ahora = new Date();
+    const hoyStr = `${ahora.getFullYear()}-${(ahora.getMonth() + 1).toString().padStart(2, '0')}-${ahora.getDate().toString().padStart(2, '0')}`;
+
+    // Solo cuentan los festivos de hoy en adelante: una semana ya pasada no sirve
+    // para recuperar, y si solo quedasen esas taparían el aviso de "no hay
+    // sesiones" con su acceso al mes siguiente.
+    const festivosVigentes = [...festivos.keys()].filter(f => f >= hoyStr);
+
+    if (sesionesFiltradas.length === 0 && festivosVigentes.length === 0) return [];
 
     // Agrupar sesiones por fecha
     const sesionesPorFecha = new Map<string, Sesion[]>();
@@ -145,7 +153,7 @@ export class ReservaCitaComponent implements OnInit {
     });
 
     // Combinar fechas con sesiones y fechas festivas para determinar rango de semanas
-    const todasLasFechas = new Set([...sesionesPorFecha.keys(), ...festivos.keys()]);
+    const todasLasFechas = new Set([...sesionesPorFecha.keys(), ...festivosVigentes]);
     const fechasOrdenadas = Array.from(todasLasFechas).sort();
     if (fechasOrdenadas.length === 0) return [];
 
@@ -156,8 +164,6 @@ export class ReservaCitaComponent implements OnInit {
     // del mes visto: los días del mes contiguo no deben aparecer como "Sin sesiones".
     const { anio, mes } = this.mesActual();
     const mesVisto = `${anio}-${mes.toString().padStart(2, '0')}`;
-    const ahora = new Date();
-    const hoyStr = `${ahora.getFullYear()}-${(ahora.getMonth() + 1).toString().padStart(2, '0')}-${ahora.getDate().toString().padStart(2, '0')}`;
 
     const getLunes = (fecha: string): Date => {
       const d = new Date(fecha + 'T12:00:00');
@@ -207,7 +213,9 @@ export class ReservaCitaComponent implements OnInit {
         semanaActual.push(dia);
       }
 
-      const tieneSesiones = semanaActual.some(d => d.sesiones.length > 0 || d.esFestivo);
+      const tieneSesiones = semanaActual.some(
+        d => d.sesiones.length > 0 || (d.esFestivo && d.fecha >= hoyStr)
+      );
 
       if (tieneSesiones) {
         const primerDia = currentLunes.getDate();
