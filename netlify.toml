@@ -13,6 +13,14 @@
   function = "canonical-domain"
   path = "/*"
 
+# Proxy del SDK de OneSignal (plan B si cdn.onesignal.com esta bloqueado).
+# Va como Edge Function porque el SSR de Angular tambien lo es y se adelanta a
+# public/_redirects. Declarada despues de canonical-domain para que la
+# redireccion de dominio siga ejecutandose primero.
+[[edge_functions]]
+  function = "onesignal-proxy"
+  path = "/onesignal-sdk/*"
+
 # ====================================================================
 # Redirecciones de dominio canonical
 # ====================================================================

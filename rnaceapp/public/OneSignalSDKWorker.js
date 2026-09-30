@@ -4,9 +4,9 @@
 // lanza, la instalacion del service worker falla y el navegador no puede crear
 // ninguna suscripcion push, aunque el permiso este concedido.
 //
-// /onesignal-sdk/ es un proxy de primera parte definido en public/_redirects:
-// sirve el mismo fichero a traves de centrornace.com, que no aparece en las
-// listas de bloqueo por dominio.
+// /onesignal-sdk/ es un proxy de primera parte (Edge Function onesignal-proxy,
+// en netlify/edge-functions): sirve el mismo fichero a traves de
+// centrornace.com, que no aparece en las listas de bloqueo por dominio.
 try {
   importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 } catch (error) {

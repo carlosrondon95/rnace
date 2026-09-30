@@ -47,7 +47,7 @@
        - se vigila la carga con un watchdog, en vez de esperar indefinidamente;
        - si el CDN no responde (bloqueadores, DNS privado, VPN, antivirus), se
          reintenta a traves de /onesignal-sdk/*, que es un proxy de primera parte
-         definido en public/_redirects y por tanto no esta en las listas de bloqueo.
+         (Edge Function onesignal-proxy) y por tanto no esta en las listas de bloqueo.
        El resultado queda en window.RNACEOneSignalStatus para que la app pueda
        explicarle al usuario que le pasa exactamente. -->
   <script>
