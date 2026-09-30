@@ -71,13 +71,22 @@ serve(async (req: Request) => {
     //    token viejo: se releen de la base de datos en cada renovación.
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // maybeSingle y no single: "no existe" llega como data = null sin error, así
+    // que un error aquí es siempre un fallo de la consulta (timeout, 5xx...).
     const { data: usuario, error } = await supabase
       .from('usuarios')
       .select('id, telefono, nombre, rol, activo')
       .eq('id', payload.sub)
-      .single();
+      .maybeSingle();
 
-    if (error || !usuario) {
+    if (error) {
+      // No es un rechazo: 500 para que el cliente conserve la sesión. Con un 401
+      // el cliente cerraría la sesión diciendo "Tu cuenta está desactivada".
+      console.error('[refresh-session] Error leyendo el usuario:', error);
+      return json({ success: false, error: 'Error interno' }, 500);
+    }
+
+    if (!usuario) {
       // Usuario borrado: rechazo confirmado, el cliente debe cerrar sesión.
       return json({ success: false, error: 'Cuenta no encontrada' }, 401);
     }
