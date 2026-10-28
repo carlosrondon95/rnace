@@ -990,10 +990,32 @@
         </div>
 
         <div class="opciones-reclamar">
+          @if (cargandoReclamar()) {
+          <div class="loading-inline" role="status">
+            <span class="spinner-small"></span>
+            Cargando tus opciones…
+          </div>
+          } @else {
+          @if (hayOpcionesReclamar() || errorCargaReclamar()) {
           <p class="opciones-titulo">¿Cómo quieres reclamar esta plaza?</p>
+          }
+
+          <!-- Error al cargar: se ven las opciones que sí cargaron y se puede reintentar -->
+          @if (errorCargaReclamar()) {
+          <div class="no-opciones">
+            <span class="material-symbols-rounded">wifi_off</span>
+            <div>
+              <p role="alert">No se han podido cargar todas tus opciones. Comprueba tu conexión y vuelve a intentarlo.</p>
+              <button type="button" class="btn-volver-opcion" (click)="reintentarCargaReclamar()">
+                <span class="material-symbols-rounded">refresh</span>
+                Reintentar
+              </button>
+            </div>
+          </div>
+          }
 
           <!-- Opción 1: Cambiar reserva existente -->
-          @if (misReservasParaCambio().length > 0) {
+          @if (hayClaseCambiableReclamar()) {
           <button class="btn-opcion-reclamar" (click)="seleccionarOpcionReclamar('cambiar')">
             <span class="material-symbols-rounded">swap_horiz</span>
             <div class="opcion-texto">
@@ -1017,11 +1039,12 @@
           }
 
           <!-- Mensaje si no hay opciones -->
-          @if (misReservasParaCambio().length === 0 && recuperacionesDisponibles().length === 0) {
+          @if (!errorCargaReclamar() && !hayOpcionesReclamar()) {
           <div class="no-opciones">
             <span class="material-symbols-rounded">info</span>
-            <p>No tienes reservas para cambiar ni recuperaciones disponibles para esta modalidad.</p>
+            <p>Para reclamar esta plaza necesitas una clase del mismo mes que puedas cambiar o una recuperación válida para esta modalidad, y ahora mismo no tienes ninguna. Si crees que es un error, contacta con el centro.</p>
           </div>
+          }
           }
         </div>
         }
@@ -1030,7 +1053,7 @@
         @if (opcionReclamarSeleccionada() === 'cambiar') {
         <div class="cambiar-reserva-view animate-fade-in">
           <button class="btn-volver-opcion"
-            (click)="opcionReclamarSeleccionada.set(null); reservaSeleccionadaParaCambio.set(null)">
+            (click)="opcionReclamarSeleccionada.set(null); reservaSeleccionadaParaCambio.set(null); avisoReclamar.set(null)">
             <span class="material-symbols-rounded">arrow_back</span>
             Volver
           </button>
@@ -1042,6 +1065,13 @@
               {{ formatearFechaCambio(sesion.fecha) }} · {{ sesion.hora }}
             </p>
           </div>
+
+          @if (notaMismoDiaReclamar(); as nota) {
+          <p class="nota-mismo-dia-reclamar">
+            <span class="material-symbols-rounded">info</span>
+            <span>{{ nota }}</span>
+          </p>
+          }
 
           <div class="mini-calendario-grid">
             <div class="mini-calendario-header">
@@ -1055,13 +1085,34 @@
             <div class="mini-calendario-semana">
               @for (dia of semana; track dia?.fecha ?? $index) {
               @if (dia) {
-              @if (dia.tieneReserva && !dia.esPasado && !dia.esSesionTarget) {
+              @if (dia.reservas.length === 1) {
+              <!-- Una clase tuya ese día (puede ser el de la plaza libre): se toca toda la celda -->
               <button type="button" class="dia-cambio-btn dia-reserva"
-                [class.selected]="reservaSeleccionadaParaCambio() === dia.reservaId"
-                (click)="reservaSeleccionadaParaCambio.set(dia.reservaId)">
+                [class.dia-reserva-target]="dia.esSesionTarget"
+                [class.selected]="reservaSeleccionadaParaCambio() === dia.reservas[0].id"
+                (click)="seleccionarReservaReclamar(dia.reservas[0].id)">
                 <span class="dia-numero">{{ dia.dia }}</span>
-                <span class="dia-hora">{{ dia.hora }}</span>
+                <span class="dia-hora">{{ dia.reservas[0].hora }}</span>
+                @if (dia.esSesionTarget) {
+                <span class="dia-target-badge">Nueva</span>
+                }
               </button>
+              } @else if (dia.reservas.length > 1) {
+              <!-- Varias clases tuyas ese día: se toca la hora -->
+              <div class="dia-cambio-btn dia-reserva dia-reserva-multiple"
+                [class.dia-reserva-target]="dia.esSesionTarget">
+                <span class="dia-numero">{{ dia.dia }}</span>
+                @for (r of dia.reservas; track r.id) {
+                <button type="button" class="dia-hora-opcion"
+                  [class.selected]="reservaSeleccionadaParaCambio() === r.id"
+                  (click)="seleccionarReservaReclamar(r.id)">
+                  {{ r.hora }}
+                </button>
+                }
+                @if (dia.esSesionTarget) {
+                <span class="dia-target-badge">Nueva</span>
+                }
+              </div>
               } @else if (dia.esSesionTarget) {
               <button type="button" class="dia-cambio-btn dia-target" disabled>
                 <span class="dia-numero">{{ dia.dia }}</span>
@@ -1087,7 +1138,7 @@
             </span>
             <span class="leyenda-item-cambio">
               <span class="leyenda-color leyenda-target"></span>
-              Plaza libre
+              Día de la plaza libre
             </span>
           </div>
         </div>
@@ -1097,7 +1148,7 @@
         @if (opcionReclamarSeleccionada() === 'recuperacion') {
         <div class="recuperacion-view animate-fade-in">
           <button class="btn-volver-opcion"
-            (click)="opcionReclamarSeleccionada.set(null); recuperacionSeleccionada.set(null)">
+            (click)="opcionReclamarSeleccionada.set(null); recuperacionSeleccionada.set(null); avisoReclamar.set(null)">
             <span class="material-symbols-rounded">arrow_back</span>
             Volver
           </button>
@@ -1113,7 +1164,7 @@
           <div class="recuperaciones-lista">
             @for (recup of recuperacionesDisponibles(); track recup.id) {
             <button class="recuperacion-chip" [class.selected]="recuperacionSeleccionada() === recup.id"
-              (click)="recuperacionSeleccionada.set(recup.id)">
+              (click)="recuperacionSeleccionada.set(recup.id); avisoReclamar.set(null)">
               <span class="recup-modalidad">{{ recup.modalidad | titlecase }}</span>
               <span class="recup-origen">de {{ recup.mes_origen }}/{{ recup.anio_origen }}</span>
             </button>
@@ -1124,13 +1175,24 @@
       </div>
 
       <div class="modal-footer">
+        <!-- Error de la última acción (rojo) o qué falta para poder reclamar -->
+        @if (avisoReclamar()) {
+        <p class="reclamar-mensaje reclamar-mensaje--error" role="alert">
+          <span class="material-symbols-rounded">error</span>
+          <span>{{ avisoReclamar() }}</span>
+        </p>
+        } @else if (!cargandoReclamar() && hayOpcionesReclamar() && ayudaReclamarPlaza()) {
+        <p class="reclamar-mensaje" aria-live="polite">
+          <span class="material-symbols-rounded">info</span>
+          <span>{{ ayudaReclamarPlaza() }}</span>
+        </p>
+        }
         <button class="btn-cancelar" (click)="cerrarModalReclamarPlaza()" [disabled]="reclamandoPlaza()">
-          Cancelar
+          {{ cargandoReclamar() || hayOpcionesReclamar() ? 'Cancelar' : 'Cerrar' }}
         </button>
-        <button class="btn-confirmar btn-success" [disabled]="!opcionReclamarSeleccionada() || 
-                           (opcionReclamarSeleccionada() === 'cambiar' && !reservaSeleccionadaParaCambio()) ||
-                           (opcionReclamarSeleccionada() === 'recuperacion' && !recuperacionSeleccionada()) ||
-                           reclamandoPlaza()" (click)="confirmarReclamarPlaza()">
+        @if (!cargandoReclamar() && hayOpcionesReclamar()) {
+        <button class="btn-confirmar btn-success" [class.btn-confirmar--incompleto]="!!ayudaReclamarPlaza()"
+          [disabled]="!!ayudaReclamarPlaza() || reclamandoPlaza()" (click)="confirmarReclamarPlaza()">
           @if (reclamandoPlaza()) {
           <span class="spinner-small"></span>
           Reclamando...
@@ -1139,6 +1201,7 @@
           Reclamar Plaza
           }
         </button>
+        }
       </div>
     </div>
   </div>

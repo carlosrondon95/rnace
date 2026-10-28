@@ -46,6 +46,7 @@
     transition: all var(--transition-fast);
     position: relative;
     aspect-ratio: 1;
+    min-width: 0; // no crecer a lo ancho por el contenido: solo a lo alto
 
     .dia-nombre {
         font-size: 10px;
@@ -206,6 +207,71 @@
             opacity: 0.35;
         }
     }
+
+    // Modal "¡Plaza Disponible!": varias clases tuyas el mismo día. La celda no es
+    // un botón; cada hora es un botón propio.
+    &.dia-reserva-multiple {
+        cursor: default;
+        gap: 3px;
+
+        .dia-numero {
+            line-height: 1.2;
+        }
+
+        &:hover {
+            transform: none;
+            background: rgba(96, 165, 250, 0.15);
+            border-color: rgba(96, 165, 250, 0.4);
+        }
+
+        .dia-hora-opcion {
+            width: 100%;
+            padding: 4px 0;
+            border: 1px solid rgba(96, 165, 250, 0.5);
+            border-radius: 4px;
+            background: transparent;
+            color: #60a5fa;
+            font-size: 0.65rem;
+            font-weight: 600;
+            line-height: 1.2;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+
+            &:hover {
+                background: rgba(96, 165, 250, 0.25);
+            }
+
+            &.selected {
+                background: rgba(74, 222, 128, 0.2);
+                border-color: #4ade80;
+                color: #4ade80;
+            }
+        }
+    }
+
+    // Modal "¡Plaza Disponible!": tu clase el mismo día que la plaza libre. Se puede
+    // elegir (azul, con su hora) y además lleva el borde discontinuo verde y la
+    // etiqueta "Nueva" del día de la plaza. Va después de .dia-reserva y
+    // .dia-reserva-multiple para ganarles el borde (también en :hover).
+    &.dia-reserva.dia-reserva-target {
+        border: 2px dashed rgba(74, 222, 128, 0.6);
+
+        .dia-numero {
+            line-height: 1.2;
+        }
+
+        .dia-target-badge {
+            font-size: 0.55rem;
+            line-height: 1.2;
+            color: #4ade80;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        &.selected {
+            border-color: #4ade80;
+        }
+    }
 }
 
 .dia-cambio-placeholder {
@@ -239,8 +305,8 @@
 }
 
 .leyenda-target {
-    background: rgba(74, 222, 128, 0.3);
-    border: 1px solid rgba(74, 222, 128, 0.6);
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px dashed rgba(74, 222, 128, 0.8);
 }
 
 .leyenda-festivo-cambio {
@@ -452,7 +518,7 @@
 
 .mini-calendario-header {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 4px;
     margin-bottom: 2px;
 }
@@ -469,7 +535,10 @@
 
 .mini-calendario-semana {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    // minmax(0, 1fr): columnas siempre iguales. Con 1fr, una celda con más contenido
+    // (clase propia el día de la plaza, varias horas) ensanchaba toda su fila por el
+    // aspect-ratio y la última semana se salía por la derecha.
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 4px;
 }
 

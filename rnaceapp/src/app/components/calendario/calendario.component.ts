@@ -1,7 +1,7 @@
 // src/app/components/calendario/calendario.component.ts
 // ACTUALIZADO: Usa nuevas funciones del sistema de horarios fijos
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, afterNextRender, Injector } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { ConfirmationService } from '../../shared/confirmation-modal/confirmation.service';
@@ -196,6 +196,7 @@ export class CalendarioComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private confirmation = inject(ConfirmationService);
   private audit = inject(AuditService);
+  private injector = inject(Injector);
 
   // Estado
   cargando = signal(true);
@@ -285,6 +286,11 @@ export class CalendarioComponent implements OnInit {
   opcionReclamarSeleccionada = signal<'cambiar' | 'recuperacion' | null>(null);
   reservaSeleccionadaParaCambio = signal<number | null>(null);
   recuperacionSeleccionada = signal<number | null>(null);
+  // Mensajes y carga propios del modal "¡Plaza Disponible!". No se usa el toast
+  // global de error: no tiene botón de cierre y no se limpia al cerrar el modal.
+  avisoReclamar = signal<string | null>(null);
+  cargandoReclamar = signal(false);
+  errorCargaReclamar = signal(false);
 
   // === PANEL HORARIOS SEMANALES (ADMIN) ===
   panelHorariosExpandido = signal(false);
@@ -355,8 +361,18 @@ export class CalendarioComponent implements OnInit {
     const sesion = this.sesionReclamar();
     if (!sesion?.fecha) return [];
 
-    const reservas = this.misReservasParaCambio();
-    const reservasMap = new Map(reservas.map(r => [r.fecha, r]));
+    // Agrupar por fecha: un día puede tener varias clases propias y todas deben
+    // poder elegirse (el Map por fecha solo guardaba una). Se ignora una reserva
+    // en la propia sesión objetivo: no debería existir, porque el modal no se
+    // abre si ya tiene plaza en ella (abrirModalReclamarPlaza).
+    const reservasPorFecha = new Map<string, { id: number; hora: string }[]>();
+    for (const r of this.misReservasParaCambio()) {
+      if (r.sesion_id === sesion.id) continue;
+      const lista = reservasPorFecha.get(r.fecha) ?? [];
+      lista.push({ id: r.id, hora: r.hora });
+      reservasPorFecha.set(r.fecha, lista);
+    }
+    reservasPorFecha.forEach(lista => lista.sort((a, b) => a.hora.localeCompare(b.hora)));
 
     const fechaSesion = new Date(sesion.fecha + 'T12:00:00');
     const anio = fechaSesion.getFullYear();
@@ -371,11 +387,9 @@ export class CalendarioComponent implements OnInit {
     type DiaCalendarioReclamar = {
       fecha: string;
       dia: number;
-      tieneReserva: boolean;
-      reservaId: number | null;
-      hora: string | null;
+      reservas: { id: number; hora: string }[]; // clases propias elegibles (vacío si el día ya pasó)
       esPasado: boolean;
-      esSesionTarget: boolean;
+      esSesionTarget: boolean; // día de la plaza libre
     } | null;
 
     const semanas: DiaCalendarioReclamar[][] = [];
@@ -404,16 +418,13 @@ export class CalendarioComponent implements OnInit {
 
       // Only process weekdays (Mon-Fri = 0-4)
       if (diaSemana >= 0 && diaSemana <= 4) {
-        const reserva = reservasMap.get(fecha);
         const esPasado = fechaDate < hoy;
         const esSesionTarget = sesion.fecha === fecha;
 
         semanaActual.push({
           fecha,
           dia,
-          tieneReserva: !!reserva,
-          reservaId: reserva?.id ?? null,
-          hora: reserva?.hora ?? null,
+          reservas: esPasado ? [] : (reservasPorFecha.get(fecha) ?? []),
           esPasado,
           esSesionTarget
         });
@@ -438,6 +449,48 @@ export class CalendarioComponent implements OnInit {
     }
 
     return semanas;
+  });
+
+  // Hay al menos una clase propia que se puede tocar en el mini-calendario del modal
+  hayClaseCambiableReclamar = computed(() =>
+    this.semanasReclamarCalendario().some(semana => semana.some(dia => !!dia && dia.reservas.length > 0))
+  );
+
+  // Hay algo con lo que reclamar la plaza (cambiar una clase o usar una recuperación)
+  hayOpcionesReclamar = computed(() =>
+    this.hayClaseCambiableReclamar() || this.recuperacionesDisponibles().length > 0
+  );
+
+  // Qué falta para poder pulsar "Reclamar Plaza" (null = nada). Se muestra en el pie
+  // del modal y, junto con reclamandoPlaza, es lo único que deshabilita el botón.
+  ayudaReclamarPlaza = computed<string | null>(() => {
+    const opcion = this.opcionReclamarSeleccionada();
+    if (!opcion) return 'Primero elige arriba cómo quieres reclamar la plaza.';
+    if (opcion === 'cambiar' && !this.reservaSeleccionadaParaCambio()) {
+      return 'Toca en el calendario la clase que quieres cambiar por esta.';
+    }
+    if (opcion === 'recuperacion' && !this.recuperacionSeleccionada()) {
+      return 'Elige qué recuperación quieres usar.';
+    }
+    return null;
+  });
+
+  // Explica la celda combinada: ya tiene clase el mismo día de la plaza libre.
+  // Solo cuenta clases que aún se pueden cambiar (empiezan en más de 1 hora).
+  notaMismoDiaReclamar = computed<string | null>(() => {
+    const sesion = this.sesionReclamar();
+    if (!sesion) return null;
+    const limite = Date.now() + 60 * 60 * 1000;
+    const horas = this.misReservasParaCambio()
+      .filter(r => r.fecha === sesion.fecha && r.sesion_id !== sesion.id)
+      .filter(r => new Date(`${r.fecha}T${r.hora}:00`).getTime() > limite)
+      .map(r => r.hora)
+      .sort();
+    if (horas.length === 0) return null;
+    const dia = Number(sesion.fecha.slice(8, 10));
+    return horas.length === 1
+      ? `El día ${dia} ya tienes clase a las ${horas[0]}: tócala en el calendario si quieres cambiarla por la de las ${sesion.hora}.`
+      : `El día ${dia} ya tienes clase a las ${horas.join(' y a las ')}: toca la hora que quieras cambiar por la de las ${sesion.hora}.`;
   });
 
   // Computed: Sesiones del día seleccionado en modo cambio
@@ -977,6 +1030,10 @@ export class CalendarioComponent implements OnInit {
   }
 
   async abrirDiaDeSesion(sesionId: number) {
+    if (!Number.isInteger(sesionId) || sesionId <= 0) {
+      this.avisar('Aviso sin clase', 'Este aviso no indica a qué clase se refiere. Busca la clase en el calendario.');
+      return;
+    }
     try {
       // Obtener detalles de la sesión
       const { data: sesion, error } = await supabase()
@@ -985,7 +1042,15 @@ export class CalendarioComponent implements OnInit {
         .eq('id', sesionId)
         .single();
 
-      if (error || !sesion) return;
+      if (error || !sesion) {
+        console.warn('[Calendario] No se pudo abrir la sesión del aviso', sesionId, error);
+        if (!error || error.code === 'PGRST116') {
+          this.avisar('Clase no encontrada', 'No encontramos la clase de este aviso. Puede que se haya eliminado del calendario.');
+        } else {
+          this.avisar('No se ha podido abrir la clase', 'Comprueba tu conexión y vuelve a abrir el aviso.');
+        }
+        return;
+      }
 
       const fechaSesion = sesion.fecha;
       const fechaDate = new Date(fechaSesion);
@@ -1012,19 +1077,39 @@ export class CalendarioComponent implements OnInit {
       }
     } catch (err) {
       console.warn('Error al intentar abrir sesión directa:', err);
+      this.avisar('No se ha podido abrir la clase', 'Comprueba tu conexión y vuelve a abrir el aviso.');
     }
   }
 
-  async abrirModalReclamarPlaza(sesion: { id: number; fecha: string; hora: string; modalidad: string }) {
+  async abrirModalReclamarPlaza(sesion: { id: number; fecha: string; hora: string; modalidad: string }, reintento = false) {
     const uid = this.userId();
-    if (!uid) return;
+    if (!uid) {
+      // authGuard garantiza usuario; solo falta si la sesión se cerró a mitad (AuthService ya lleva a /login)
+      console.warn('[Calendario] Reclamar plaza sin usuario');
+      return;
+    }
 
-    // Verificar si el usuario ya tiene una reserva activa en esta sesión
-    const reservaExistente = await this.obtenerReservaActivaUsuario(sesion.id, uid);
+    // ¿Ya tiene plaza en esta clase? ¿Sigue libre? (en paralelo; si la segunda consulta
+    // falla, se abre el modal como hasta ahora y decide el RPC)
+    const [reservaExistente, noDisponible] = await Promise.all([
+      this.obtenerReservaActivaUsuario(sesion.id, uid),
+      this.motivoPlazaNoDisponible(sesion),
+    ]);
+
+    // Desde "Reintentar": si la alumna cerró el modal mientras tanto (o ya es el de otra
+    // clase), no se reabre ni se toca.
+    if (reintento && (!this.mostrarModalReclamarPlaza() || this.sesionReclamar()?.id !== sesion.id)) return;
 
     if (reservaExistente) {
+      this.cerrarModalReclamarPlaza(); // por si se llega desde "Reintentar" con el modal abierto
       this.mensajeExito.set('Ya tienes plaza reservada en esta clase.');
       setTimeout(() => this.mensajeExito.set(null), 4000);
+      return;
+    }
+
+    if (noDisponible) {
+      this.cerrarModalReclamarPlaza(); // ídem: que el diálogo no quede sobre un modal viejo
+      this.avisar(noDisponible.titulo, noDisponible.mensaje);
       return;
     }
 
@@ -1034,6 +1119,13 @@ export class CalendarioComponent implements OnInit {
       hora: sesion.hora.slice(0, 5),
       modalidad: sesion.modalidad
     });
+    // Vaciar lo de una apertura anterior y mostrar "Cargando tus opciones…" hasta tener
+    // los datos (antes se veía un instante "No tienes reservas para cambiar…").
+    this.misReservasParaCambio.set([]);
+    this.recuperacionesDisponibles.set([]);
+    this.avisoReclamar.set(null);
+    this.errorCargaReclamar.set(false);
+    this.cargandoReclamar.set(true);
     this.mostrarModalReclamarPlaza.set(true);
     this.opcionReclamarSeleccionada.set(null);
     this.reservaSeleccionadaParaCambio.set(null);
@@ -1042,12 +1134,18 @@ export class CalendarioComponent implements OnInit {
     try {
       // Cargar reservas futuras del usuario para posible cambio
       const hoy = new Date().toISOString().split('T')[0];
-      const { data: reservas } = await supabase()
+      const { data: reservas, error: reservasError } = await supabase()
         .from('reservas')
         .select('id, sesion_id, sesiones(fecha, hora, modalidad)')
         .eq('usuario_id', uid)
         .eq('estado', 'activa')
         .gte('sesiones.fecha', hoy);
+
+      if (reservasError) {
+        // Se siguen cargando las recuperaciones: podrá usar esa opción y reintentar.
+        console.warn('Error cargando reservas para reclamar plaza:', reservasError);
+        this.errorCargaReclamar.set(true);
+      }
 
       const reservasMapeadas = (reservas || [])
         .filter((r: any) => r.sesiones)
@@ -1083,6 +1181,7 @@ export class CalendarioComponent implements OnInit {
 
       if (recuperacionesError) {
         console.warn('Error cargando recuperaciones para reclamar plaza:', recuperacionesError);
+        this.errorCargaReclamar.set(true);
       }
 
       // Filtrar recuperaciones válidas para el MES DE LA SESIÓN TARGET
@@ -1104,7 +1203,63 @@ export class CalendarioComponent implements OnInit {
 
     } catch (err) {
       console.error('Error cargando datos para reclamar plaza:', err);
+      this.errorCargaReclamar.set(true);
+    } finally {
+      this.cargandoReclamar.set(false);
     }
+  }
+
+  // Botón "Reintentar" del aviso de error de carga del modal
+  reintentarCargaReclamar() {
+    const sesion = this.sesionReclamar();
+    // Sin usuario abrirModalReclamarPlaza sale sin cargar; si ya está cargando, no se solapan cargas
+    if (!sesion || !this.userId() || this.cargandoReclamar()) return;
+    // Respuesta inmediata: "Cargando tus opciones…" en lugar del aviso mientras se vuelve a comprobar
+    this.errorCargaReclamar.set(false);
+    this.cargandoReclamar.set(true);
+    void this.abrirModalReclamarPlaza(sesion, true);
+  }
+
+  // Elegir una clase en el mini-calendario del modal (borra el aviso anterior)
+  seleccionarReservaReclamar(reservaId: number) {
+    this.reservaSeleccionadaParaCambio.set(reservaId);
+    this.avisoReclamar.set(null);
+  }
+
+  // Error del modal "¡Plaza Disponible!": dentro del modal si sigue abierto; si la alumna
+  // lo cerró (X o fuera) mientras se reclamaba, en el aviso rojo de siempre.
+  private mostrarErrorReclamar(mensaje: string): void {
+    if (this.mostrarModalReclamarPlaza()) this.avisoReclamar.set(mensaje);
+    else this.error.set(mensaje);
+  }
+
+  /** Mismo criterio que los RPC, solo para avisar antes; si la consulta falla decide el RPC, como hoy. */
+  private async motivoPlazaNoDisponible(sesion: { id: number; fecha: string; hora: string }): Promise<{ titulo: string; mensaje: string } | null> {
+    if (!this.esSesionFutura(sesion.fecha, sesion.hora)) {
+      return { titulo: 'Clase ya empezada', mensaje: 'Esta clase ya ha empezado o ya ha pasado, así que no se puede reclamar la plaza.' };
+    }
+    try {
+      const { data, error } = await supabase()
+        .from('vista_sesiones_disponibilidad')
+        .select('plazas_disponibles, cancelada')
+        .eq('sesion_id', sesion.id)
+        .maybeSingle();
+      if (error || !data) return null;
+      if (data.cancelada) {
+        return { titulo: 'Clase cancelada', mensaje: 'Esta clase se ha cancelado, así que no se puede reclamar la plaza.' };
+      }
+      if (typeof data.plazas_disponibles === 'number' && data.plazas_disponibles <= 0) {
+        return { titulo: 'Plaza ya ocupada', mensaje: 'Esta plaza ya está ocupada: la clase está completa en este momento.' };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Aviso de un solo botón (diálogo global, por encima del modal; patrón de cancelarReservaDesdeModal)
+  private avisar(titulo: string, mensaje: string): void {
+    void this.confirmation.confirm({ titulo, mensaje, tipo: 'warning', textoConfirmar: 'Entendido', textoCancelar: '' });
   }
 
   cerrarModalReclamarPlaza() {
@@ -1115,13 +1270,27 @@ export class CalendarioComponent implements OnInit {
     this.opcionReclamarSeleccionada.set(null);
     this.reservaSeleccionadaParaCambio.set(null);
     this.recuperacionSeleccionada.set(null);
+    this.avisoReclamar.set(null);
+    this.errorCargaReclamar.set(false);
+    this.cargandoReclamar.set(false);
   }
 
   seleccionarOpcionReclamar(opcion: 'cambiar' | 'recuperacion') {
     this.opcionReclamarSeleccionada.set(opcion);
+    this.avisoReclamar.set(null);
 
     if (opcion === 'cambiar') {
       this.recuperacionSeleccionada.set(null);
+      // En móviles bajos la nota y el pie empujan las últimas semanas fuera de la vista:
+      // llevar a la vista la primera clase que se puede tocar (o el día de la plaza).
+      // 'center' y no 'nearest': la vista entra con fadeIn (translateY -8px) y con
+      // 'nearest' la celda quedaba recortada unos píxeles al acabar la animación.
+      afterNextRender(() => {
+        const modal = document.querySelector('.modal-reclamar-plaza');
+        const destino = modal?.querySelector('.mini-calendario-grid .dia-reserva')
+          ?? modal?.querySelector('.mini-calendario-grid .dia-target');
+        destino?.scrollIntoView({ block: 'center' });
+      }, { injector: this.injector });
       return;
     }
 
@@ -1136,14 +1305,20 @@ export class CalendarioComponent implements OnInit {
     const sesion = this.sesionReclamar();
     const opcion = this.opcionReclamarSeleccionada();
     const uid = this.userId();
+    // La selección se lee antes del primer await: la X y el fondo siguen cerrando el modal
+    // durante "Reclamando…" y cerrarModalReclamarPlaza la vacía.
+    const reservaId = this.reservaSeleccionadaParaCambio();
+    const reservaParaCambio = this.misReservasParaCambio().find(r => r.id === reservaId);
+    const recuperacionId = this.recuperacionSeleccionada();
 
     if (!sesion || !opcion || !uid) {
-      this.error.set('Selecciona una opción');
+      this.mostrarErrorReclamar('Primero elige arriba cómo quieres reclamar la plaza.');
       return;
     }
 
     this.reclamandoPlaza.set(true);
     this.error.set(null);
+    this.avisoReclamar.set(null);
 
     try {
       let plazaReclamada = false;
@@ -1157,14 +1332,12 @@ export class CalendarioComponent implements OnInit {
         await this.cargarCalendario();
       } else if (opcion === 'cambiar') {
 
-        const reservaId = this.reservaSeleccionadaParaCambio();
         if (!reservaId) {
-          this.error.set('Selecciona una reserva para cambiar');
+          this.mostrarErrorReclamar('Toca en el calendario la clase que quieres cambiar por esta.');
           return;
         }
 
         // VALIDACIÓN LOCAL: Verificar si falta menos de 1 hora
-        const reservaParaCambio = this.misReservasParaCambio().find(r => r.id === reservaId);
         if (reservaParaCambio) {
           const fechaHoraReserva = new Date(`${reservaParaCambio.fecha}T${reservaParaCambio.hora}:00`);
           const ahora = new Date();
@@ -1172,7 +1345,7 @@ export class CalendarioComponent implements OnInit {
           const unaHoraMs = 60 * 60 * 1000;
 
           if (diferenciaMs < unaHoraMs) {
-            this.error.set('No se puede cambiar una clase que empieza en menos de 1 hora.');
+            this.mostrarErrorReclamar('No puedes cambiar una clase que ya ha empezado o que empieza en menos de 1 hora.');
             return;
           }
         }
@@ -1187,10 +1360,19 @@ export class CalendarioComponent implements OnInit {
         if (error) throw error;
         if (data && data[0]?.ok) {
           plazaReclamada = true;
-          this.mensajeExito.set('¡Plaza reclamada! Tu reserva ha sido cambiada.');
-          setTimeout(() => this.mensajeExito.set(null), 4000);
+          const sesionAnteriorId = data[0].sesion_anterior_id || reservaParaCambio?.sesion_id;
+          // Auditoría (mismo tipo que el flujo normal, confirmarCambioTurno), marcada como reclamo desde aviso
+          this.audit.registrarCambio(
+            'cliente_cambio_turno',
+            uid,
+            this.auth.usuario()?.nombre || 'Cliente',
+            `Plaza reclamada desde aviso (cambio de turno): de ${reservaParaCambio?.hora ?? ''} ${reservaParaCambio?.modalidad ?? ''} (${reservaParaCambio ? reservaParaCambio.fecha.split('-').reverse().join('/') : ''}) a ${sesion.hora} ${sesion.modalidad} (${sesion.fecha.split('-').reverse().join('/')})`,
+            { origen: 'reclamar_plaza', reserva_id: reservaId, sesion_anterior_id: sesionAnteriorId ?? null, sesion_nueva_id: sesion.id, fecha_nueva: sesion.fecha, hora: sesion.hora, modalidad: sesion.modalidad }
+          );
           this.cerrarModalReclamarPlaza();
           await this.cargarCalendario();
+          this.mensajeExito.set('¡Plaza reclamada! Tu reserva ha sido cambiada.');
+          setTimeout(() => this.mensajeExito.set(null), 4000);
 
           // NOTIFICAR LISTA DE ESPERA si se liberó un hueco en la sesión anterior
           let usersToNotify = data[0].usuarios_notificados;
@@ -1204,10 +1386,10 @@ export class CalendarioComponent implements OnInit {
                   {
                     usuario_id: uid,
                     data: {
-                      modalidad: data[0].modalidad_anterior || '',
-                      fecha: data[0].fecha_anterior ? data[0].fecha_anterior.split('-').reverse().join('/') : '',
-                      hora: data[0].hora_anterior || '',
-                      url: `/calendario?sesion=${data[0].sesion_anterior_id}`
+                      modalidad: data[0].modalidad_anterior || reservaParaCambio?.modalidad || '',
+                      fecha: (data[0].fecha_anterior || reservaParaCambio?.fecha || '').split('-').reverse().join('/'),
+                      hora: data[0].hora_anterior || reservaParaCambio?.hora || '',
+                      url: sesionAnteriorId ? `/calendario?sesion=${sesionAnteriorId}` : '/calendario'
                     }
                   },
                   `hueco_disponible reclamar plaza ${uid}`,
@@ -1218,12 +1400,11 @@ export class CalendarioComponent implements OnInit {
             }
           }
         } else {
-          this.error.set(data?.[0]?.mensaje || 'Error al cambiar la reserva');
+          this.mostrarErrorReclamar(data?.[0]?.mensaje || 'Error al cambiar la reserva');
         }
       } else if (opcion === 'recuperacion') {
-        const recuperacionId = this.recuperacionSeleccionada();
         if (!recuperacionId) {
-          this.error.set('Selecciona una recuperación');
+          this.mostrarErrorReclamar('Elige qué recuperación quieres usar.');
           return;
         }
 
@@ -1237,12 +1418,19 @@ export class CalendarioComponent implements OnInit {
         if (error) throw error;
         if (data && data[0]?.ok) {
           plazaReclamada = true;
-          this.mensajeExito.set('¡Plaza reclamada con recuperación!');
-          setTimeout(() => this.mensajeExito.set(null), 4000);
+          this.audit.registrarCambio(
+            'cliente_usa_recuperacion',
+            uid,
+            this.auth.usuario()?.nombre || 'Cliente',
+            `Plaza reclamada desde aviso con recuperación: ${sesion.hora} ${sesion.modalidad} (${sesion.fecha.split('-').reverse().join('/')})`,
+            { origen: 'reclamar_plaza', sesion_id: sesion.id, hora: sesion.hora, modalidad: sesion.modalidad, fecha: sesion.fecha }
+          );
           this.cerrarModalReclamarPlaza();
           await this.cargarCalendario();
+          this.mensajeExito.set('¡Plaza reclamada con recuperación!');
+          setTimeout(() => this.mensajeExito.set(null), 4000);
         } else {
-          this.error.set(data?.[0]?.mensaje || 'Error al usar la recuperación');
+          this.mostrarErrorReclamar(data?.[0]?.mensaje || 'Error al usar la recuperación');
         }
       }
 
@@ -1253,7 +1441,10 @@ export class CalendarioComponent implements OnInit {
 
     } catch (err: any) {
       console.error('Error:', err);
-      this.error.set(err.message || 'Error al reclamar la plaza');
+      const deRed = navigator.onLine === false || /failed to fetch|networkerror|load failed/i.test(String(err?.message ?? ''));
+      this.mostrarErrorReclamar(deRed
+        ? 'No se ha podido conectar. Comprueba tu conexión y vuelve a intentarlo.'
+        : (err?.message || 'Error al reclamar la plaza'));
     } finally {
       this.reclamandoPlaza.set(false);
     }
